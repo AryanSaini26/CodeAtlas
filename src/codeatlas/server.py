@@ -7,10 +7,12 @@ from mcp.server.fastmcp import FastMCP
 
 from codeatlas.graph.export import ExportOptions, export_dot, export_json
 from codeatlas.graph.store import GraphStore
+from codeatlas.search.embeddings import SemanticIndex
 
 mcp = FastMCP("codeatlas")
 
 _store: GraphStore | None = None
+_semantic: SemanticIndex | None = None
 
 
 def get_store() -> GraphStore:
@@ -29,6 +31,19 @@ def set_store(store: GraphStore) -> None:
     """Inject a store instance (used by CLI and tests)."""
     global _store
     _store = store
+
+
+def get_semantic_index() -> SemanticIndex:
+    global _semantic
+    if _semantic is None:
+        _semantic = SemanticIndex()
+        store = get_store()
+        db_path = Path(".codeatlas")
+        if not _semantic.load(db_path):
+            _semantic.build_from_store(store)
+            db_path.mkdir(parents=True, exist_ok=True)
+            _semantic.save(db_path)
+    return _semantic
 
 
 @mcp.tool()
@@ -186,3 +201,31 @@ def export_graph(format: str = "json", file_filter: str | None = None) -> str:
     if format == "dot":
         return export_dot(store, opts)
     return export_json(store, opts)
+
+
+@mcp.tool()
+def find_similar_code(query: str, limit: int = 10) -> str:
+    """Natural language search across the codebase using semantic similarity.
+
+    Examples: "find all places where we handle authentication errors",
+    "show me the database connection setup"
+    """
+    store = get_store()
+    sem = get_semantic_index()
+    results = sem.search(query, store, limit=limit)
+    return json.dumps({
+        "query": query,
+        "count": len(results),
+        "results": [
+            {
+                "name": sym.qualified_name,
+                "kind": sym.kind.value,
+                "file": sym.file_path,
+                "line": sym.span.start.line + 1,
+                "signature": sym.signature,
+                "docstring": sym.docstring,
+                "score": round(score, 4),
+            }
+            for sym, score in results
+        ],
+    }, indent=2)

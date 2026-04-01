@@ -74,9 +74,12 @@ class RepoIndexer:
             result.append(path)
         return sorted(result)
 
-    def _index_files(self, files: list[Path], label: str) -> dict[str, int]:
+    def _index_files(
+        self, files: list[Path], label: str, batch_size: int = 50
+    ) -> dict[str, int]:
         stats: dict[str, int] = {"parsed": 0, "skipped": 0, "errors": 0}
         start = time.monotonic()
+        batch: list[ParseResult] = []
 
         with Progress(
             SpinnerColumn(),
@@ -89,14 +92,20 @@ class RepoIndexer:
                 try:
                     result = self._registry.parse_file(path)
                     if result is not None:
-                        self._store.upsert_parse_result(result)
+                        batch.append(result)
                         stats["parsed"] += 1
+                        if len(batch) >= batch_size:
+                            self._store.upsert_batch(batch)
+                            batch.clear()
                     else:
                         stats["skipped"] += 1
                 except Exception as exc:
                     console.print(f"[red]Error parsing {path}: {exc}[/red]")
                     stats["errors"] += 1
                 progress.advance(task)
+
+            if batch:
+                self._store.upsert_batch(batch)
 
         elapsed = time.monotonic() - start
         console.print(

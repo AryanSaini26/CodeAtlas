@@ -113,24 +113,33 @@ class GraphStore:
     def upsert_parse_result(self, result: ParseResult) -> None:
         """Insert or replace all data from a ParseResult (file, symbols, relationships)."""
         with self._transaction() as conn:
-            fi = result.file_info
-            # Delete existing data for this file (cascade deletes symbols+rels)
-            conn.execute("DELETE FROM files WHERE path = ?", (fi.path,))
+            self._upsert_single(conn, result)
 
-            conn.execute(
-                """INSERT INTO files(path, language, content_hash, symbol_count,
-                   relationship_count, size_bytes) VALUES (?,?,?,?,?,?)""",
-                (fi.path, fi.language, fi.content_hash,
-                 fi.symbol_count, fi.relationship_count, fi.size_bytes),
-            )
+    def upsert_batch(self, results: list[ParseResult]) -> None:
+        """Batch insert multiple ParseResults in a single transaction."""
+        with self._transaction() as conn:
+            for result in results:
+                self._upsert_single(conn, result)
 
-            for sym in result.symbols:
-                conn.execute(
-                    """INSERT OR REPLACE INTO symbols
-                       (id, name, qualified_name, kind, file_path,
-                        start_line, start_col, end_line, end_col,
-                        docstring, signature, decorators, language)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+    def _upsert_single(self, conn: sqlite3.Connection, result: ParseResult) -> None:
+        fi = result.file_info
+        conn.execute("DELETE FROM files WHERE path = ?", (fi.path,))
+
+        conn.execute(
+            """INSERT INTO files(path, language, content_hash, symbol_count,
+               relationship_count, size_bytes) VALUES (?,?,?,?,?,?)""",
+            (fi.path, fi.language, fi.content_hash,
+             fi.symbol_count, fi.relationship_count, fi.size_bytes),
+        )
+
+        if result.symbols:
+            conn.executemany(
+                """INSERT OR REPLACE INTO symbols
+                   (id, name, qualified_name, kind, file_path,
+                    start_line, start_col, end_line, end_col,
+                    docstring, signature, decorators, language)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                [
                     (
                         sym.id, sym.name, sym.qualified_name, sym.kind.value,
                         sym.file_path,
@@ -139,23 +148,28 @@ class GraphStore:
                         sym.docstring, sym.signature,
                         ",".join(sym.decorators) if sym.decorators else None,
                         sym.language,
-                    ),
-                )
+                    )
+                    for sym in result.symbols
+                ],
+            )
 
-            for rel in result.relationships:
-                conn.execute(
-                    """INSERT INTO relationships
-                       (source_id, target_id, kind, file_path,
-                        start_line, start_col, end_line, end_col)
-                       VALUES (?,?,?,?,?,?,?,?)""",
+        if result.relationships:
+            conn.executemany(
+                """INSERT INTO relationships
+                   (source_id, target_id, kind, file_path,
+                    start_line, start_col, end_line, end_col)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                [
                     (
                         rel.source_id, rel.target_id, rel.kind.value, rel.file_path,
                         rel.span.start.line if rel.span else None,
                         rel.span.start.column if rel.span else None,
                         rel.span.end.line if rel.span else None,
                         rel.span.end.column if rel.span else None,
-                    ),
-                )
+                    )
+                    for rel in result.relationships
+                ],
+            )
 
     def delete_file(self, file_path: str) -> None:
         with self._transaction() as conn:

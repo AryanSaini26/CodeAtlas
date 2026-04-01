@@ -66,10 +66,33 @@ def stats(db: str) -> None:
 @click.argument("query")
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--limit", default=20, show_default=True)
-def query(query: str, db: str, limit: int) -> None:
+@click.option("--semantic", is_flag=True, help="Use semantic (vector) search")
+@click.option("--hybrid", is_flag=True, help="Use hybrid (FTS + semantic) search")
+def query(query: str, db: str, limit: int, semantic: bool, hybrid: bool) -> None:
     """Search for symbols by name or docstring."""
     store = _get_store(Path(db))
-    results = store.search(query, limit=limit)
+
+    if semantic or hybrid:
+        from codeatlas.search.embeddings import SemanticIndex
+
+        sem_index = SemanticIndex()
+        data_dir = Path(db).parent
+        if not sem_index.load(data_dir):
+            console.print("[yellow]Building semantic index...[/yellow]")
+            count = sem_index.build_from_store(store)
+            sem_index.save(data_dir)
+            console.print(f"[green]Indexed {count} symbols[/green]")
+
+        if hybrid:
+            from codeatlas.search.hybrid import HybridSearch
+            searcher = HybridSearch(store, sem_index)
+            results = searcher.search(query, limit=limit)
+        else:
+            raw = sem_index.search(query, store, limit=limit)
+            results = [sym for sym, _ in raw]
+    else:
+        results = store.search(query, limit=limit)
+
     store.close()
 
     if not results:
