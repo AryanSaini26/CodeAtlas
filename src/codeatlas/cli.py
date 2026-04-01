@@ -7,8 +7,10 @@ from rich.console import Console
 from rich.table import Table
 
 from codeatlas.config import CodeAtlasConfig, GraphConfig
+from codeatlas.graph.export import ExportOptions, export_dot, export_json
 from codeatlas.graph.store import GraphStore
 from codeatlas.indexer import RepoIndexer
+from codeatlas.sync.watcher import FileWatcher
 
 console = Console()
 
@@ -91,8 +93,54 @@ def query(query: str, db: str, limit: int) -> None:
 
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
-@click.option("--host", default="localhost", show_default=True)
-@click.option("--port", default=8765, show_default=True)
-def serve(db: str, host: str, port: int) -> None:
-    """Start the MCP server (placeholder - Month 4)."""
-    console.print(f"[yellow]MCP server coming in Month 4. DB: {db}[/yellow]")
+@click.option("--format", "fmt", type=click.Choice(["dot", "json"]), default="dot", show_default=True)
+@click.option("--file-filter", default=None, help="Only export symbols from files matching this prefix")
+@click.option("--include-externals", is_flag=True, help="Include unresolved/external references")
+@click.option("-o", "--output", default=None, type=click.Path(), help="Output file (default: stdout)")
+def export(db: str, fmt: str, file_filter: str | None, include_externals: bool, output: str | None) -> None:
+    """Export the knowledge graph to DOT or JSON format."""
+    store = _get_store(Path(db))
+    opts = ExportOptions(include_externals=include_externals, file_filter=file_filter)
+
+    if fmt == "dot":
+        result = export_dot(store, opts)
+    else:
+        result = export_json(store, opts)
+
+    store.close()
+
+    if output:
+        Path(output).write_text(result)
+        console.print(f"[green]Exported to {output}[/green]")
+    else:
+        console.print(result)
+
+
+@cli.command()
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+def watch(repo_path: str, db: str) -> None:
+    """Watch a repository for file changes and update the graph in real-time."""
+    config = CodeAtlasConfig(
+        repo_root=Path(repo_path),
+        graph=GraphConfig(db_path=Path(db)),
+    )
+    store = _get_store(Path(db))
+    watcher = FileWatcher(config, store)
+    try:
+        watcher.start(blocking=True)
+    finally:
+        store.close()
+
+
+@cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--transport", type=click.Choice(["stdio"]), default="stdio", show_default=True)
+def serve(db: str, transport: str) -> None:
+    """Start the MCP server."""
+    from codeatlas.server import mcp, set_store
+
+    store = _get_store(Path(db))
+    set_store(store)
+    console.print(f"[green]Starting CodeAtlas MCP server[/green] (db: {db})")
+    mcp.run(transport=transport)

@@ -1,1 +1,5 @@
-"""File watcher and GitHub webhook sync - to be implemented in Month 4."""
+"""File watcher and GitHub webhook sync."""
+
+from codeatlas.sync.watcher import FileWatcher
+
+__all__ = ["FileWatcher"]

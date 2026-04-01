@@ -1,1 +1,1 @@
-"""MCP tool definitions - to be implemented in Month 4."""
+"""MCP tool definitions for CodeAtlas."""
