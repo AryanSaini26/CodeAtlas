@@ -22,12 +22,19 @@ class RepoIndexer:
         self._store = store
         self._registry = ParserRegistry()
 
-    def index_full(self) -> dict[str, int]:
+    def index_full(self, resolve: bool = True) -> dict[str, int]:
         """Full index: parse all supported files and upsert into the graph."""
         files = self._discover_files()
-        return self._index_files(files, label="Full index")
+        stats = self._index_files(files, label="Full index")
+        if resolve:
+            res = self._store.resolve_imports()
+            console.print(
+                f"[blue]Import resolution:[/blue] "
+                f"{res['resolved']} resolved, {res['unresolved']} unresolved"
+            )
+        return stats
 
-    def index_incremental(self) -> dict[str, int]:
+    def index_incremental(self, resolve: bool = True) -> dict[str, int]:
         """Incremental index: only re-parse files whose content hash has changed."""
         files = self._discover_files()
         changed: list[Path] = []
@@ -39,7 +46,14 @@ class RepoIndexer:
             existing = self._store.get_file_info(str(path))
             if existing is None or existing.content_hash != content_hash:
                 changed.append(path)
-        return self._index_files(changed, label="Incremental index")
+        stats = self._index_files(changed, label="Incremental index")
+        if resolve and changed:
+            res = self._store.resolve_imports()
+            console.print(
+                f"[blue]Import resolution:[/blue] "
+                f"{res['resolved']} resolved, {res['unresolved']} unresolved"
+            )
+        return stats
 
     def _discover_files(self) -> list[Path]:
         root = self._config.repo_root

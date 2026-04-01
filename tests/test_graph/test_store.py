@@ -178,3 +178,88 @@ def test_get_impact_analysis(graph_store: GraphStore) -> None:
     sources = {row["source_id"] for row in impact}
     assert "test.py::y" in sources
     assert "test.py::z" in sources
+
+
+# --- Import resolution ---
+
+
+def test_resolve_imports_resolves_unresolved(graph_store: GraphStore) -> None:
+    sym_a = _make_symbol("helper", file_path="a.py")
+    sym_b = _make_symbol("caller", file_path="b.py", line=10)
+    rel = _make_relationship(
+        "b.py::caller", "<unresolved>::helper", RelationshipKind.CALLS, "b.py"
+    )
+    graph_store.upsert_parse_result(_make_result("a.py", [sym_a]))
+    graph_store.upsert_parse_result(_make_result("b.py", [sym_b], [rel]))
+
+    stats = graph_store.resolve_imports()
+    assert stats["resolved"] == 1
+    assert stats["unresolved"] == 0
+
+    # The relationship target should now point to the actual symbol
+    deps = graph_store.get_dependencies("b.py::caller")
+    assert any(d.target_id == "a.py::helper" for d in deps)
+
+
+def test_resolve_imports_handles_external_prefix(graph_store: GraphStore) -> None:
+    sym = _make_symbol("Widget", file_path="lib.py")
+    rel = _make_relationship(
+        "app.py::main", "<external>::lib.Widget", RelationshipKind.IMPORTS, "app.py"
+    )
+    sym_main = _make_symbol("main", file_path="app.py", line=10)
+    graph_store.upsert_parse_result(_make_result("lib.py", [sym]))
+    graph_store.upsert_parse_result(_make_result("app.py", [sym_main], [rel]))
+
+    stats = graph_store.resolve_imports()
+    assert stats["resolved"] == 1
+
+
+def test_resolve_imports_leaves_truly_external(graph_store: GraphStore) -> None:
+    sym = _make_symbol("my_func", file_path="app.py")
+    rel = _make_relationship(
+        "app.py::my_func", "<external>::numpy.array", RelationshipKind.IMPORTS, "app.py"
+    )
+    graph_store.upsert_parse_result(_make_result("app.py", [sym], [rel]))
+
+    stats = graph_store.resolve_imports()
+    assert stats["unresolved"] == 1
+
+
+# --- Module-level queries ---
+
+
+def test_get_module_overview(graph_store: GraphStore) -> None:
+    sym1 = _make_symbol("foo", file_path="src/models.py")
+    sym2 = _make_symbol("bar", file_path="src/models.py", line=10)
+    sym3 = _make_symbol("baz", file_path="src/views.py")
+    graph_store.upsert_parse_result(_make_result("src/models.py", [sym1, sym2]))
+    graph_store.upsert_parse_result(_make_result("src/views.py", [sym3]))
+
+    overview = graph_store.get_module_overview("src/")
+    assert overview["file_count"] == 2
+    assert overview["symbol_count"] == 3
+
+
+def test_get_file_dependencies(graph_store: GraphStore) -> None:
+    sym_a = _make_symbol("helper", file_path="a.py")
+    sym_b = _make_symbol("caller", file_path="b.py", line=10)
+    rel = _make_relationship("b.py::caller", "a.py::helper", RelationshipKind.CALLS, "b.py")
+    graph_store.upsert_parse_result(_make_result("a.py", [sym_a]))
+    graph_store.upsert_parse_result(_make_result("b.py", [sym_b], [rel]))
+
+    deps = graph_store.get_file_dependencies("b.py")
+    assert "a.py" in deps["depends_on"]
+
+    deps_a = graph_store.get_file_dependencies("a.py")
+    assert "b.py" in deps_a["depended_by"]
+
+
+def test_get_affected_files(graph_store: GraphStore) -> None:
+    sym_a = _make_symbol("helper", file_path="a.py")
+    sym_b = _make_symbol("caller", file_path="b.py", line=10)
+    rel = _make_relationship("b.py::caller", "a.py::helper", RelationshipKind.CALLS, "b.py")
+    graph_store.upsert_parse_result(_make_result("a.py", [sym_a]))
+    graph_store.upsert_parse_result(_make_result("b.py", [sym_b], [rel]))
+
+    affected = graph_store.get_affected_files("a.py")
+    assert "b.py" in affected

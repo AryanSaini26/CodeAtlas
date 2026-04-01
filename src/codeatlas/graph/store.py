@@ -279,6 +279,127 @@ class GraphStore:
             size_bytes=row["size_bytes"],
         )
 
+    def resolve_imports(self) -> dict[str, int]:
+        """Resolve <external>:: and <unresolved>:: targets to actual symbol IDs in the graph.
+
+        After indexing all files, run this to link cross-file references.
+        Returns counts of resolved vs unresolved references.
+        """
+        stats = {"resolved": 0, "unresolved": 0}
+        conn = self._conn
+
+        # Build a lookup of symbol name -> id for resolution
+        symbol_lookup: dict[str, str] = {}
+        rows = conn.execute("SELECT id, name, qualified_name FROM symbols").fetchall()
+        for row in rows:
+            symbol_lookup[row["name"]] = row["id"]
+            symbol_lookup[row["qualified_name"]] = row["id"]
+
+        # Find all unresolved targets
+        unresolved_rows = conn.execute(
+            "SELECT id, target_id FROM relationships WHERE target_id LIKE '<external>::%' OR target_id LIKE '<unresolved>::%'"
+        ).fetchall()
+
+        for row in unresolved_rows:
+            raw_target = row["target_id"]
+            # Strip the prefix
+            if raw_target.startswith("<external>::"):
+                ref_name = raw_target[len("<external>::"):]
+            else:
+                ref_name = raw_target[len("<unresolved>::"):]
+
+            # Try exact match, then last segment
+            resolved_id = symbol_lookup.get(ref_name)
+            if resolved_id is None:
+                # Try the last segment (e.g., "os.path.join" -> "join")
+                last_segment = ref_name.rsplit(".", 1)[-1]
+                resolved_id = symbol_lookup.get(last_segment)
+
+            if resolved_id is not None:
+                conn.execute(
+                    "UPDATE relationships SET target_id = ? WHERE id = ?",
+                    (resolved_id, row["id"]),
+                )
+                stats["resolved"] += 1
+            else:
+                stats["unresolved"] += 1
+
+        conn.commit()
+        return stats
+
+    def get_module_overview(self, directory: str) -> dict[str, object]:
+        """Summarize all symbols in files under a directory path."""
+        conn = self._conn
+        rows = conn.execute(
+            "SELECT * FROM symbols WHERE file_path LIKE ? ORDER BY file_path, start_line",
+            (f"{directory}%",),
+        ).fetchall()
+
+        files: dict[str, list[dict[str, str]]] = {}
+        for row in rows:
+            fp = row["file_path"]
+            if fp not in files:
+                files[fp] = []
+            files[fp].append({
+                "name": row["qualified_name"],
+                "kind": row["kind"],
+            })
+
+        return {
+            "directory": directory,
+            "file_count": len(files),
+            "symbol_count": len(rows),
+            "files": files,
+        }
+
+    def get_file_dependencies(self, file_path: str) -> dict[str, list[str]]:
+        """Return what files this file depends on and what files depend on it."""
+        conn = self._conn
+
+        # Outgoing: relationships where source is in this file, target is in another file
+        outgoing = conn.execute(
+            """
+            SELECT DISTINCT s2.file_path
+            FROM relationships r
+            JOIN symbols s1 ON r.source_id = s1.id
+            JOIN symbols s2 ON r.target_id = s2.id
+            WHERE s1.file_path = ? AND s2.file_path != ?
+            """,
+            (file_path, file_path),
+        ).fetchall()
+
+        # Incoming: relationships where target is in this file, source is in another file
+        incoming = conn.execute(
+            """
+            SELECT DISTINCT s1.file_path
+            FROM relationships r
+            JOIN symbols s1 ON r.source_id = s1.id
+            JOIN symbols s2 ON r.target_id = s2.id
+            WHERE s2.file_path = ? AND s1.file_path != ?
+            """,
+            (file_path, file_path),
+        ).fetchall()
+
+        return {
+            "depends_on": sorted(row["file_path"] for row in outgoing),
+            "depended_by": sorted(row["file_path"] for row in incoming),
+        }
+
+    def get_affected_files(self, file_path: str) -> list[str]:
+        """If this file changes, what other files might be affected?"""
+        conn = self._conn
+        rows = conn.execute(
+            """
+            SELECT DISTINCT s1.file_path
+            FROM relationships r
+            JOIN symbols s2 ON r.target_id = s2.id
+            JOIN symbols s1 ON r.source_id = s1.id
+            WHERE s2.file_path = ? AND s1.file_path != ?
+            """,
+            (file_path, file_path),
+        ).fetchall()
+        return sorted(row["file_path"] for row in rows)
+
     def close(self) -> None:
         self._conn.close()
 
