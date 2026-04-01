@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codeatlas"
+version = "0.1.0"
+description = "An MCP server that constructs real-time code knowledge graphs for AI coding agents"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "Aryan Saini" }]
+dependencies = [
+    "tree-sitter>=0.23.0",
+    "tree-sitter-python>=0.23.0",
+    "tree-sitter-typescript>=0.23.0",
+    "tree-sitter-go>=0.23.0",
+    "pydantic>=2.0.0",
+    "click>=8.0.0",
+    "rich>=13.0.0",
+    "mcp>=1.0.0",
+    "faiss-cpu>=1.7.0",
+    "watchdog>=4.0.0",
+]
+
+[project.scripts]
+codeatlas = "codeatlas.cli:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codeatlas"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
