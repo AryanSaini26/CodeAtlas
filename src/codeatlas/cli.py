@@ -157,6 +157,27 @@ def watch(repo_path: str, db: str) -> None:
 
 
 @cli.command()
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--port", default=9000, show_default=True, help="Port to listen on")
+@click.option("--secret", default=None, help="GitHub webhook secret for signature verification")
+def webhook(repo_path: str, db: str, port: int, secret: str | None) -> None:
+    """Start a webhook server to receive GitHub push events."""
+    import uvicorn
+
+    from codeatlas.sync.webhook import WebhookHandler
+
+    store = _get_store(Path(db))
+    handler = WebhookHandler(store, Path(repo_path), secret=secret)
+    app = handler.create_app()
+    console.print(
+        f"[green]Webhook server listening on port {port}[/green] "
+        f"(POST /webhook, GET /health)"
+    )
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+
+
+@cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--transport", type=click.Choice(["stdio"]), default="stdio", show_default=True)
 def serve(db: str, transport: str) -> None:
