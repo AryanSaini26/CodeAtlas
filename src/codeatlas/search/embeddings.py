@@ -37,6 +37,7 @@ class SemanticIndex:
     def _get_model(self) -> object:
         if self._model is None:
             from sentence_transformers import SentenceTransformer
+
             self._model = SentenceTransformer(self._model_name)
         return self._model
 
@@ -71,9 +72,7 @@ class SemanticIndex:
 
         return len(self._symbol_ids)
 
-    def search(
-        self, query: str, store: GraphStore, limit: int = 20
-    ) -> list[tuple[Symbol, float]]:
+    def search(self, query: str, store: GraphStore, limit: int = 20) -> list[tuple[Symbol, float]]:
         """Search for symbols similar to the query text.
 
         Returns list of (symbol, similarity_score) tuples.

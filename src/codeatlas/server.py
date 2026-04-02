@@ -20,9 +20,7 @@ def get_store() -> GraphStore:
     if _store is None:
         db_path = Path(".codeatlas/graph.db")
         if not db_path.exists():
-            raise RuntimeError(
-                "No graph database found. Run 'codeatlas index' first."
-            )
+            raise RuntimeError("No graph database found. Run 'codeatlas index' first.")
         _store = GraphStore(db_path)
     return _store
 
@@ -86,16 +84,14 @@ def get_dependencies(symbol_name: str) -> str:
     for sym in matches:
         outgoing = store.get_dependencies(sym.id)
         incoming = store.get_dependents(sym.id)
-        results.append({
-            "symbol": sym.qualified_name,
-            "file": sym.file_path,
-            "depends_on": [
-                {"target": r.target_id, "kind": r.kind.value} for r in outgoing
-            ],
-            "depended_by": [
-                {"source": r.source_id, "kind": r.kind.value} for r in incoming
-            ],
-        })
+        results.append(
+            {
+                "symbol": sym.qualified_name,
+                "file": sym.file_path,
+                "depends_on": [{"target": r.target_id, "kind": r.kind.value} for r in outgoing],
+                "depended_by": [{"source": r.source_id, "kind": r.kind.value} for r in incoming],
+            }
+        )
     return json.dumps(results, indent=2)
 
 
@@ -112,11 +108,14 @@ def trace_call_chain(symbol_name: str, max_depth: int = 5) -> str:
 
     sym = matches[0]
     chain = store.trace_call_chain(sym.id, max_depth=max_depth)
-    return json.dumps({
-        "symbol": sym.qualified_name,
-        "file": sym.file_path,
-        "call_chain": chain,
-    }, indent=2)
+    return json.dumps(
+        {
+            "symbol": sym.qualified_name,
+            "file": sym.file_path,
+            "call_chain": chain,
+        },
+        indent=2,
+    )
 
 
 @mcp.tool()
@@ -132,11 +131,14 @@ def get_impact_analysis(symbol_name: str, max_depth: int = 5) -> str:
 
     sym = matches[0]
     impact = store.get_impact_analysis(sym.id, max_depth=max_depth)
-    return json.dumps({
-        "symbol": sym.qualified_name,
-        "file": sym.file_path,
-        "affected": impact,
-    }, indent=2)
+    return json.dumps(
+        {
+            "symbol": sym.qualified_name,
+            "file": sym.file_path,
+            "affected": impact,
+        },
+        indent=2,
+    )
 
 
 @mcp.tool()
@@ -144,21 +146,24 @@ def search_symbols(query: str, limit: int = 20) -> str:
     """Search for symbols by name, docstring, or signature using full-text search."""
     store = get_store()
     results = store.search(query, limit=limit)
-    return json.dumps({
-        "query": query,
-        "count": len(results),
-        "results": [
-            {
-                "name": s.qualified_name,
-                "kind": s.kind.value,
-                "file": s.file_path,
-                "line": s.span.start.line + 1,
-                "signature": s.signature,
-                "docstring": s.docstring,
-            }
-            for s in results
-        ],
-    }, indent=2)
+    return json.dumps(
+        {
+            "query": query,
+            "count": len(results),
+            "results": [
+                {
+                    "name": s.qualified_name,
+                    "kind": s.kind.value,
+                    "file": s.file_path,
+                    "line": s.span.start.line + 1,
+                    "signature": s.signature,
+                    "docstring": s.docstring,
+                }
+                for s in results
+            ],
+        },
+        indent=2,
+    )
 
 
 @mcp.tool()
@@ -213,19 +218,22 @@ def find_similar_code(query: str, limit: int = 10) -> str:
     store = get_store()
     sem = get_semantic_index()
     results = sem.search(query, store, limit=limit)
-    return json.dumps({
-        "query": query,
-        "count": len(results),
-        "results": [
-            {
-                "name": sym.qualified_name,
-                "kind": sym.kind.value,
-                "file": sym.file_path,
-                "line": sym.span.start.line + 1,
-                "signature": sym.signature,
-                "docstring": sym.docstring,
-                "score": round(score, 4),
-            }
-            for sym, score in results
-        ],
-    }, indent=2)
+    return json.dumps(
+        {
+            "query": query,
+            "count": len(results),
+            "results": [
+                {
+                    "name": sym.qualified_name,
+                    "kind": sym.kind.value,
+                    "file": sym.file_path,
+                    "line": sym.span.start.line + 1,
+                    "signature": sym.signature,
+                    "docstring": sym.docstring,
+                    "score": round(score, 4),
+                }
+                for sym, score in results
+            ],
+        },
+        indent=2,
+    )

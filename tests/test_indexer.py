@@ -17,13 +17,13 @@ def sample_repo(tmp_path: Path) -> Path:
         'def greet(name: str) -> str:\n    return f"Hello, {name}"\n'
     )
     (tmp_path / "utils.py").write_text(
-        'MAX_SIZE = 100\n\ndef clamp(val: int, lo: int, hi: int) -> int:\n'
+        "MAX_SIZE = 100\n\ndef clamp(val: int, lo: int, hi: int) -> int:\n"
         '    """Clamp a value."""\n    return max(lo, min(val, hi))\n'
     )
     sub = tmp_path / "pkg"
     sub.mkdir()
     (sub / "helpers.py").write_text(
-        'from pathlib import Path\n\ndef load(p: str) -> str:\n    return Path(p).read_text()\n'
+        "from pathlib import Path\n\ndef load(p: str) -> str:\n    return Path(p).read_text()\n"
     )
     return tmp_path
 
@@ -180,8 +180,8 @@ def test_incremental_index_picks_up_changes(
 
     # Modify one file
     (sample_repo / "utils.py").write_text(
-        'MAX_SIZE = 200\n\ndef clamp(val, lo, hi):\n    return max(lo, min(val, hi))\n\n'
-        'def new_func():\n    pass\n'
+        "MAX_SIZE = 200\n\ndef clamp(val, lo, hi):\n    return max(lo, min(val, hi))\n\n"
+        "def new_func():\n    pass\n"
     )
 
     stats = indexer.index_incremental(resolve=False)
@@ -200,7 +200,7 @@ def test_incremental_index_detects_new_files(
     indexer.index_full(resolve=False)
 
     # Add a new file
-    (sample_repo / "extra.py").write_text('def bonus():\n    return 42\n')
+    (sample_repo / "extra.py").write_text("def bonus():\n    return 42\n")
 
     stats = indexer.index_incremental(resolve=False)
     assert stats["parsed"] == 1

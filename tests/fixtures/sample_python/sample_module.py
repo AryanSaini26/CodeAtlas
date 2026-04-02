@@ -1,10 +1,10 @@
 """Sample Python module for testing the CodeAtlas parser."""
 
-import os
-import sys
-from typing import Optional
-from pathlib import Path
-from collections import defaultdict
+import os  # noqa: F401
+import sys  # noqa: F401
+from collections import defaultdict  # noqa: F401
+from pathlib import Path  # noqa: F401
+from typing import Optional  # noqa: F401
 
 MAX_RETRIES = 3
 DEFAULT_TIMEOUT = 30
@@ -49,10 +49,13 @@ class ChildModel(BaseModel):
 
 def decorator_factory(flag: bool):
     """A decorator factory."""
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -69,6 +72,7 @@ class ServiceClass:
 
     def process(self, data: dict) -> Optional[str]:
         """Process data and return a result."""
+
         def inner_helper(item):
             return str(item)
 

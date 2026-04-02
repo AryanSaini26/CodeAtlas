@@ -286,9 +286,13 @@ class PythonParser(BaseParser):
         qualified_name = f"{parent_name}.{name}" if parent_name else name
 
         # Determine if method or function
-        kind = SymbolKind.METHOD if parent_name and "." in parent_name or (
-            parent_name and not parent_name.startswith("import")
-        ) else SymbolKind.FUNCTION
+        kind = (
+            SymbolKind.METHOD
+            if parent_name
+            and "." in parent_name
+            or (parent_name and not parent_name.startswith("import"))
+            else SymbolKind.FUNCTION
+        )
 
         # Build signature
         params_node = actual_node.child_by_field_name("parameters")
@@ -330,12 +334,14 @@ class PythonParser(BaseParser):
         # Extract calls from function body
         body = actual_node.child_by_field_name("body")
         if body:
-            self._extract_calls(
-                body, source, file_path, qualified_name, relationships
-            )
+            self._extract_calls(body, source, file_path, qualified_name, relationships)
             # Visit nested functions/classes
             for child in body.children:
-                if child.type in ("function_definition", "decorated_definition", "class_definition"):
+                if child.type in (
+                    "function_definition",
+                    "decorated_definition",
+                    "class_definition",
+                ):
                     self._visit(child, source, file_path, qualified_name, symbols, relationships)
 
     def _handle_assignment(

@@ -18,7 +18,11 @@ def export_dot(store: GraphStore, options: ExportOptions | None = None) -> str:
     opts = options or ExportOptions()
     conn = store._conn
 
-    lines = ['digraph codeatlas {', '    rankdir=LR;', '    node [shape=box, fontname="Helvetica"];']
+    lines = [
+        "digraph codeatlas {",
+        "    rankdir=LR;",
+        '    node [shape=box, fontname="Helvetica"];',
+    ]
 
     # Collect symbols
     query = "SELECT id, name, qualified_name, kind, file_path FROM symbols"
@@ -103,13 +107,15 @@ def export_json(store: GraphStore, options: ExportOptions | None = None) -> str:
 
     nodes = []
     for row in symbols:
-        nodes.append({
-            "id": row["id"],
-            "name": row["name"],
-            "qualified_name": row["qualified_name"],
-            "kind": row["kind"],
-            "file": row["file_path"],
-        })
+        nodes.append(
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "qualified_name": row["qualified_name"],
+                "kind": row["kind"],
+                "file": row["file_path"],
+            }
+        )
 
     rel_query = "SELECT source_id, target_id, kind FROM relationships"
     rel_params: list[str] = []
@@ -130,11 +136,13 @@ def export_json(store: GraphStore, options: ExportOptions | None = None) -> str:
             if src not in symbol_ids or tgt not in symbol_ids:
                 continue
 
-        links.append({
-            "source": src,
-            "target": tgt,
-            "kind": row["kind"],
-        })
+        links.append(
+            {
+                "source": src,
+                "target": tgt,
+                "kind": row["kind"],
+            }
+        )
 
     data = {"nodes": nodes, "links": links}
     return json.dumps(data, indent=2)

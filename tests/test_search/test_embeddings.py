@@ -44,18 +44,63 @@ def _result(fp: str, syms: list[Symbol]) -> ParseResult:
 @pytest.fixture
 def store_with_symbols() -> GraphStore:
     store = GraphStore(":memory:")
-    store.upsert_parse_result(_result("auth.py", [
-        _sym("authenticate_user", fp="auth.py", docstring="Verify user credentials against the database", signature="def authenticate_user(username, password)"),
-        _sym("hash_password", fp="auth.py", docstring="Hash a password using bcrypt", signature="def hash_password(raw_password)"),
-    ]))
-    store.upsert_parse_result(_result("db.py", [
-        _sym("connect_database", fp="db.py", docstring="Open a connection to the PostgreSQL database", signature="def connect_database(url)"),
-        _sym("run_migration", fp="db.py", docstring="Run database schema migrations", signature="def run_migration(version)"),
-    ]))
-    store.upsert_parse_result(_result("api.py", [
-        _sym("handle_request", fp="api.py", docstring="Process an incoming HTTP request", signature="def handle_request(req)"),
-        _sym("format_response", fp="api.py", docstring="Format the API response as JSON", signature="def format_response(data)"),
-    ]))
+    store.upsert_parse_result(
+        _result(
+            "auth.py",
+            [
+                _sym(
+                    "authenticate_user",
+                    fp="auth.py",
+                    docstring="Verify user credentials against the database",
+                    signature="def authenticate_user(username, password)",
+                ),
+                _sym(
+                    "hash_password",
+                    fp="auth.py",
+                    docstring="Hash a password using bcrypt",
+                    signature="def hash_password(raw_password)",
+                ),
+            ],
+        )
+    )
+    store.upsert_parse_result(
+        _result(
+            "db.py",
+            [
+                _sym(
+                    "connect_database",
+                    fp="db.py",
+                    docstring="Open a connection to the PostgreSQL database",
+                    signature="def connect_database(url)",
+                ),
+                _sym(
+                    "run_migration",
+                    fp="db.py",
+                    docstring="Run database schema migrations",
+                    signature="def run_migration(version)",
+                ),
+            ],
+        )
+    )
+    store.upsert_parse_result(
+        _result(
+            "api.py",
+            [
+                _sym(
+                    "handle_request",
+                    fp="api.py",
+                    docstring="Process an incoming HTTP request",
+                    signature="def handle_request(req)",
+                ),
+                _sym(
+                    "format_response",
+                    fp="api.py",
+                    docstring="Format the API response as JSON",
+                    signature="def format_response(data)",
+                ),
+            ],
+        )
+    )
     return store
 
 
@@ -104,6 +149,7 @@ def test_search_empty_index(store_with_symbols: GraphStore) -> None:
 
 def test_save_and_load(store_with_symbols: GraphStore, tmp_path: object) -> None:
     from pathlib import Path
+
     save_dir = Path(str(tmp_path))
 
     index = SemanticIndex()

@@ -2,27 +2,8 @@
 
 from pathlib import Path
 
-import pytest
-
 from codeatlas.models import ParseResult, RelationshipKind, SymbolKind
 from codeatlas.parsers.go_parser import GoParser
-
-FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
-
-
-@pytest.fixture
-def go_parser() -> GoParser:
-    return GoParser()
-
-
-@pytest.fixture
-def sample_go_path() -> Path:
-    return FIXTURES_DIR / "sample_go" / "sample_module.go"
-
-
-@pytest.fixture
-def sample_go_source(sample_go_path: Path) -> str:
-    return sample_go_path.read_text()
 
 
 def _names(result: ParseResult) -> set[str]:
@@ -87,7 +68,9 @@ def test_extracts_methods(go_parser: GoParser, sample_go_source: str) -> None:
     assert "Start" in methods
 
 
-def test_method_qualified_name_includes_receiver(go_parser: GoParser, sample_go_source: str) -> None:
+def test_method_qualified_name_includes_receiver(
+    go_parser: GoParser, sample_go_source: str
+) -> None:
     result = go_parser.parse_source(sample_go_source, "test.go")
     speak = next(s for s in result.symbols if s.name == "Speak")
     assert speak.qualified_name == "Dog.Speak"

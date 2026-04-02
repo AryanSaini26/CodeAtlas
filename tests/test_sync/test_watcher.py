@@ -45,7 +45,7 @@ def test_watcher_detects_new_file(
 
     # Create a new Python file
     new_file = tmp_repo / "new_module.py"
-    new_file.write_text('def new_func():\n    pass\n')
+    new_file.write_text("def new_func():\n    pass\n")
 
     # Wait for debounce + processing
     time.sleep(1.5)
@@ -65,6 +65,7 @@ def test_watcher_detects_modification(
     # First manually index the existing file
     existing = tmp_repo / "hello.py"
     from codeatlas.parsers import ParserRegistry
+
     registry = ParserRegistry()
     result = registry.parse_file(existing)
     if result:
@@ -91,6 +92,7 @@ def test_watcher_detects_deletion(
 
     existing = tmp_repo / "hello.py"
     from codeatlas.parsers import ParserRegistry
+
     registry = ParserRegistry()
     result = registry.parse_file(existing)
     if result:

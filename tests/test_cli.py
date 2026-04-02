@@ -14,7 +14,7 @@ def _make_repo(tmp_path: Path) -> Path:
         'def greet(name: str) -> str:\n    return f"Hello, {name}"\n'
     )
     (tmp_path / "helpers.py").write_text(
-        'MAX = 10\n\ndef add(a: int, b: int) -> int:\n    return a + b\n'
+        "MAX = 10\n\ndef add(a: int, b: int) -> int:\n    return a + b\n"
     )
     return tmp_path
 
@@ -188,10 +188,7 @@ def test_index_with_config_file(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     # Create a config that only indexes .py files with a custom max size
     (repo / "codeatlas.toml").write_text(
-        '[codeatlas]\n\n'
-        '[codeatlas.parser]\n'
-        'max_file_size_kb = 500\n'
-        'include_extensions = [".py"]\n'
+        '[codeatlas]\n\n[codeatlas.parser]\nmax_file_size_kb = 500\ninclude_extensions = [".py"]\n'
     )
     db_path = str(tmp_path / "test.db")
     runner = CliRunner()

@@ -43,12 +43,17 @@ def _result(fp: str, syms: list[Symbol]) -> ParseResult:
 @pytest.fixture
 def hybrid_setup() -> tuple[HybridSearch, GraphStore]:
     store = GraphStore(":memory:")
-    store.upsert_parse_result(_result("app.py", [
-        _sym("create_user", docstring="Create a new user in the system"),
-        _sym("delete_user", docstring="Remove a user from the database"),
-        _sym("validate_email", docstring="Check if an email address is valid"),
-        _sym("send_notification", docstring="Send a push notification to the user"),
-    ]))
+    store.upsert_parse_result(
+        _result(
+            "app.py",
+            [
+                _sym("create_user", docstring="Create a new user in the system"),
+                _sym("delete_user", docstring="Remove a user from the database"),
+                _sym("validate_email", docstring="Check if an email address is valid"),
+                _sym("send_notification", docstring="Send a push notification to the user"),
+            ],
+        )
+    )
 
     sem = SemanticIndex()
     sem.build_from_store(store)

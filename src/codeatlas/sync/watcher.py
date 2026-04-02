@@ -126,8 +126,7 @@ class FileWatcher:
         self._observer.start()
 
         console.print(
-            f"[blue]Watching[/blue] {self._config.repo_root} for changes... "
-            f"(Ctrl+C to stop)"
+            f"[blue]Watching[/blue] {self._config.repo_root} for changes... (Ctrl+C to stop)"
         )
 
         if blocking:

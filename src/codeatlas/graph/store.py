@@ -1,9 +1,9 @@
 """SQLite-backed code knowledge graph store."""
 
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
 
 from codeatlas.models import FileInfo, ParseResult, Relationship, Symbol
 
@@ -128,8 +128,14 @@ class GraphStore:
         conn.execute(
             """INSERT INTO files(path, language, content_hash, symbol_count,
                relationship_count, size_bytes) VALUES (?,?,?,?,?,?)""",
-            (fi.path, fi.language, fi.content_hash,
-             fi.symbol_count, fi.relationship_count, fi.size_bytes),
+            (
+                fi.path,
+                fi.language,
+                fi.content_hash,
+                fi.symbol_count,
+                fi.relationship_count,
+                fi.size_bytes,
+            ),
         )
 
         if result.symbols:
@@ -141,11 +147,17 @@ class GraphStore:
                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 [
                     (
-                        sym.id, sym.name, sym.qualified_name, sym.kind.value,
+                        sym.id,
+                        sym.name,
+                        sym.qualified_name,
+                        sym.kind.value,
                         sym.file_path,
-                        sym.span.start.line, sym.span.start.column,
-                        sym.span.end.line, sym.span.end.column,
-                        sym.docstring, sym.signature,
+                        sym.span.start.line,
+                        sym.span.start.column,
+                        sym.span.end.line,
+                        sym.span.end.column,
+                        sym.docstring,
+                        sym.signature,
                         ",".join(sym.decorators) if sym.decorators else None,
                         sym.language,
                     )
@@ -161,7 +173,10 @@ class GraphStore:
                    VALUES (?,?,?,?,?,?,?,?)""",
                 [
                     (
-                        rel.source_id, rel.target_id, rel.kind.value, rel.file_path,
+                        rel.source_id,
+                        rel.target_id,
+                        rel.kind.value,
+                        rel.file_path,
                         rel.span.start.line if rel.span else None,
                         rel.span.start.column if rel.span else None,
                         rel.span.end.line if rel.span else None,
@@ -188,9 +203,7 @@ class GraphStore:
                 "SELECT * FROM symbols WHERE name = ? AND kind = ?", (name, kind)
             ).fetchall()
         else:
-            rows = self._conn.execute(
-                "SELECT * FROM symbols WHERE name = ?", (name,)
-            ).fetchall()
+            rows = self._conn.execute("SELECT * FROM symbols WHERE name = ?", (name,)).fetchall()
         return [self._row_to_symbol(r) for r in rows]
 
     def get_dependencies(self, symbol_id: str) -> list[Relationship]:
@@ -279,9 +292,7 @@ class GraphStore:
         }
 
     def get_file_info(self, file_path: str) -> FileInfo | None:
-        row = self._conn.execute(
-            "SELECT * FROM files WHERE path = ?", (file_path,)
-        ).fetchone()
+        row = self._conn.execute("SELECT * FROM files WHERE path = ?", (file_path,)).fetchone()
         if row is None:
             return None
         return FileInfo(
@@ -318,9 +329,9 @@ class GraphStore:
             raw_target = row["target_id"]
             # Strip the prefix
             if raw_target.startswith("<external>::"):
-                ref_name = raw_target[len("<external>::"):]
+                ref_name = raw_target[len("<external>::") :]
             else:
-                ref_name = raw_target[len("<unresolved>::"):]
+                ref_name = raw_target[len("<unresolved>::") :]
 
             # Try exact match, then last segment
             resolved_id = symbol_lookup.get(ref_name)
@@ -354,10 +365,12 @@ class GraphStore:
             fp = row["file_path"]
             if fp not in files:
                 files[fp] = []
-            files[fp].append({
-                "name": row["qualified_name"],
-                "kind": row["kind"],
-            })
+            files[fp].append(
+                {
+                    "name": row["qualified_name"],
+                    "kind": row["kind"],
+                }
+            )
 
         return {
             "directory": directory,

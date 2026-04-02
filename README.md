@@ -15,11 +15,15 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 - **Real-time sync** - Watchdog file watcher and GitHub webhook handler for incremental updates
 - **MCP server** - 10 tools exposed via the Model Context Protocol for AI agent consumption
 - **Graph export** - DOT (Graphviz) and JSON (D3.js) visualization formats
+- **Config files** - Optional `codeatlas.toml` for per-repo settings
 
 ## Quick Start
 
 ```bash
 pip install codeatlas
+
+# Initialize a config file (optional)
+codeatlas init
 
 # Index a repository
 codeatlas index /path/to/repo
@@ -32,6 +36,9 @@ codeatlas query "authentication"
 
 # Search by natural language (requires sentence-transformers)
 codeatlas query "where do we handle login errors" --semantic
+
+# Inspect a specific symbol
+codeatlas show UserService
 
 # Watch for file changes
 codeatlas watch /path/to/repo
@@ -56,6 +63,47 @@ pip install codeatlas[search]
 # Everything
 pip install codeatlas[all]
 ```
+
+## Configuration
+
+CodeAtlas can be configured with a `codeatlas.toml` file in your repository root. Generate one with:
+
+```bash
+codeatlas init
+```
+
+Example `codeatlas.toml`:
+
+```toml
+[codeatlas]
+exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]
+
+[codeatlas.parser]
+max_file_size_kb = 500
+include_extensions = [".py", ".ts", ".tsx", ".go"]
+
+[codeatlas.graph]
+db_path = ".codeatlas/graph.db"
+```
+
+If no config file is found, sensible defaults are used.
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `codeatlas init` | Generate a `codeatlas.toml` config file |
+| `codeatlas index [path]` | Index a repository into the knowledge graph |
+| `codeatlas index [path] --incremental` | Only re-index files that changed |
+| `codeatlas stats` | Show graph statistics (files, symbols, relationships) |
+| `codeatlas query <term>` | Full-text search across the codebase |
+| `codeatlas query <term> --semantic` | Natural language semantic search |
+| `codeatlas query <term> --hybrid` | Combined FTS + semantic search |
+| `codeatlas show <symbol>` | Inspect a symbol's signature, docs, deps, and call chain |
+| `codeatlas export` | Export graph in DOT or JSON format |
+| `codeatlas watch [path]` | Watch for file changes and update graph in real-time |
+| `codeatlas webhook [path]` | Start a GitHub webhook server for push-triggered updates |
+| `codeatlas serve` | Start the MCP server |
 
 ## MCP Server
 
@@ -140,6 +188,9 @@ python3.12 -m venv .venv
 
 # Lint
 .venv/bin/ruff check src tests
+
+# Format
+.venv/bin/ruff format src tests
 ```
 
 ## License

@@ -96,13 +96,9 @@ def test_non_push_event_ignored(webhook_client: TestClient) -> None:
 def test_push_with_new_file(webhook_client: TestClient, repo_with_files: Path) -> None:
     # Create the file that the "push" will reference
     new_file = repo_with_files / "utils.py"
-    new_file.write_text('def helper():\n    pass\n')
+    new_file.write_text("def helper():\n    pass\n")
 
-    payload = {
-        "commits": [
-            {"added": ["utils.py"], "modified": [], "removed": []}
-        ]
-    }
+    payload = {"commits": [{"added": ["utils.py"], "modified": [], "removed": []}]}
     response = webhook_client.post(
         "/webhook",
         content=json.dumps(payload),
@@ -115,11 +111,7 @@ def test_push_with_new_file(webhook_client: TestClient, repo_with_files: Path) -
 
 
 def test_push_with_removed_file(webhook_client: TestClient) -> None:
-    payload = {
-        "commits": [
-            {"added": [], "modified": [], "removed": ["old.py"]}
-        ]
-    }
+    payload = {"commits": [{"added": [], "modified": [], "removed": ["old.py"]}]}
     response = webhook_client.post(
         "/webhook",
         content=json.dumps(payload),

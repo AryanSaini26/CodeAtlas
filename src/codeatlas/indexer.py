@@ -9,6 +9,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from codeatlas.config import CodeAtlasConfig
 from codeatlas.graph.store import GraphStore
+from codeatlas.models import ParseResult
 from codeatlas.parsers import ParserRegistry
 
 console = Console()
@@ -74,9 +75,7 @@ class RepoIndexer:
             result.append(path)
         return sorted(result)
 
-    def _index_files(
-        self, files: list[Path], label: str, batch_size: int = 50
-    ) -> dict[str, int]:
+    def _index_files(self, files: list[Path], label: str, batch_size: int = 50) -> dict[str, int]:
         stats: dict[str, int] = {"parsed": 0, "skipped": 0, "errors": 0}
         start = time.monotonic()
         batch: list[ParseResult] = []

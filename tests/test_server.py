@@ -28,7 +28,9 @@ from codeatlas.server import (
 )
 
 
-def _sym(name: str, kind: SymbolKind = SymbolKind.FUNCTION, fp: str = "app.py", line: int = 0) -> Symbol:
+def _sym(
+    name: str, kind: SymbolKind = SymbolKind.FUNCTION, fp: str = "app.py", line: int = 0
+) -> Symbol:
     return Symbol(
         id=f"{fp}::{name}",
         name=name,
@@ -42,14 +44,22 @@ def _sym(name: str, kind: SymbolKind = SymbolKind.FUNCTION, fp: str = "app.py", 
     )
 
 
-def _rel(src: str, tgt: str, kind: RelationshipKind = RelationshipKind.CALLS, fp: str = "app.py") -> Relationship:
+def _rel(
+    src: str, tgt: str, kind: RelationshipKind = RelationshipKind.CALLS, fp: str = "app.py"
+) -> Relationship:
     return Relationship(source_id=src, target_id=tgt, kind=kind, file_path=fp)
 
 
 def _result(fp: str, syms: list[Symbol], rels: list[Relationship] | None = None) -> ParseResult:
     r = rels or []
     return ParseResult(
-        file_info=FileInfo(path=fp, language="python", content_hash="abc", symbol_count=len(syms), relationship_count=len(r)),
+        file_info=FileInfo(
+            path=fp,
+            language="python",
+            content_hash="abc",
+            symbol_count=len(syms),
+            relationship_count=len(r),
+        ),
         symbols=syms,
         relationships=r,
     )

@@ -36,18 +36,18 @@ def init(repo_path: str) -> None:
         return
 
     toml_path.write_text(
-        '[codeatlas]\n'
-        '# repo_root is set automatically when loading\n\n'
-        '[codeatlas.parser]\n'
-        'max_file_size_kb = 500\n'
+        "[codeatlas]\n"
+        "# repo_root is set automatically when loading\n\n"
+        "[codeatlas.parser]\n"
+        "max_file_size_kb = 500\n"
         'include_extensions = [".py", ".ts", ".tsx", ".go"]\n\n'
-        '[codeatlas.graph]\n'
+        "[codeatlas.graph]\n"
         'db_path = ".codeatlas/graph.db"\n\n'
-        '[codeatlas.server]\n'
+        "[codeatlas.server]\n"
         'host = "localhost"\n'
-        'port = 8765\n'
+        "port = 8765\n"
         'name = "codeatlas"\n\n'
-        '# Directories to skip during indexing\n'
+        "# Directories to skip during indexing\n"
         '# exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]\n'
     )
     console.print(f"[green]Created {toml_path}[/green]")
@@ -111,6 +111,7 @@ def query(query: str, db: str, limit: int, semantic: bool, hybrid: bool) -> None
 
         if hybrid:
             from codeatlas.search.hybrid import HybridSearch
+
             searcher = HybridSearch(store, sem_index)
             results = searcher.search(query, limit=limit)
         else:
@@ -142,11 +143,19 @@ def query(query: str, db: str, limit: int, semantic: bool, hybrid: bool) -> None
 
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
-@click.option("--format", "fmt", type=click.Choice(["dot", "json"]), default="dot", show_default=True)
-@click.option("--file-filter", default=None, help="Only export symbols from files matching this prefix")
+@click.option(
+    "--format", "fmt", type=click.Choice(["dot", "json"]), default="dot", show_default=True
+)
+@click.option(
+    "--file-filter", default=None, help="Only export symbols from files matching this prefix"
+)
 @click.option("--include-externals", is_flag=True, help="Include unresolved/external references")
-@click.option("-o", "--output", default=None, type=click.Path(), help="Output file (default: stdout)")
-def export(db: str, fmt: str, file_filter: str | None, include_externals: bool, output: str | None) -> None:
+@click.option(
+    "-o", "--output", default=None, type=click.Path(), help="Output file (default: stdout)"
+)
+def export(
+    db: str, fmt: str, file_filter: str | None, include_externals: bool, output: str | None
+) -> None:
     """Export the knowledge graph to DOT or JSON format."""
     store = _get_store(Path(db))
     opts = ExportOptions(include_externals=include_externals, file_filter=file_filter)
@@ -254,8 +263,7 @@ def webhook(repo_path: str, db: str, port: int, secret: str | None) -> None:
     handler = WebhookHandler(store, Path(repo_path), secret=secret)
     app = handler.create_app()
     console.print(
-        f"[green]Webhook server listening on port {port}[/green] "
-        f"(POST /webhook, GET /health)"
+        f"[green]Webhook server listening on port {port}[/green] (POST /webhook, GET /health)"
     )
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 

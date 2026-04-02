@@ -19,56 +19,56 @@ def multi_lang_repo(tmp_path: Path) -> Path:
     """Create a repo with Python, TypeScript, and Go files that reference each other."""
     # Python: a service with imports and calls
     (tmp_path / "service.py").write_text(
-        'from pathlib import Path\n\n'
-        'class UserService:\n'
+        "from pathlib import Path\n\n"
+        "class UserService:\n"
         '    """Manages user operations."""\n\n'
-        '    def get_user(self, user_id: int) -> dict:\n'
+        "    def get_user(self, user_id: int) -> dict:\n"
         '        """Fetch a user by ID."""\n'
-        '        return validate(user_id)\n\n'
-        'def validate(user_id: int) -> dict:\n'
+        "        return validate(user_id)\n\n"
+        "def validate(user_id: int) -> dict:\n"
         '    """Validate and return user data."""\n'
         '    return {"id": user_id}\n'
     )
 
     # Python: a second file that imports from the first
     (tmp_path / "handler.py").write_text(
-        'from service import UserService\n\n'
-        'def handle_request(uid: int) -> dict:\n'
+        "from service import UserService\n\n"
+        "def handle_request(uid: int) -> dict:\n"
         '    """Handle an incoming request."""\n'
-        '    svc = UserService()\n'
-        '    return svc.get_user(uid)\n'
+        "    svc = UserService()\n"
+        "    return svc.get_user(uid)\n"
     )
 
     # TypeScript: an API layer
     (tmp_path / "api.ts").write_text(
         'import { Router } from "express";\n\n'
-        'interface ApiResponse {\n'
-        '    status: number;\n'
-        '    data: unknown;\n'
-        '}\n\n'
-        'export function createRouter(): Router {\n'
-        '    const router = Router();\n'
-        '    return router;\n'
-        '}\n\n'
-        'export class ApiClient {\n'
-        '    async fetch(url: string): Promise<ApiResponse> {\n'
-        '        return { status: 200, data: null };\n'
-        '    }\n'
-        '}\n'
+        "interface ApiResponse {\n"
+        "    status: number;\n"
+        "    data: unknown;\n"
+        "}\n\n"
+        "export function createRouter(): Router {\n"
+        "    const router = Router();\n"
+        "    return router;\n"
+        "}\n\n"
+        "export class ApiClient {\n"
+        "    async fetch(url: string): Promise<ApiResponse> {\n"
+        "        return { status: 200, data: null };\n"
+        "    }\n"
+        "}\n"
     )
 
     # Go: a utility module
     (tmp_path / "util.go").write_text(
-        'package util\n\n'
+        "package util\n\n"
         'import "fmt"\n\n'
-        '// FormatID formats an integer ID as a string.\n'
-        'func FormatID(id int) string {\n'
+        "// FormatID formats an integer ID as a string.\n"
+        "func FormatID(id int) string {\n"
         '    return fmt.Sprintf("id-%d", id)\n'
-        '}\n\n'
-        'type Config struct {\n'
-        '    Host string\n'
-        '    Port int\n'
-        '}\n'
+        "}\n\n"
+        "type Config struct {\n"
+        "    Host string\n"
+        "    Port int\n"
+        "}\n"
     )
     return tmp_path
 
@@ -230,7 +230,8 @@ def test_incremental_after_file_change(multi_lang_repo: Path) -> None:
     # Modify a file to add a new function
     service = multi_lang_repo / "service.py"
     service.write_text(
-        service.read_text() + '\ndef audit_log(msg: str) -> None:\n    """Log an audit event."""\n    pass\n'
+        service.read_text()
+        + '\ndef audit_log(msg: str) -> None:\n    """Log an audit event."""\n    pass\n'
     )
 
     stats = indexer.index_incremental(resolve=False)
@@ -250,20 +251,13 @@ def test_incremental_after_file_change(multi_lang_repo: Path) -> None:
 
 def test_all_languages_coexist(indexed_store: GraphStore) -> None:
     """Verify all three languages are represented in the same graph."""
-    stats = indexed_store.get_stats()
-
     py_syms = [
-        s for s in indexed_store.find_symbols_by_name("UserService")
-        if s.language == "python"
+        s for s in indexed_store.find_symbols_by_name("UserService") if s.language == "python"
     ]
     ts_syms = [
-        s for s in indexed_store.find_symbols_by_name("ApiClient")
-        if s.language == "typescript"
+        s for s in indexed_store.find_symbols_by_name("ApiClient") if s.language == "typescript"
     ]
-    go_syms = [
-        s for s in indexed_store.find_symbols_by_name("FormatID")
-        if s.language == "go"
-    ]
+    go_syms = [s for s in indexed_store.find_symbols_by_name("FormatID") if s.language == "go"]
 
     assert len(py_syms) >= 1
     assert len(ts_syms) >= 1

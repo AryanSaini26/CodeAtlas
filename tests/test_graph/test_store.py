@@ -1,7 +1,5 @@
 """Tests for the SQLite graph store."""
 
-import pytest
-
 from codeatlas.graph.store import GraphStore
 from codeatlas.models import (
     FileInfo,
@@ -186,9 +184,7 @@ def test_get_impact_analysis(graph_store: GraphStore) -> None:
 def test_resolve_imports_resolves_unresolved(graph_store: GraphStore) -> None:
     sym_a = _make_symbol("helper", file_path="a.py")
     sym_b = _make_symbol("caller", file_path="b.py", line=10)
-    rel = _make_relationship(
-        "b.py::caller", "<unresolved>::helper", RelationshipKind.CALLS, "b.py"
-    )
+    rel = _make_relationship("b.py::caller", "<unresolved>::helper", RelationshipKind.CALLS, "b.py")
     graph_store.upsert_parse_result(_make_result("a.py", [sym_a]))
     graph_store.upsert_parse_result(_make_result("b.py", [sym_b], [rel]))
 

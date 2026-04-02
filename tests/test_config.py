@@ -14,10 +14,10 @@ def test_find_and_load_defaults(tmp_path: Path) -> None:
 
 def test_find_and_load_from_toml(tmp_path: Path) -> None:
     (tmp_path / "codeatlas.toml").write_text(
-        '[codeatlas]\n'
+        "[codeatlas]\n"
         'exclude_dirs = [".git", "vendor"]\n\n'
-        '[codeatlas.parser]\n'
-        'max_file_size_kb = 200\n'
+        "[codeatlas.parser]\n"
+        "max_file_size_kb = 200\n"
         'include_extensions = [".py", ".go"]\n'
     )
     config = CodeAtlasConfig.find_and_load(tmp_path)
@@ -30,11 +30,7 @@ def test_find_and_load_from_toml(tmp_path: Path) -> None:
 
 def test_from_toml_direct(tmp_path: Path) -> None:
     toml_path = tmp_path / "codeatlas.toml"
-    toml_path.write_text(
-        '[codeatlas]\n\n'
-        '[codeatlas.parser]\n'
-        'max_file_size_kb = 1000\n'
-    )
+    toml_path.write_text("[codeatlas]\n\n[codeatlas.parser]\nmax_file_size_kb = 1000\n")
     config = CodeAtlasConfig.from_toml(toml_path)
     assert config.parser.max_file_size_kb == 1000
     # Defaults still apply for unset fields

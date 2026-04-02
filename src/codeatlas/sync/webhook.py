@@ -22,9 +22,7 @@ logger = logging.getLogger(__name__)
 
 def _verify_signature(payload: bytes, signature: str, secret: str) -> bool:
     """Verify the GitHub webhook HMAC-SHA256 signature."""
-    expected = "sha256=" + hmac.new(
-        secret.encode(), payload, hashlib.sha256
-    ).hexdigest()
+    expected = "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
 
 
@@ -134,12 +132,14 @@ class WebhookHandler:
         if parsed > 0:
             self._store.resolve_imports()
 
-        return JSONResponse({
-            "status": "ok",
-            "parsed": parsed,
-            "removed": len(removed_files),
-            "errors": errors,
-        })
+        return JSONResponse(
+            {
+                "status": "ok",
+                "parsed": parsed,
+                "removed": len(removed_files),
+                "errors": errors,
+            }
+        )
 
     async def health(self, request: Request) -> Response:
         """Health check endpoint."""

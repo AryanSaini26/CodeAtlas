@@ -1,12 +1,11 @@
 """Core data models for CodeAtlas."""
 
-from enum import Enum
-from pathlib import Path
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class SymbolKind(str, Enum):
+class SymbolKind(StrEnum):
     FUNCTION = "function"
     METHOD = "method"
     CLASS = "class"
@@ -20,7 +19,7 @@ class SymbolKind(str, Enum):
     NAMESPACE = "namespace"
 
 
-class RelationshipKind(str, Enum):
+class RelationshipKind(StrEnum):
     CALLS = "calls"
     IMPORTS = "imports"
     INHERITS = "inherits"

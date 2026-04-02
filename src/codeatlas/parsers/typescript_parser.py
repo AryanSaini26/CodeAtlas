@@ -117,7 +117,9 @@ class TypeScriptParser(BaseParser):
             case "export_statement":
                 self._handle_export(node, source, file_path, parent_name, symbols, relationships)
             case "function_declaration" | "generator_function_declaration":
-                self._handle_function_decl(node, source, file_path, parent_name, symbols, relationships)
+                self._handle_function_decl(
+                    node, source, file_path, parent_name, symbols, relationships
+                )
             case "class_declaration":
                 self._handle_class(node, source, file_path, parent_name, symbols, relationships)
             case "interface_declaration":
@@ -127,7 +129,9 @@ class TypeScriptParser(BaseParser):
             case "enum_declaration":
                 self._handle_enum(node, source, file_path, parent_name, symbols)
             case "lexical_declaration" | "variable_declaration":
-                self._handle_variable_decl(node, source, file_path, parent_name, symbols, relationships)
+                self._handle_variable_decl(
+                    node, source, file_path, parent_name, symbols, relationships
+                )
             case "module" | "internal_module":
                 self._handle_namespace(node, source, file_path, parent_name, symbols, relationships)
             case _:
@@ -148,8 +152,7 @@ class TypeScriptParser(BaseParser):
                 if child.type == "string":
                     source_node = child
                     break
-        module_name = _node_text(source_node, source).strip("'\"")\
-            if source_node else "<unknown>"
+        module_name = _node_text(source_node, source).strip("'\"") if source_node else "<unknown>"
 
         # Named imports: { foo, bar }
         for child in node.children:
@@ -202,23 +205,35 @@ class TypeScriptParser(BaseParser):
         for child in node.children:
             match child.type:
                 case "function_declaration" | "generator_function_declaration":
-                    self._handle_function_decl(child, source, file_path, parent_name, symbols, relationships)
+                    self._handle_function_decl(
+                        child, source, file_path, parent_name, symbols, relationships
+                    )
                 case "class_declaration":
-                    self._handle_class(child, source, file_path, parent_name, symbols, relationships)
+                    self._handle_class(
+                        child, source, file_path, parent_name, symbols, relationships
+                    )
                 case "interface_declaration":
-                    self._handle_interface(child, source, file_path, parent_name, symbols, relationships)
+                    self._handle_interface(
+                        child, source, file_path, parent_name, symbols, relationships
+                    )
                 case "type_alias_declaration":
                     self._handle_type_alias(child, source, file_path, parent_name, symbols)
                 case "enum_declaration":
                     self._handle_enum(child, source, file_path, parent_name, symbols)
                 case "lexical_declaration" | "variable_declaration":
-                    self._handle_variable_decl(child, source, file_path, parent_name, symbols, relationships)
+                    self._handle_variable_decl(
+                        child, source, file_path, parent_name, symbols, relationships
+                    )
                 case "internal_module":
-                    self._handle_namespace(child, source, file_path, parent_name, symbols, relationships)
+                    self._handle_namespace(
+                        child, source, file_path, parent_name, symbols, relationships
+                    )
                 case "export_clause":
                     # re-exports: export { foo, bar } from './module'
                     source_node = node.child_by_field_name("source")
-                    module_name = _node_text(source_node, source).strip("'\"") if source_node else None
+                    module_name = (
+                        _node_text(source_node, source).strip("'\"") if source_node else None
+                    )
                     if module_name:
                         for spec in child.named_children:
                             if spec.type == "export_specifier":
@@ -332,7 +347,9 @@ class TypeScriptParser(BaseParser):
         if body:
             for child in body.children:
                 if child.type in ("method_definition", "public_field_definition"):
-                    self._handle_class_member(child, source, file_path, qualified_name, symbols, relationships)
+                    self._handle_class_member(
+                        child, source, file_path, qualified_name, symbols, relationships
+                    )
 
     def _handle_class_member(
         self,
@@ -484,7 +501,11 @@ class TypeScriptParser(BaseParser):
 
             # Check if the value is an arrow function or function expression
             value_node = declarator.child_by_field_name("value")
-            if value_node and value_node.type in ("arrow_function", "function_expression", "generator_function"):
+            if value_node and value_node.type in (
+                "arrow_function",
+                "function_expression",
+                "generator_function",
+            ):
                 signature = self._build_function_signature(value_node, source, name)
                 kind = SymbolKind.METHOD if parent_name else SymbolKind.FUNCTION
                 sym = Symbol(

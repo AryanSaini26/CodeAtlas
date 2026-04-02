@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from codeatlas.models import ParseResult, RelationshipKind, SymbolKind
 from codeatlas.parsers.python_parser import PythonParser
 
@@ -19,12 +17,16 @@ def _kinds(result: ParseResult, kind: SymbolKind) -> list[str]:
 # --- File-level tests ---
 
 
-def test_parse_file_returns_parse_result(python_parser: PythonParser, sample_python_path: Path) -> None:
+def test_parse_file_returns_parse_result(
+    python_parser: PythonParser, sample_python_path: Path
+) -> None:
     result = python_parser.parse_file(sample_python_path)
     assert isinstance(result, ParseResult)
 
 
-def test_parse_source_returns_parse_result(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_parse_source_returns_parse_result(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     result = python_parser.parse_source(sample_python_source, "test.py")
     assert isinstance(result, ParseResult)
 
@@ -34,7 +36,9 @@ def test_file_info_language(python_parser: PythonParser, sample_python_source: s
     assert result.file_info.language == "python"
 
 
-def test_file_info_content_hash_is_consistent(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_file_info_content_hash_is_consistent(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     r1 = python_parser.parse_source(sample_python_source, "test.py")
     r2 = python_parser.parse_source(sample_python_source, "test.py")
     assert r1.file_info.content_hash == r2.file_info.content_hash
@@ -43,7 +47,9 @@ def test_file_info_content_hash_is_consistent(python_parser: PythonParser, sampl
 # --- Symbol extraction ---
 
 
-def test_extracts_standalone_function(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_extracts_standalone_function(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     result = python_parser.parse_source(sample_python_source, "test.py")
     assert "standalone_function" in _names(result)
 
@@ -64,7 +70,9 @@ def test_extracts_methods(python_parser: PythonParser, sample_python_source: str
     assert "compute" in _names(result)
 
 
-def test_extracts_module_level_constants(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_extracts_module_level_constants(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     result = python_parser.parse_source(sample_python_source, "test.py")
     constants = _kinds(result, SymbolKind.CONSTANT)
     assert "MAX_RETRIES" in constants
@@ -77,12 +85,16 @@ def test_extracts_imports(python_parser: PythonParser, sample_python_source: str
     assert len(import_names) > 0
 
 
-def test_extracts_decorated_function(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_extracts_decorated_function(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     result = python_parser.parse_source(sample_python_source, "test.py")
     assert "decorated_function" in _names(result)
 
 
-def test_decorated_function_has_decorator(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_decorated_function_has_decorator(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     result = python_parser.parse_source(sample_python_source, "test.py")
     sym = next(s for s in result.symbols if s.name == "decorated_function")
     assert len(sym.decorators) > 0
@@ -104,26 +116,34 @@ def test_function_has_signature(python_parser: PythonParser, sample_python_sourc
 # --- Relationship extraction ---
 
 
-def test_extracts_inheritance_relationship(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_extracts_inheritance_relationship(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     result = python_parser.parse_source(sample_python_source, "test.py")
     rels = [r for r in result.relationships if r.kind == RelationshipKind.INHERITS]
     targets = {r.target_id for r in rels}
     assert any("BaseModel" in t for t in targets)
 
 
-def test_extracts_import_relationships(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_extracts_import_relationships(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     result = python_parser.parse_source(sample_python_source, "test.py")
     rels = [r for r in result.relationships if r.kind == RelationshipKind.IMPORTS]
     assert len(rels) > 0
 
 
-def test_extracts_calls_relationships(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_extracts_calls_relationships(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     result = python_parser.parse_source(sample_python_source, "test.py")
     rels = [r for r in result.relationships if r.kind == RelationshipKind.CALLS]
     assert len(rels) > 0
 
 
-def test_extracts_decorator_relationships(python_parser: PythonParser, sample_python_source: str) -> None:
+def test_extracts_decorator_relationships(
+    python_parser: PythonParser, sample_python_source: str
+) -> None:
     result = python_parser.parse_source(sample_python_source, "test.py")
     rels = [r for r in result.relationships if r.kind == RelationshipKind.DECORATES]
     assert len(rels) > 0

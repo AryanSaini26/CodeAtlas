@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from codeatlas.graph.store import GraphStore
+from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
 
@@ -19,6 +20,11 @@ def python_parser() -> PythonParser:
 @pytest.fixture
 def typescript_parser() -> TypeScriptParser:
     return TypeScriptParser()
+
+
+@pytest.fixture
+def go_parser() -> GoParser:
+    return GoParser()
 
 
 @pytest.fixture
@@ -45,3 +51,13 @@ def sample_typescript_path() -> Path:
 @pytest.fixture
 def sample_typescript_source(sample_typescript_path: Path) -> str:
     return sample_typescript_path.read_text()
+
+
+@pytest.fixture
+def sample_go_path() -> Path:
+    return FIXTURES_DIR / "sample_go" / "sample_module.go"
+
+
+@pytest.fixture
+def sample_go_source(sample_go_path: Path) -> str:
+    return sample_go_path.read_text()

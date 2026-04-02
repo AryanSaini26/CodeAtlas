@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from codeatlas.models import ParseResult, RelationshipKind, SymbolKind
 from codeatlas.parsers.typescript_parser import TypeScriptParser
 
@@ -19,7 +17,9 @@ def _kinds(result: ParseResult, kind: SymbolKind) -> list[str]:
 # --- File-level tests ---
 
 
-def test_parse_file_returns_parse_result(typescript_parser: TypeScriptParser, sample_typescript_path: Path) -> None:
+def test_parse_file_returns_parse_result(
+    typescript_parser: TypeScriptParser, sample_typescript_path: Path
+) -> None:
     result = typescript_parser.parse_file(sample_typescript_path)
     assert isinstance(result, ParseResult)
 
@@ -31,7 +31,9 @@ def test_parse_source_returns_parse_result(
     assert isinstance(result, ParseResult)
 
 
-def test_file_info_language(typescript_parser: TypeScriptParser, sample_typescript_source: str) -> None:
+def test_file_info_language(
+    typescript_parser: TypeScriptParser, sample_typescript_source: str
+) -> None:
     result = typescript_parser.parse_source(sample_typescript_source, "test.ts")
     assert result.file_info.language == "typescript"
 
@@ -74,7 +76,9 @@ def test_extracts_class(typescript_parser: TypeScriptParser, sample_typescript_s
     assert "UserService" in _names(result)
 
 
-def test_extracts_interface(typescript_parser: TypeScriptParser, sample_typescript_source: str) -> None:
+def test_extracts_interface(
+    typescript_parser: TypeScriptParser, sample_typescript_source: str
+) -> None:
     result = typescript_parser.parse_source(sample_typescript_source, "test.ts")
     assert "User" in _names(result)
     assert "Describable" in _names(result)
@@ -85,13 +89,17 @@ def test_extracts_enum(typescript_parser: TypeScriptParser, sample_typescript_so
     assert "TaskStatus" in _names(result)
 
 
-def test_extracts_type_alias(typescript_parser: TypeScriptParser, sample_typescript_source: str) -> None:
+def test_extracts_type_alias(
+    typescript_parser: TypeScriptParser, sample_typescript_source: str
+) -> None:
     result = typescript_parser.parse_source(sample_typescript_source, "test.ts")
     assert "Result" in _names(result)
     assert "UserCallback" in _names(result)
 
 
-def test_extracts_class_methods(typescript_parser: TypeScriptParser, sample_typescript_source: str) -> None:
+def test_extracts_class_methods(
+    typescript_parser: TypeScriptParser, sample_typescript_source: str
+) -> None:
     result = typescript_parser.parse_source(sample_typescript_source, "test.ts")
     assert "getName" in _names(result)
     assert "addUser" in _names(result)
@@ -99,17 +107,23 @@ def test_extracts_class_methods(typescript_parser: TypeScriptParser, sample_type
     assert "describe" in _names(result)
 
 
-def test_extracts_namespace(typescript_parser: TypeScriptParser, sample_typescript_source: str) -> None:
+def test_extracts_namespace(
+    typescript_parser: TypeScriptParser, sample_typescript_source: str
+) -> None:
     result = typescript_parser.parse_source(sample_typescript_source, "test.ts")
     assert "Utils" in _names(result)
 
 
-def test_extracts_namespace_member(typescript_parser: TypeScriptParser, sample_typescript_source: str) -> None:
+def test_extracts_namespace_member(
+    typescript_parser: TypeScriptParser, sample_typescript_source: str
+) -> None:
     result = typescript_parser.parse_source(sample_typescript_source, "test.ts")
     assert "slugify" in _names(result)
 
 
-def test_symbol_kinds_correct(typescript_parser: TypeScriptParser, sample_typescript_source: str) -> None:
+def test_symbol_kinds_correct(
+    typescript_parser: TypeScriptParser, sample_typescript_source: str
+) -> None:
     result = typescript_parser.parse_source(sample_typescript_source, "test.ts")
     classes = _kinds(result, SymbolKind.CLASS)
     interfaces = _kinds(result, SymbolKind.INTERFACE)
@@ -168,7 +182,9 @@ def test_empty_source(typescript_parser: TypeScriptParser) -> None:
     assert result.relationships == []
 
 
-def test_symbol_ids_unique(typescript_parser: TypeScriptParser, sample_typescript_source: str) -> None:
+def test_symbol_ids_unique(
+    typescript_parser: TypeScriptParser, sample_typescript_source: str
+) -> None:
     result = typescript_parser.parse_source(sample_typescript_source, "test.ts")
     ids = [s.id for s in result.symbols]
     assert len(ids) == len(set(ids))
