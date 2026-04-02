@@ -298,6 +298,23 @@ class GraphStore:
             "relationships": conn.execute("SELECT COUNT(*) FROM relationships").fetchone()[0],
         }
 
+    def list_files(self) -> list[FileInfo]:
+        """Return all indexed files."""
+        rows = self._conn.execute(
+            "SELECT * FROM files ORDER BY path"
+        ).fetchall()
+        return [
+            FileInfo(
+                path=r["path"],
+                language=r["language"],
+                content_hash=r["content_hash"],
+                symbol_count=r["symbol_count"],
+                relationship_count=r["relationship_count"],
+                size_bytes=r["size_bytes"],
+            )
+            for r in rows
+        ]
+
     def get_file_info(self, file_path: str) -> FileInfo | None:
         row = self._conn.execute("SELECT * FROM files WHERE path = ?", (file_path,)).fetchone()
         if row is None:

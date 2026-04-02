@@ -117,6 +117,34 @@ def diff(repo_path: str, db: str) -> None:
         console.print(f"\n[bold]{total} file(s) to re-index[/bold] ({len(unchanged)} unchanged)")
 
 
+@cli.command(name="list-files")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--lang", default=None, help="Filter by language (python, typescript, go)")
+def list_files(db: str, lang: str | None) -> None:
+    """List all files in the knowledge graph."""
+    store = _get_store(Path(db))
+    files = store.list_files()
+    store.close()
+
+    if lang:
+        files = [f for f in files if f.language == lang.lower()]
+
+    if not files:
+        console.print("[yellow]No files indexed.[/yellow]")
+        return
+
+    table = Table(title="Indexed Files")
+    table.add_column("File", style="cyan")
+    table.add_column("Language", style="magenta")
+    table.add_column("Symbols", justify="right", style="green")
+    table.add_column("Relationships", justify="right")
+    table.add_column("Size", justify="right")
+    for f in files:
+        size_str = f"{f.size_bytes / 1024:.1f} KB" if f.size_bytes >= 1024 else f"{f.size_bytes} B"
+        table.add_row(f.path, f.language, str(f.symbol_count), str(f.relationship_count), size_str)
+    console.print(table)
+
+
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
