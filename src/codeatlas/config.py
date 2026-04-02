@@ -1,5 +1,6 @@
 """Configuration models for CodeAtlas."""
 
+import tomllib
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -50,3 +51,21 @@ class CodeAtlasConfig(BaseModel):
             ".mypy_cache",
         ]
     )
+
+    @classmethod
+    def from_toml(cls, path: Path) -> "CodeAtlasConfig":
+        """Load configuration from a TOML file."""
+        data = tomllib.loads(path.read_text())
+        config_data = data.get("codeatlas", data)
+        return cls(**config_data)
+
+    @classmethod
+    def find_and_load(cls, repo_root: Path) -> "CodeAtlasConfig":
+        """Look for codeatlas.toml in the repo root and load it, or return defaults."""
+        toml_path = repo_root / "codeatlas.toml"
+        if toml_path.exists():
+            config = cls.from_toml(toml_path)
+            if config.repo_root == Path("."):
+                config.repo_root = repo_root
+            return config
+        return cls(repo_root=repo_root)

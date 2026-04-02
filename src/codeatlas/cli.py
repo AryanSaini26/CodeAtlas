@@ -6,7 +6,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from codeatlas.config import CodeAtlasConfig, GraphConfig
+from codeatlas.config import CodeAtlasConfig
 from codeatlas.graph.export import ExportOptions, export_dot, export_json
 from codeatlas.graph.store import GraphStore
 from codeatlas.indexer import RepoIndexer
@@ -27,14 +27,40 @@ def cli() -> None:
 
 @cli.command()
 @click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+def init(repo_path: str) -> None:
+    """Generate a codeatlas.toml config file in the repository root."""
+    root = Path(repo_path)
+    toml_path = root / "codeatlas.toml"
+    if toml_path.exists():
+        console.print(f"[yellow]{toml_path} already exists, skipping.[/yellow]")
+        return
+
+    toml_path.write_text(
+        '[codeatlas]\n'
+        '# repo_root is set automatically when loading\n\n'
+        '[codeatlas.parser]\n'
+        'max_file_size_kb = 500\n'
+        'include_extensions = [".py", ".ts", ".tsx", ".go"]\n\n'
+        '[codeatlas.graph]\n'
+        'db_path = ".codeatlas/graph.db"\n\n'
+        '[codeatlas.server]\n'
+        'host = "localhost"\n'
+        'port = 8765\n'
+        'name = "codeatlas"\n\n'
+        '# Directories to skip during indexing\n'
+        '# exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]\n'
+    )
+    console.print(f"[green]Created {toml_path}[/green]")
+
+
+@cli.command()
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 @click.option("--db", default=".codeatlas/graph.db", show_default=True, help="Database path")
 @click.option("--incremental", is_flag=True, help="Only re-index changed files")
 def index(repo_path: str, db: str, incremental: bool) -> None:
     """Index a repository into the knowledge graph."""
-    config = CodeAtlasConfig(
-        repo_root=Path(repo_path),
-        graph=GraphConfig(db_path=Path(db)),
-    )
+    config = CodeAtlasConfig.find_and_load(Path(repo_path))
+    config.graph.db_path = Path(db)
     store = _get_store(Path(db))
     indexer = RepoIndexer(config, store)
 
@@ -140,14 +166,71 @@ def export(db: str, fmt: str, file_filter: str | None, include_externals: bool, 
 
 
 @cli.command()
+@click.argument("symbol_name")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--depth", default=3, show_default=True, help="Max traversal depth for call chain")
+def show(symbol_name: str, db: str, depth: int) -> None:
+    """Inspect a symbol: signature, docstring, dependencies, and dependents."""
+    store = _get_store(Path(db))
+    matches = store.find_symbols_by_name(symbol_name)
+
+    if not matches:
+        console.print(f"[yellow]No symbol found matching '{symbol_name}'[/yellow]")
+        store.close()
+        return
+
+    for sym in matches:
+        # Header
+        console.print(f"\n[bold cyan]{sym.qualified_name}[/bold cyan] ({sym.kind.value})")
+        console.print(f"  File: {sym.file_path}:{sym.span.start.line + 1}")
+        if sym.signature:
+            console.print(f"  Signature: [green]{sym.signature}[/green]")
+        if sym.docstring:
+            console.print(f"  Docstring: [dim]{sym.docstring}[/dim]")
+        if sym.decorators:
+            console.print(f"  Decorators: {', '.join(sym.decorators)}")
+
+        # Dependencies (what it calls/imports)
+        deps = store.get_dependencies(sym.id)
+        if deps:
+            dep_table = Table(title="Dependencies (outgoing)", show_header=True)
+            dep_table.add_column("Target", style="cyan")
+            dep_table.add_column("Kind", style="magenta")
+            for rel in deps:
+                dep_table.add_row(rel.target_id, rel.kind.value)
+            console.print(dep_table)
+
+        # Dependents (what calls/imports it)
+        dependents = store.get_dependents(sym.id)
+        if dependents:
+            rev_table = Table(title="Dependents (incoming)", show_header=True)
+            rev_table.add_column("Source", style="cyan")
+            rev_table.add_column("Kind", style="magenta")
+            for rel in dependents:
+                rev_table.add_row(rel.source_id, rel.kind.value)
+            console.print(rev_table)
+
+        # Call chain
+        chain = store.trace_call_chain(sym.id, max_depth=depth)
+        if chain:
+            chain_table = Table(title=f"Call Chain (depth={depth})", show_header=True)
+            chain_table.add_column("Caller", style="cyan")
+            chain_table.add_column("Callee", style="green")
+            chain_table.add_column("Depth", justify="right")
+            for row in chain:
+                chain_table.add_row(str(row["source_id"]), str(row["target_id"]), str(row["depth"]))
+            console.print(chain_table)
+
+    store.close()
+
+
+@cli.command()
 @click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 def watch(repo_path: str, db: str) -> None:
     """Watch a repository for file changes and update the graph in real-time."""
-    config = CodeAtlasConfig(
-        repo_root=Path(repo_path),
-        graph=GraphConfig(db_path=Path(db)),
-    )
+    config = CodeAtlasConfig.find_and_load(Path(repo_path))
+    config.graph.db_path = Path(db)
     store = _get_store(Path(db))
     watcher = FileWatcher(config, store)
     try:
