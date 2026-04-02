@@ -73,6 +73,51 @@ def index(repo_path: str, db: str, incremental: bool) -> None:
 
 
 @cli.command()
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+def diff(repo_path: str, db: str) -> None:
+    """Show files that changed since the last index."""
+    import hashlib
+
+    config = CodeAtlasConfig.find_and_load(Path(repo_path))
+    config.graph.db_path = Path(db)
+    store = _get_store(Path(db))
+    indexer = RepoIndexer(config, store)
+
+    files = indexer._discover_files()
+    added, modified, unchanged = [], [], []
+
+    for path in files:
+        try:
+            content_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            continue
+        existing = store.get_file_info(str(path))
+        if existing is None:
+            added.append(str(path))
+        elif existing.content_hash != content_hash:
+            modified.append(str(path))
+        else:
+            unchanged.append(str(path))
+
+    store.close()
+
+    if added:
+        console.print(f"[green]New files ({len(added)}):[/green]")
+        for f in added:
+            console.print(f"  + {f}")
+    if modified:
+        console.print(f"[yellow]Modified files ({len(modified)}):[/yellow]")
+        for f in modified:
+            console.print(f"  ~ {f}")
+    if not added and not modified:
+        console.print("[dim]No changes since last index.[/dim]")
+    else:
+        total = len(added) + len(modified)
+        console.print(f"\n[bold]{total} file(s) to re-index[/bold] ({len(unchanged)} unchanged)")
+
+
+@cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 def stats(db: str) -> None:
     """Show graph statistics."""
