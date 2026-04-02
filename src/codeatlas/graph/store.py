@@ -305,6 +305,13 @@ class GraphStore:
         ).fetchall()
         return {row["language"]: row["cnt"] for row in rows}
 
+    def get_kind_breakdown(self) -> dict[str, int]:
+        """Return symbol counts grouped by kind (function, class, etc.)."""
+        rows = self._conn.execute(
+            "SELECT kind, COUNT(*) as cnt FROM symbols GROUP BY kind ORDER BY cnt DESC"
+        ).fetchall()
+        return {row["kind"]: row["cnt"] for row in rows}
+
     def list_files(self) -> list[FileInfo]:
         """Return all indexed files."""
         rows = self._conn.execute(
