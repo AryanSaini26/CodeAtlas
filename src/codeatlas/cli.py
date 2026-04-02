@@ -119,18 +119,24 @@ def diff(repo_path: str, db: str) -> None:
 
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
-def stats(db: str) -> None:
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def stats(db: str, as_json: bool) -> None:
     """Show graph statistics."""
     store = _get_store(Path(db))
     s = store.get_stats()
     store.close()
 
-    table = Table(title="CodeAtlas Graph Stats")
-    table.add_column("Metric", style="cyan")
-    table.add_column("Count", justify="right", style="green")
-    for key, val in s.items():
-        table.add_row(key.capitalize(), str(val))
-    console.print(table)
+    if as_json:
+        import json
+
+        console.print(json.dumps(s, indent=2))
+    else:
+        table = Table(title="CodeAtlas Graph Stats")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Count", justify="right", style="green")
+        for key, val in s.items():
+            table.add_row(key.capitalize(), str(val))
+        console.print(table)
 
 
 @cli.command()
