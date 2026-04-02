@@ -269,6 +269,25 @@ def webhook(repo_path: str, db: str, port: int, secret: str | None) -> None:
 
 
 @cli.command()
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
+def clean(repo_path: str, yes: bool) -> None:
+    """Remove the .codeatlas directory (database, indexes, etc.)."""
+    import shutil
+
+    atlas_dir = Path(repo_path) / ".codeatlas"
+    if not atlas_dir.exists():
+        console.print("[yellow]No .codeatlas directory found.[/yellow]")
+        return
+
+    if not yes:
+        click.confirm(f"Delete {atlas_dir} and all its contents?", abort=True)
+
+    shutil.rmtree(atlas_dir)
+    console.print(f"[green]Removed {atlas_dir}[/green]")
+
+
+@cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--transport", type=click.Choice(["stdio"]), default="stdio", show_default=True)
 def serve(db: str, transport: str) -> None:
