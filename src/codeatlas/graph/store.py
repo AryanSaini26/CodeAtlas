@@ -190,6 +190,13 @@ class GraphStore:
         with self._transaction() as conn:
             conn.execute("DELETE FROM files WHERE path = ?", (file_path,))
 
+    def get_symbol_by_id(self, symbol_id: str) -> Symbol | None:
+        """Look up a single symbol by its unique ID."""
+        row = self._conn.execute(
+            "SELECT * FROM symbols WHERE id = ?", (symbol_id,)
+        ).fetchone()
+        return self._row_to_symbol(row) if row else None
+
     def get_symbols_in_file(self, file_path: str) -> list[Symbol]:
         rows = self._conn.execute(
             "SELECT * FROM symbols WHERE file_path = ? ORDER BY start_line",
