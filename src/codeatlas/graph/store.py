@@ -298,6 +298,13 @@ class GraphStore:
             "relationships": conn.execute("SELECT COUNT(*) FROM relationships").fetchone()[0],
         }
 
+    def get_language_breakdown(self) -> dict[str, int]:
+        """Return symbol counts grouped by language."""
+        rows = self._conn.execute(
+            "SELECT language, COUNT(*) as cnt FROM symbols GROUP BY language ORDER BY cnt DESC"
+        ).fetchall()
+        return {row["language"]: row["cnt"] for row in rows}
+
     def list_files(self) -> list[FileInfo]:
         """Return all indexed files."""
         rows = self._conn.execute(
