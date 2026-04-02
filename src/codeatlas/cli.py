@@ -145,7 +145,14 @@ def stats(db: str, as_json: bool) -> None:
 @click.option("--limit", default=20, show_default=True)
 @click.option("--semantic", is_flag=True, help="Use semantic (vector) search")
 @click.option("--hybrid", is_flag=True, help="Use hybrid (FTS + semantic) search")
-def query(query: str, db: str, limit: int, semantic: bool, hybrid: bool) -> None:
+@click.option(
+    "--kind",
+    default=None,
+    help="Filter by symbol kind (function, class, method, interface, etc.)",
+)
+def query(
+    query: str, db: str, limit: int, semantic: bool, hybrid: bool, kind: str | None
+) -> None:
     """Search for symbols by name or docstring."""
     store = _get_store(Path(db))
 
@@ -172,6 +179,9 @@ def query(query: str, db: str, limit: int, semantic: bool, hybrid: bool) -> None
         results = store.search(query, limit=limit)
 
     store.close()
+
+    if kind:
+        results = [s for s in results if s.kind.value == kind.lower()]
 
     if not results:
         console.print("[yellow]No results found.[/yellow]")
