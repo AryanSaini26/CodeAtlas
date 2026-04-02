@@ -11,9 +11,9 @@ exposing it to AI coding agents like Claude Code and Cursor via the MCP protocol
 
 - Tree-sitter AST parsing for Python, TypeScript, and Go
 - SQLite + FTS5 knowledge graph (zero infrastructure)
-- FAISS semantic search (coming Month 3)
-- GitHub webhook real-time sync (coming Month 4)
-- MCP server with graph traversal tools (coming Month 4)
+- FAISS semantic search (In progress)
+- GitHub webhook real-time sync (In progress)
+- MCP server with graph traversal tools (In progress)
 
 ## Quick Start
 
