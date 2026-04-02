@@ -152,11 +152,15 @@ def stats(db: str, as_json: bool) -> None:
     """Show graph statistics."""
     store = _get_store(Path(db))
     s = store.get_stats()
+    lang_breakdown = store.get_language_breakdown()
+    kind_breakdown = store.get_kind_breakdown()
     store.close()
 
     if as_json:
         import json
 
+        s["languages"] = lang_breakdown
+        s["kinds"] = kind_breakdown
         console.print(json.dumps(s, indent=2))
     else:
         table = Table(title="CodeAtlas Graph Stats")
@@ -165,6 +169,22 @@ def stats(db: str, as_json: bool) -> None:
         for key, val in s.items():
             table.add_row(key.capitalize(), str(val))
         console.print(table)
+
+        if lang_breakdown:
+            lang_table = Table(title="By Language")
+            lang_table.add_column("Language", style="cyan")
+            lang_table.add_column("Symbols", justify="right", style="green")
+            for lang, count in lang_breakdown.items():
+                lang_table.add_row(lang, str(count))
+            console.print(lang_table)
+
+        if kind_breakdown:
+            kind_table = Table(title="By Kind")
+            kind_table.add_column("Kind", style="cyan")
+            kind_table.add_column("Count", justify="right", style="green")
+            for kind, count in kind_breakdown.items():
+                kind_table.add_row(kind, str(count))
+            console.print(kind_table)
 
 
 @cli.command()
