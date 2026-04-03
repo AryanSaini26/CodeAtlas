@@ -178,7 +178,9 @@ def test_init_skips_existing(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["init", str(tmp_path)])
     assert result.exit_code == 0
-    assert "already exists" in result.output
+    # Rich may wrap text across lines, so collapse whitespace for the check
+    output = " ".join(result.output.split())
+    assert "already exists" in output
 
 
 # --- config file loading ---
