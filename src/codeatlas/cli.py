@@ -464,6 +464,68 @@ def audit(db: str, show_cycles: bool, show_unused: bool, show_centrality: bool, 
     store.close()
 
 
+@cli.command(name="find-path")
+@click.argument("source")
+@click.argument("target")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--depth", default=10, show_default=True, help="Max path length")
+def find_path(source: str, target: str, db: str, depth: int) -> None:
+    """Find the shortest dependency path between two symbols."""
+    store = _get_store(Path(db))
+    src_matches = store.find_symbols_by_name(source)
+    tgt_matches = store.find_symbols_by_name(target)
+
+    if not src_matches:
+        console.print(f"[yellow]Source symbol '{source}' not found.[/yellow]")
+        store.close()
+        return
+    if not tgt_matches:
+        console.print(f"[yellow]Target symbol '{target}' not found.[/yellow]")
+        store.close()
+        return
+
+    path = store.find_path(src_matches[0].id, tgt_matches[0].id, max_depth=depth)
+    store.close()
+
+    if path is None:
+        console.print(f"[yellow]No path found between '{source}' and '{target}'.[/yellow]")
+        return
+
+    console.print(f"[bold]Path ({len(path) - 1} hops):[/bold]")
+    for i, node_id in enumerate(path):
+        prefix = "  " if i > 0 else ""
+        arrow = "-> " if i > 0 else "   "
+        console.print(f"{prefix}{arrow}[cyan]{node_id}[/cyan]")
+
+
+@cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--limit", default=20, show_default=True, help="Max file pairs to show")
+def coupling(db: str, limit: int) -> None:
+    """Show file coupling analysis — which files are most interconnected."""
+    store = _get_store(Path(db))
+    pairs = store.get_file_coupling(limit=limit)
+    store.close()
+
+    if not pairs:
+        console.print("[dim]No cross-file relationships found.[/dim]")
+        return
+
+    table = Table(title=f"File Coupling (top {len(pairs)} pairs)")
+    table.add_column("Source File", style="cyan")
+    table.add_column("Target File", style="green")
+    table.add_column("Relationships", justify="right", style="bold")
+    table.add_column("Kinds")
+    for pair in pairs:
+        table.add_row(
+            str(pair["source_file"]),
+            str(pair["target_file"]),
+            str(pair["relationship_count"]),
+            ", ".join(pair["kinds"]),
+        )
+    console.print(table)
+
+
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--transport", type=click.Choice(["stdio"]), default="stdio", show_default=True)

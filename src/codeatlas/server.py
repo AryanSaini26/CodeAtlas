@@ -276,6 +276,67 @@ def analyze_complexity(limit: int = 20) -> str:
 
 
 @mcp.tool()
+def find_path_between_symbols(source: str, target: str, max_depth: int = 10) -> str:
+    """Find the shortest dependency path between two symbols.
+
+    Args:
+        source: Name of the starting symbol
+        target: Name of the destination symbol
+        max_depth: Maximum path length to search
+    """
+    store = get_store()
+    src_matches = store.find_symbols_by_name(source)
+    tgt_matches = store.find_symbols_by_name(target)
+
+    if not src_matches:
+        return json.dumps({"error": f"Source symbol '{source}' not found"})
+    if not tgt_matches:
+        return json.dumps({"error": f"Target symbol '{target}' not found"})
+
+    src_sym = src_matches[0]
+    tgt_sym = tgt_matches[0]
+    path = store.find_path(src_sym.id, tgt_sym.id, max_depth=max_depth)
+
+    if path is None:
+        return json.dumps(
+            {
+                "source": src_sym.qualified_name,
+                "target": tgt_sym.qualified_name,
+                "path": None,
+                "message": "No path found between these symbols",
+            }
+        )
+
+    return json.dumps(
+        {
+            "source": src_sym.qualified_name,
+            "target": tgt_sym.qualified_name,
+            "path": path,
+            "length": len(path) - 1,
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
+def get_file_coupling(limit: int = 20) -> str:
+    """Analyze coupling between files based on cross-file relationships.
+
+    Returns file pairs ranked by how many relationships exist between them.
+    High coupling between files may indicate they should be merged or refactored.
+    """
+    store = get_store()
+    coupling = store.get_file_coupling(limit=limit)
+    return json.dumps(
+        {
+            "count": len(coupling),
+            "file_pairs": coupling,
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
 def find_similar_code(query: str, limit: int = 10) -> str:
     """Natural language search across the codebase using semantic similarity.
 

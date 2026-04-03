@@ -16,7 +16,12 @@ from codeatlas.models import (
     SymbolKind,
 )
 from codeatlas.server import (
+    analyze_complexity,
+    detect_circular_dependencies,
+    find_dead_code,
+    find_path_between_symbols,
     get_dependencies,
+    get_file_coupling,
     get_file_dependencies,
     get_file_overview,
     get_graph_stats,
@@ -135,3 +140,63 @@ def test_get_graph_stats_tool() -> None:
     result = json.loads(get_graph_stats())
     assert result["files"] == 3
     assert result["symbols"] == 3
+
+
+def test_detect_circular_dependencies_no_cycles() -> None:
+    result = json.loads(detect_circular_dependencies())
+    assert result["cycle_count"] == 0
+    assert result["cycles"] == []
+
+
+def test_detect_circular_dependencies_with_cycle() -> None:
+    store = GraphStore(":memory:")
+    s1 = _sym("foo", SymbolKind.FUNCTION, "a.py", 0)
+    s2 = _sym("bar", SymbolKind.FUNCTION, "b.py", 0)
+    r1 = _rel("a.py::foo", "b.py::bar", fp="a.py")
+    r2 = _rel("b.py::bar", "a.py::foo", fp="b.py")
+    store.upsert_parse_result(_result("a.py", [s1], [r1]))
+    store.upsert_parse_result(_result("b.py", [s2], [r2]))
+    set_store(store)
+    result = json.loads(detect_circular_dependencies())
+    assert result["cycle_count"] == 1
+    assert len(result["cycles"][0]["symbols"]) == 2
+
+
+def test_find_dead_code_tool() -> None:
+    result = json.loads(find_dead_code())
+    # main has no incoming deps, helper does (main calls it), Widget does (main imports it)
+    unused_names = [s["name"] for s in result["unused_symbols"]]
+    assert "helper" not in unused_names
+    assert "Widget" not in unused_names
+
+
+def test_analyze_complexity_tool() -> None:
+    result = json.loads(analyze_complexity(limit=10))
+    assert result["count"] > 0
+    # main has 2 outgoing rels so should appear
+    names = [s["name"] for s in result["symbols"]]
+    assert "main" in names
+
+
+def test_find_path_between_symbols_found() -> None:
+    result = json.loads(find_path_between_symbols("main", "helper"))
+    assert result["path"] is not None
+    assert result["length"] == 1
+
+
+def test_find_path_between_symbols_not_found() -> None:
+    result = json.loads(find_path_between_symbols("helper", "main"))
+    # helper -> main has no edge (only main -> helper exists)
+    assert result["path"] is None
+
+
+def test_find_path_source_missing() -> None:
+    result = json.loads(find_path_between_symbols("nonexistent", "main"))
+    assert "error" in result
+
+
+def test_get_file_coupling_tool() -> None:
+    result = json.loads(get_file_coupling(limit=10))
+    assert result["count"] > 0
+    files = [(p["source_file"], p["target_file"]) for p in result["file_pairs"]]
+    assert ("app.py", "utils.py") in files or ("app.py", "models.py") in files

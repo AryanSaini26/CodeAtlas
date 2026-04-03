@@ -273,3 +273,122 @@ class TestSymbolCentrality:
         assert "isolated" not in names
         assert "connected" in names
         assert "target" in names
+
+
+# --- Shortest path ---
+
+
+class TestFindPath:
+    def test_path_to_self(self) -> None:
+        store = GraphStore(":memory:")
+        a = _sym("a")
+        store.upsert_parse_result(_result(symbols=[a]))
+        path = store.find_path(a.id, a.id)
+        assert path == [a.id]
+
+    def test_direct_edge(self) -> None:
+        store = GraphStore(":memory:")
+        a, b = _sym("a", line=0), _sym("b", line=10)
+        store.upsert_parse_result(_result(symbols=[a, b], relationships=[_rel(a.id, b.id)]))
+        path = store.find_path(a.id, b.id)
+        assert path == [a.id, b.id]
+
+    def test_multi_hop_path(self) -> None:
+        store = GraphStore(":memory:")
+        a, b, c = _sym("a", line=0), _sym("b", line=10), _sym("c", line=20)
+        store.upsert_parse_result(
+            _result(
+                symbols=[a, b, c],
+                relationships=[_rel(a.id, b.id), _rel(b.id, c.id)],
+            )
+        )
+        path = store.find_path(a.id, c.id)
+        assert path == [a.id, b.id, c.id]
+
+    def test_no_path_exists(self) -> None:
+        store = GraphStore(":memory:")
+        a, b = _sym("a", line=0), _sym("b", line=10)
+        store.upsert_parse_result(_result(symbols=[a, b]))
+        assert store.find_path(a.id, b.id) is None
+
+    def test_finds_shortest(self) -> None:
+        store = GraphStore(":memory:")
+        a = _sym("a", line=0)
+        b = _sym("b", line=10)
+        c = _sym("c", line=20)
+        d = _sym("d", line=30)
+        store.upsert_parse_result(
+            _result(
+                symbols=[a, b, c, d],
+                relationships=[
+                    _rel(a.id, b.id),
+                    _rel(b.id, d.id),
+                    _rel(a.id, c.id),
+                    _rel(c.id, b.id),
+                    _rel(c.id, d.id),
+                ],
+            )
+        )
+        path = store.find_path(a.id, d.id)
+        # Shortest is a -> b -> d (2 hops) not a -> c -> d
+        assert path is not None
+        assert len(path) == 3
+
+    def test_respects_max_depth(self) -> None:
+        store = GraphStore(":memory:")
+        syms = [_sym(f"n{i}", line=i * 10) for i in range(5)]
+        rels = [_rel(syms[i].id, syms[i + 1].id) for i in range(4)]
+        store.upsert_parse_result(_result(symbols=syms, relationships=rels))
+        # Path n0->n1->n2->n3->n4 is 4 hops
+        assert store.find_path(syms[0].id, syms[4].id, max_depth=3) is None
+        assert store.find_path(syms[0].id, syms[4].id, max_depth=4) is not None
+
+
+# --- File coupling ---
+
+
+class TestFileCoupling:
+    def test_empty_graph(self) -> None:
+        store = GraphStore(":memory:")
+        assert store.get_file_coupling() == []
+
+    def test_cross_file_coupling(self) -> None:
+        store = GraphStore(":memory:")
+        a = _sym("a", file_path="a.py", line=0)
+        b = _sym("b", file_path="b.py", line=0)
+        store.upsert_parse_result(
+            _result(
+                file_path="a.py", symbols=[a], relationships=[_rel(a.id, b.id, file_path="a.py")]
+            )
+        )
+        store.upsert_parse_result(_result(file_path="b.py", symbols=[b]))
+        coupling = store.get_file_coupling()
+        assert len(coupling) == 1
+        assert coupling[0]["source_file"] == "a.py"
+        assert coupling[0]["target_file"] == "b.py"
+        assert coupling[0]["relationship_count"] == 1
+
+    def test_same_file_excluded(self) -> None:
+        store = GraphStore(":memory:")
+        a, b = _sym("a", line=0), _sym("b", line=10)
+        store.upsert_parse_result(_result(symbols=[a, b], relationships=[_rel(a.id, b.id)]))
+        # Both symbols in same file, so no cross-file coupling
+        assert store.get_file_coupling() == []
+
+    def test_respects_limit(self) -> None:
+        store = GraphStore(":memory:")
+        syms = []
+        for i in range(5):
+            fp = f"file{i}.py"
+            s = _sym(f"func{i}", file_path=fp, line=0)
+            syms.append((fp, s))
+        for fp, s in syms:
+            store.upsert_parse_result(_result(file_path=fp, symbols=[s]))
+        # Add cross-file rels
+        for i in range(4):
+            r = _rel(syms[i][1].id, syms[i + 1][1].id, file_path=syms[i][0])
+            store.upsert_parse_result(
+                _result(file_path=syms[i][0], symbols=[syms[i][1]], relationships=[r])
+            )
+        coupling = store.get_file_coupling(limit=2)
+        assert len(coupling) <= 2

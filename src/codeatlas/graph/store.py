@@ -571,6 +571,79 @@ class GraphStore:
             for r in rows
         ]
 
+    def find_path(self, source_id: str, target_id: str, max_depth: int = 10) -> list[str] | None:
+        """Find the shortest path between two symbols using BFS.
+
+        Returns list of symbol IDs forming the path (inclusive), or None if no path exists.
+        """
+        if source_id == target_id:
+            return [source_id]
+
+        conn = self._conn
+        # Build adjacency list
+        rows = conn.execute("SELECT DISTINCT source_id, target_id FROM relationships").fetchall()
+
+        graph: dict[str, list[str]] = {}
+        for row in rows:
+            src, tgt = row["source_id"], row["target_id"]
+            if tgt.startswith("<external>::") or tgt.startswith("<unresolved>::"):
+                continue
+            graph.setdefault(src, []).append(tgt)
+
+        # BFS
+        from collections import deque
+
+        queue: deque[list[str]] = deque([[source_id]])
+        visited: set[str] = {source_id}
+
+        while queue:
+            path = queue.popleft()
+            node = path[-1]
+            # len(path) - 1 is the number of edges so far
+            if len(path) - 1 >= max_depth:
+                continue
+            for neighbor in graph.get(node, []):
+                if neighbor == target_id:
+                    return path + [neighbor]
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(path + [neighbor])
+
+        return None
+
+    def get_file_coupling(self, limit: int = 20) -> list[dict[str, object]]:
+        """Compute coupling between file pairs based on cross-file relationships.
+
+        Returns file pairs sorted by the number of relationships between them.
+        """
+        conn = self._conn
+        rows = conn.execute(
+            """
+            SELECT
+                s1.file_path as source_file,
+                s2.file_path as target_file,
+                COUNT(*) as relationship_count,
+                GROUP_CONCAT(DISTINCT r.kind) as relationship_kinds
+            FROM relationships r
+            JOIN symbols s1 ON r.source_id = s1.id
+            JOIN symbols s2 ON r.target_id = s2.id
+            WHERE s1.file_path != s2.file_path
+            GROUP BY s1.file_path, s2.file_path
+            ORDER BY relationship_count DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [
+            {
+                "source_file": r["source_file"],
+                "target_file": r["target_file"],
+                "relationship_count": r["relationship_count"],
+                "kinds": r["relationship_kinds"].split(",") if r["relationship_kinds"] else [],
+            }
+            for r in rows
+        ]
+
     def get_affected_files(self, file_path: str) -> list[str]:
         """If this file changes, what other files might be affected?"""
         conn = self._conn

@@ -194,3 +194,108 @@ def test_index_with_config_file(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["index", str(repo), "--db", db_path])
     assert result.exit_code == 0
+
+
+# --- audit command ---
+
+
+def test_audit_all(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["audit", "--db", db_path])
+    assert result.exit_code == 0
+    # Should show all three sections
+    assert "circular" in result.output.lower() or "no circular" in result.output.lower()
+    assert "unused" in result.output.lower() or "no unused" in result.output.lower()
+    assert "centrality" in result.output.lower() or "no relationships" in result.output.lower()
+
+
+def test_audit_cycles_only(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["audit", "--db", db_path, "--cycles"])
+    assert result.exit_code == 0
+    # Should NOT contain centrality output since we only asked for cycles
+    assert "centrality" not in result.output.lower()
+
+
+def test_audit_unused_only(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["audit", "--db", db_path, "--unused"])
+    assert result.exit_code == 0
+
+
+def test_audit_centrality_with_limit(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["audit", "--db", db_path, "--centrality", "--limit", "5"])
+    assert result.exit_code == 0
+
+
+def test_audit_empty_db(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "empty.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["audit", "--db", db_path])
+    assert result.exit_code == 0
+
+
+# --- find-path command ---
+
+
+def test_find_path_found(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["find-path", "run", "greet", "--db", db_path])
+    assert result.exit_code == 0
+    assert "path" in result.output.lower() or "hop" in result.output.lower()
+
+
+def test_find_path_not_found(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["find-path", "add", "run", "--db", db_path])
+    assert result.exit_code == 0
+    assert "no path" in result.output.lower() or "not found" in result.output.lower()
+
+
+def test_find_path_symbol_missing(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["find-path", "nonexistent", "run", "--db", db_path])
+    assert result.exit_code == 0
+    assert "not found" in result.output.lower()
+
+
+# --- coupling command ---
+
+
+def test_coupling_command(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["coupling", "--db", db_path])
+    assert result.exit_code == 0
+
+
+def test_coupling_empty_db(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "empty.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["coupling", "--db", db_path])
+    assert result.exit_code == 0
+    assert "no cross-file" in result.output.lower()
