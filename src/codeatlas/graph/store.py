@@ -192,9 +192,7 @@ class GraphStore:
 
     def get_symbol_by_id(self, symbol_id: str) -> Symbol | None:
         """Look up a single symbol by its unique ID."""
-        row = self._conn.execute(
-            "SELECT * FROM symbols WHERE id = ?", (symbol_id,)
-        ).fetchone()
+        row = self._conn.execute("SELECT * FROM symbols WHERE id = ?", (symbol_id,)).fetchone()
         return self._row_to_symbol(row) if row else None
 
     def get_symbols_in_file(self, file_path: str) -> list[Symbol]:
@@ -314,9 +312,7 @@ class GraphStore:
 
     def list_files(self) -> list[FileInfo]:
         """Return all indexed files."""
-        rows = self._conn.execute(
-            "SELECT * FROM files ORDER BY path"
-        ).fetchall()
+        rows = self._conn.execute("SELECT * FROM files ORDER BY path").fetchall()
         return [
             FileInfo(
                 path=r["path"],
@@ -449,6 +445,131 @@ class GraphStore:
             "depends_on": sorted(row["file_path"] for row in outgoing),
             "depended_by": sorted(row["file_path"] for row in incoming),
         }
+
+    # --- Graph analysis ---
+
+    def detect_cycles(self, relationship_kinds: list[str] | None = None) -> list[list[str]]:
+        """Detect circular dependencies in the graph.
+
+        Returns a list of cycles, where each cycle is a list of symbol IDs
+        forming a loop (e.g. [A, B, C] means A->B->C->A).
+        """
+        kinds = relationship_kinds or ["calls", "imports"]
+        placeholders = ",".join("?" for _ in kinds)
+        conn = self._conn
+
+        # Build adjacency list from relationships
+        rows = conn.execute(
+            f"SELECT DISTINCT source_id, target_id FROM relationships WHERE kind IN ({placeholders})",
+            kinds,
+        ).fetchall()
+
+        graph: dict[str, list[str]] = {}
+        for row in rows:
+            src, tgt = row["source_id"], row["target_id"]
+            if tgt.startswith("<external>::") or tgt.startswith("<unresolved>::"):
+                continue
+            graph.setdefault(src, []).append(tgt)
+
+        # DFS-based cycle detection
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color: dict[str, int] = {node: WHITE for node in graph}
+        # Also add nodes that appear only as targets
+        all_targets = {tgt for neighbors in graph.values() for tgt in neighbors}
+        for t in all_targets:
+            if t not in color:
+                color[t] = WHITE
+
+        path: list[str] = []
+        cycles: list[list[str]] = []
+        seen_cycles: set[tuple[str, ...]] = set()
+
+        def dfs(node: str) -> None:
+            color[node] = GRAY
+            path.append(node)
+            for neighbor in graph.get(node, []):
+                if color.get(neighbor) == GRAY:
+                    # Found a cycle — extract it
+                    idx = path.index(neighbor)
+                    cycle = path[idx:]
+                    # Normalize: rotate so smallest ID is first (for dedup)
+                    min_idx = cycle.index(min(cycle))
+                    normalized = tuple(cycle[min_idx:] + cycle[:min_idx])
+                    if normalized not in seen_cycles:
+                        seen_cycles.add(normalized)
+                        cycles.append(list(normalized))
+                elif color.get(neighbor, WHITE) == WHITE:
+                    dfs(neighbor)
+            path.pop()
+            color[node] = BLACK
+
+        for node in list(graph.keys()):
+            if color.get(node) == WHITE:
+                dfs(node)
+
+        return cycles
+
+    def find_unused_symbols(self) -> list[Symbol]:
+        """Find symbols with no incoming relationships (potential dead code).
+
+        Excludes modules, imports, and common entry points (__init__, main, cli).
+        """
+        conn = self._conn
+        rows = conn.execute(
+            """
+            SELECT s.* FROM symbols s
+            LEFT JOIN relationships r ON r.target_id = s.id
+            WHERE r.id IS NULL
+              AND s.kind NOT IN ('module', 'import')
+              AND s.name NOT IN ('__init__', 'main', 'cli', '__main__')
+            ORDER BY s.file_path, s.start_line
+            """
+        ).fetchall()
+        return [self._row_to_symbol(r) for r in rows]
+
+    def get_symbol_centrality(self, limit: int = 50) -> list[dict[str, object]]:
+        """Compute degree centrality for each symbol.
+
+        Returns symbols sorted by total degree (in + out), highest first.
+        """
+        conn = self._conn
+        rows = conn.execute(
+            """
+            SELECT
+                s.id,
+                s.name,
+                s.qualified_name,
+                s.kind,
+                s.file_path,
+                COALESCE(out_deg.cnt, 0) as out_degree,
+                COALESCE(in_deg.cnt, 0) as in_degree,
+                COALESCE(out_deg.cnt, 0) + COALESCE(in_deg.cnt, 0) as total_degree
+            FROM symbols s
+            LEFT JOIN (
+                SELECT source_id, COUNT(*) as cnt FROM relationships GROUP BY source_id
+            ) out_deg ON out_deg.source_id = s.id
+            LEFT JOIN (
+                SELECT target_id, COUNT(*) as cnt FROM relationships GROUP BY target_id
+            ) in_deg ON in_deg.target_id = s.id
+            WHERE COALESCE(out_deg.cnt, 0) + COALESCE(in_deg.cnt, 0) > 0
+            ORDER BY total_degree DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "qualified_name": r["qualified_name"],
+                "kind": r["kind"],
+                "file": r["file_path"],
+                "in_degree": r["in_degree"],
+                "out_degree": r["out_degree"],
+                "total_degree": r["total_degree"],
+            }
+            for r in rows
+        ]
 
     def get_affected_files(self, file_path: str) -> list[str]:
         """If this file changes, what other files might be affected?"""

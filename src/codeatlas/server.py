@@ -214,6 +214,68 @@ def export_graph(format: str = "json", file_filter: str | None = None) -> str:
 
 
 @mcp.tool()
+def detect_circular_dependencies() -> str:
+    """Detect circular dependencies (import/call cycles) in the codebase.
+
+    Returns cycles where A depends on B depends on C depends on A.
+    Useful for identifying architectural issues.
+    """
+    store = get_store()
+    cycles = store.detect_cycles()
+    return json.dumps(
+        {
+            "cycle_count": len(cycles),
+            "cycles": [{"symbols": cycle, "length": len(cycle)} for cycle in cycles],
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
+def find_dead_code() -> str:
+    """Find symbols that are never referenced by anything else (potential dead code).
+
+    Returns functions, classes, and methods with zero incoming relationships.
+    Excludes entry points like main, __init__, and module-level imports.
+    """
+    store = get_store()
+    unused = store.find_unused_symbols()
+    return json.dumps(
+        {
+            "count": len(unused),
+            "unused_symbols": [
+                {
+                    "name": s.qualified_name,
+                    "kind": s.kind.value,
+                    "file": s.file_path,
+                    "line": s.span.start.line + 1,
+                }
+                for s in unused
+            ],
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
+def analyze_complexity(limit: int = 20) -> str:
+    """Analyze symbol coupling by computing degree centrality.
+
+    Returns the most connected symbols (highest in-degree + out-degree),
+    which are the most critical and potentially most complex parts of the codebase.
+    """
+    store = get_store()
+    centrality = store.get_symbol_centrality(limit=limit)
+    return json.dumps(
+        {
+            "count": len(centrality),
+            "symbols": centrality,
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
 def find_similar_code(query: str, limit: int = 10) -> str:
     """Natural language search across the codebase using semantic similarity.
 

@@ -198,9 +198,7 @@ def stats(db: str, as_json: bool) -> None:
     default=None,
     help="Filter by symbol kind (function, class, method, interface, etc.)",
 )
-def query(
-    query: str, db: str, limit: int, semantic: bool, hybrid: bool, kind: str | None
-) -> None:
+def query(query: str, db: str, limit: int, semantic: bool, hybrid: bool, kind: str | None) -> None:
     """Search for symbols by name or docstring."""
     store = _get_store(Path(db))
 
@@ -394,6 +392,76 @@ def clean(repo_path: str, yes: bool) -> None:
 
     shutil.rmtree(atlas_dir)
     console.print(f"[green]Removed {atlas_dir}[/green]")
+
+
+@cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--cycles", "show_cycles", is_flag=True, help="Show circular dependencies only")
+@click.option("--unused", "show_unused", is_flag=True, help="Show unused symbols only")
+@click.option("--centrality", "show_centrality", is_flag=True, help="Show symbol centrality only")
+@click.option("--limit", default=20, show_default=True, help="Max results for centrality")
+def audit(db: str, show_cycles: bool, show_unused: bool, show_centrality: bool, limit: int) -> None:
+    """Run code quality analysis: cycles, dead code, and complexity."""
+    store = _get_store(Path(db))
+
+    # If no specific flag, show all
+    show_all = not (show_cycles or show_unused or show_centrality)
+
+    if show_all or show_cycles:
+        cycles = store.detect_cycles()
+        if cycles:
+            table = Table(title=f"Circular Dependencies ({len(cycles)} cycles)")
+            table.add_column("#", justify="right", style="dim")
+            table.add_column("Cycle", style="red")
+            table.add_column("Length", justify="right")
+            for i, cycle in enumerate(cycles, 1):
+                table.add_row(str(i), " -> ".join(cycle) + " -> " + cycle[0], str(len(cycle)))
+            console.print(table)
+        else:
+            console.print("[green]No circular dependencies found.[/green]")
+        console.print()
+
+    if show_all or show_unused:
+        unused = store.find_unused_symbols()
+        if unused:
+            table = Table(title=f"Unused Symbols ({len(unused)} found)")
+            table.add_column("Name", style="yellow")
+            table.add_column("Kind", style="magenta")
+            table.add_column("File")
+            table.add_column("Line", justify="right")
+            for sym in unused:
+                table.add_row(
+                    sym.qualified_name, sym.kind.value, sym.file_path, str(sym.span.start.line + 1)
+                )
+            console.print(table)
+        else:
+            console.print("[green]No unused symbols found.[/green]")
+        console.print()
+
+    if show_all or show_centrality:
+        centrality = store.get_symbol_centrality(limit=limit)
+        if centrality:
+            table = Table(title=f"Symbol Centrality (top {len(centrality)})")
+            table.add_column("Name", style="cyan")
+            table.add_column("Kind", style="magenta")
+            table.add_column("File")
+            table.add_column("In", justify="right", style="green")
+            table.add_column("Out", justify="right", style="yellow")
+            table.add_column("Total", justify="right", style="bold")
+            for entry in centrality:
+                table.add_row(
+                    str(entry["qualified_name"]),
+                    str(entry["kind"]),
+                    str(entry["file"]),
+                    str(entry["in_degree"]),
+                    str(entry["out_degree"]),
+                    str(entry["total_degree"]),
+                )
+            console.print(table)
+        else:
+            console.print("[dim]No relationships found for centrality analysis.[/dim]")
+
+    store.close()
 
 
 @cli.command()
