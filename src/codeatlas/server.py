@@ -187,9 +187,14 @@ def get_file_dependencies(path: str) -> str:
 
 @mcp.tool()
 def get_graph_stats() -> str:
-    """Get summary statistics of the indexed knowledge graph."""
+    """Get summary statistics of the indexed knowledge graph.
+
+    Returns file/symbol/relationship counts plus breakdowns by language and symbol kind.
+    """
     store = get_store()
     stats = store.get_stats()
+    stats["languages"] = store.get_language_breakdown()
+    stats["kinds"] = store.get_kind_breakdown()
     return json.dumps(stats, indent=2)
 
 
