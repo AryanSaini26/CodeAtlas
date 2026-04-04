@@ -6,6 +6,7 @@ import pytest
 
 from codeatlas.graph.store import GraphStore
 from codeatlas.parsers.cpp_parser import CppParser
+from codeatlas.parsers.csharp_parser import CSharpParser
 from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.python_parser import PythonParser
@@ -109,3 +110,18 @@ def sample_cpp_path() -> Path:
 @pytest.fixture
 def sample_cpp_source(sample_cpp_path: Path) -> str:
     return sample_cpp_path.read_text()
+
+
+@pytest.fixture
+def csharp_parser() -> CSharpParser:
+    return CSharpParser()
+
+
+@pytest.fixture
+def sample_csharp_path() -> Path:
+    return FIXTURES_DIR / "sample_csharp" / "SampleModule.cs"
+
+
+@pytest.fixture
+def sample_csharp_source(sample_csharp_path: Path) -> str:
+    return sample_csharp_path.read_text()

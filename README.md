@@ -8,7 +8,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for Python, TypeScript/TSX, Go, Rust, Java, and C/C++
+- **Multi-language parsing** - Tree-sitter AST parsing for Python, TypeScript/TSX, Go, Rust, Java, C/C++, and C#
 - **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
 - **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
 - **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
@@ -83,6 +83,7 @@ pip install codeatlas[all]
 | **Rust** | `.rs` | Structs, traits, enums, impl blocks, type aliases, `///` doc comments |
 | **Java** | `.java` | Classes, interfaces, enums, records, constructors, Javadoc, annotations |
 | **C/C++** | `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hxx`, `.h` | Classes, structs, enums, namespaces, templates, inheritance, `///`/`/** */` docs |
+| **C#** | `.cs` | Classes, interfaces, structs, enums, records, properties, XML doc comments, inheritance |
 
 ## Configuration
 
@@ -100,7 +101,7 @@ exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]
 
 [codeatlas.parser]
 max_file_size_kb = 500
-include_extensions = [".py", ".ts", ".tsx", ".go", ".rs", ".java", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h"]
+include_extensions = [".py", ".ts", ".tsx", ".go", ".rs", ".java", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h", ".cs"]
 
 [codeatlas.graph]
 db_path = ".codeatlas/graph.db"

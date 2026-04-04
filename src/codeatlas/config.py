@@ -24,6 +24,7 @@ class ParserConfig(BaseModel):
             ".hpp",
             ".hxx",
             ".h",
+            ".cs",
         ],
         description="File extensions to parse",
     )
