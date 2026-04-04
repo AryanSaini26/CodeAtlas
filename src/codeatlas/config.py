@@ -11,7 +11,7 @@ class ParserConfig(BaseModel):
 
     max_file_size_kb: int = Field(default=500, description="Skip files larger than this (KB)")
     include_extensions: list[str] = Field(
-        default=[".py", ".ts", ".tsx", ".go"],
+        default=[".py", ".ts", ".tsx", ".go", ".rs", ".java"],
         description="File extensions to parse",
     )
 

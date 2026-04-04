@@ -40,7 +40,7 @@ def init(repo_path: str) -> None:
         "# repo_root is set automatically when loading\n\n"
         "[codeatlas.parser]\n"
         "max_file_size_kb = 500\n"
-        'include_extensions = [".py", ".ts", ".tsx", ".go"]\n\n'
+        'include_extensions = [".py", ".ts", ".tsx", ".go", ".rs", ".java"]\n\n'
         "[codeatlas.graph]\n"
         'db_path = ".codeatlas/graph.db"\n\n'
         "[codeatlas.server]\n"
