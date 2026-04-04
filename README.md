@@ -8,14 +8,15 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for Python, TypeScript/TSX, Go, Rust, and Java
+- **Multi-language parsing** - Tree-sitter AST parsing for Python, TypeScript/TSX, Go, Rust, Java, and C/C++
 - **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
 - **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
 - **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
 - **Graph analysis** - Cycle detection, dead code finder, symbol centrality, shortest path, file coupling
 - **Interactive visualization** - D3.js force-directed graph with search, zoom, and hover inspection
 - **Real-time sync** - Watchdog file watcher and GitHub webhook handler for incremental updates
-- **MCP server** - 15 tools exposed via the Model Context Protocol for AI agent consumption
+- **Change impact analysis** - Git-aware diff analysis showing which symbols and files are affected
+- **MCP server** - 16 tools exposed via the Model Context Protocol for AI agent consumption
 - **Graph export** - DOT (Graphviz) and JSON (D3.js) visualization formats
 - **Config files** - Optional `codeatlas.toml` for per-repo settings
 
@@ -81,6 +82,7 @@ pip install codeatlas[all]
 | **Go** | `.go` | Functions, methods, structs, interfaces, packages, type aliases |
 | **Rust** | `.rs` | Structs, traits, enums, impl blocks, type aliases, `///` doc comments |
 | **Java** | `.java` | Classes, interfaces, enums, records, constructors, Javadoc, annotations |
+| **C/C++** | `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hxx`, `.h` | Classes, structs, enums, namespaces, templates, inheritance, `///`/`/** */` docs |
 
 ## Configuration
 
@@ -98,7 +100,7 @@ exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]
 
 [codeatlas.parser]
 max_file_size_kb = 500
-include_extensions = [".py", ".ts", ".tsx", ".go", ".rs", ".java"]
+include_extensions = [".py", ".ts", ".tsx", ".go", ".rs", ".java", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h"]
 
 [codeatlas.graph]
 db_path = ".codeatlas/graph.db"
@@ -123,6 +125,7 @@ If no config file is found, sensible defaults are used.
 | `codeatlas audit` | Run code quality analysis (cycles, dead code, complexity) |
 | `codeatlas find-path <src> <tgt>` | Find shortest dependency path between two symbols |
 | `codeatlas coupling` | Show file coupling analysis |
+| `codeatlas impact [path]` | Analyze impact of current git changes on the graph |
 | `codeatlas export` | Export graph in DOT or JSON format |
 | `codeatlas viz` | Generate interactive D3.js graph visualization |
 | `codeatlas watch [path]` | Watch for file changes and update graph in real-time |
@@ -153,7 +156,7 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools (15)
+### Available MCP Tools (16)
 
 | Tool | Description |
 |------|-------------|
@@ -172,6 +175,7 @@ Add to your Claude Code MCP settings:
 | `analyze_complexity` | Symbol centrality (most coupled/critical code) |
 | `find_path_between_symbols` | Shortest dependency path between two symbols |
 | `get_file_coupling` | Cross-file relationship density analysis |
+| `get_change_impact` | Git-aware change impact analysis |
 
 ## Graph Visualization
 
@@ -235,7 +239,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests (260+)
+# Run tests (300+)
 .venv/bin/pytest -v
 
 # Lint

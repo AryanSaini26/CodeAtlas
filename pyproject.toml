@@ -17,6 +17,7 @@ dependencies = [
     "tree-sitter-go>=0.23.0",
     "tree-sitter-rust>=0.23.0",
     "tree-sitter-java>=0.23.0",
+    "tree-sitter-cpp>=0.23.0",
     "pydantic>=2.0.0",
     "click>=8.0.0",
     "rich>=13.0.0",

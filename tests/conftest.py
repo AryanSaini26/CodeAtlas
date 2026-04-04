@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from codeatlas.graph.store import GraphStore
+from codeatlas.parsers.cpp_parser import CppParser
 from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.python_parser import PythonParser
@@ -93,3 +94,18 @@ def sample_java_path() -> Path:
 @pytest.fixture
 def sample_java_source(sample_java_path: Path) -> str:
     return sample_java_path.read_text()
+
+
+@pytest.fixture
+def cpp_parser() -> CppParser:
+    return CppParser()
+
+
+@pytest.fixture
+def sample_cpp_path() -> Path:
+    return FIXTURES_DIR / "sample_cpp" / "sample_module.cpp"
+
+
+@pytest.fixture
+def sample_cpp_source(sample_cpp_path: Path) -> str:
+    return sample_cpp_path.read_text()

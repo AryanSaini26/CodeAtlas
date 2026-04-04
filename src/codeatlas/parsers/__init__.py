@@ -4,6 +4,7 @@ from pathlib import Path
 
 from codeatlas.models import ParseResult
 from codeatlas.parsers.base import BaseParser
+from codeatlas.parsers.cpp_parser import CppParser
 from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.python_parser import PythonParser
@@ -16,7 +17,14 @@ class ParserRegistry:
 
     def __init__(self) -> None:
         self._parsers: dict[str, BaseParser] = {}
-        for parser in [PythonParser(), TypeScriptParser(), GoParser(), RustParser(), JavaParser()]:
+        for parser in [
+            PythonParser(),
+            TypeScriptParser(),
+            GoParser(),
+            RustParser(),
+            JavaParser(),
+            CppParser(),
+        ]:
             for ext in parser.supported_extensions:
                 self._parsers[ext] = parser
 
