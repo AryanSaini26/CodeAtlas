@@ -527,6 +527,70 @@ def coupling(db: str, limit: int) -> None:
 
 
 @cli.command()
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--ref", default="HEAD", show_default=True, help="Git ref to diff against")
+@click.option("--depth", default=3, show_default=True, help="Max depth for impact traversal")
+def impact(repo_path: str, db: str, ref: str, depth: int) -> None:
+    """Analyze the impact of current git changes on the codebase."""
+    from codeatlas.git_integration import analyze_change_impact
+
+    store = _get_store(Path(db))
+    result = analyze_change_impact(store, Path(repo_path), ref=ref, max_depth=depth)
+    store.close()
+
+    if not result.changed_files:
+        console.print(
+            "[dim]No changed files detected (is this a git repo with uncommitted changes?).[/dim]"
+        )
+        return
+
+    console.print(f"[bold]Changed files ({len(result.changed_files)}):[/bold]")
+    for f in result.changed_files:
+        console.print(f"  [yellow]~ {f}[/yellow]")
+    console.print()
+
+    if result.changed_symbols:
+        table = Table(title=f"Changed Symbols ({len(result.changed_symbols)})")
+        table.add_column("Symbol", style="yellow")
+        table.add_column("Kind", style="magenta")
+        table.add_column("File")
+        table.add_column("Line", justify="right")
+        for cs in result.changed_symbols:
+            table.add_row(
+                cs.symbol.qualified_name,
+                cs.symbol.kind.value,
+                cs.symbol.file_path,
+                str(cs.symbol.span.start.line + 1),
+            )
+        console.print(table)
+        console.print()
+
+    if result.affected_symbols:
+        table = Table(title=f"Affected Symbols ({len(result.affected_symbols)})")
+        table.add_column("Symbol", style="red")
+        table.add_column("Kind", style="magenta")
+        table.add_column("File")
+        table.add_column("Line", justify="right")
+        for sym in result.affected_symbols:
+            table.add_row(
+                sym.qualified_name,
+                sym.kind.value,
+                sym.file_path,
+                str(sym.span.start.line + 1),
+            )
+        console.print(table)
+        console.print()
+
+    if result.affected_files:
+        console.print(f"[bold]Affected files ({len(result.affected_files)}):[/bold]")
+        for f in result.affected_files:
+            console.print(f"  [red]! {f}[/red]")
+    elif result.changed_symbols:
+        console.print("[green]No other files affected by these changes.[/green]")
+
+
+@cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option(
     "--file-filter", default=None, help="Only include symbols from files matching this prefix"

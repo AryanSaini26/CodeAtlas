@@ -337,6 +337,53 @@ def get_file_coupling(limit: int = 20) -> str:
 
 
 @mcp.tool()
+def get_change_impact(repo_path: str = ".", ref: str = "HEAD", max_depth: int = 3) -> str:
+    """Analyze the impact of current git changes on the codebase.
+
+    Detects which files/symbols changed in the current git diff, then traces
+    reverse dependencies to find all affected symbols and files.
+
+    Args:
+        repo_path: Path to the git repository
+        ref: Git ref to diff against (default: HEAD for uncommitted changes)
+        max_depth: How deep to trace reverse dependencies
+    """
+    from pathlib import Path
+
+    from codeatlas.git_integration import analyze_change_impact
+
+    store = get_store()
+    result = analyze_change_impact(store, Path(repo_path), ref=ref, max_depth=max_depth)
+
+    return json.dumps(
+        {
+            "changed_files": result.changed_files,
+            "changed_symbols": [
+                {
+                    "name": cs.symbol.qualified_name,
+                    "kind": cs.symbol.kind.value,
+                    "file": cs.symbol.file_path,
+                    "line": cs.symbol.span.start.line + 1,
+                    "change_type": cs.change_type,
+                }
+                for cs in result.changed_symbols
+            ],
+            "affected_symbols": [
+                {
+                    "name": s.qualified_name,
+                    "kind": s.kind.value,
+                    "file": s.file_path,
+                    "line": s.span.start.line + 1,
+                }
+                for s in result.affected_symbols
+            ],
+            "affected_files": result.affected_files,
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
 def find_similar_code(query: str, limit: int = 10) -> str:
     """Natural language search across the codebase using semantic similarity.
 
