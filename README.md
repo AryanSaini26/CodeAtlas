@@ -8,12 +8,14 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for Python, TypeScript/TSX, and Go
+- **Multi-language parsing** - Tree-sitter AST parsing for Python, TypeScript/TSX, Go, Rust, and Java
 - **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
 - **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
 - **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
+- **Graph analysis** - Cycle detection, dead code finder, symbol centrality, shortest path, file coupling
+- **Interactive visualization** - D3.js force-directed graph with search, zoom, and hover inspection
 - **Real-time sync** - Watchdog file watcher and GitHub webhook handler for incremental updates
-- **MCP server** - 10 tools exposed via the Model Context Protocol for AI agent consumption
+- **MCP server** - 15 tools exposed via the Model Context Protocol for AI agent consumption
 - **Graph export** - DOT (Graphviz) and JSON (D3.js) visualization formats
 - **Config files** - Optional `codeatlas.toml` for per-repo settings
 
@@ -40,6 +42,12 @@ codeatlas query "where do we handle login errors" --semantic
 # Inspect a specific symbol
 codeatlas show UserService
 
+# Run code quality audit (cycles, dead code, complexity)
+codeatlas audit
+
+# Visualize the graph in your browser
+codeatlas viz --open
+
 # Watch for file changes
 codeatlas watch /path/to/repo
 
@@ -64,6 +72,16 @@ pip install codeatlas[search]
 pip install codeatlas[all]
 ```
 
+## Supported Languages
+
+| Language | Extensions | Extractions |
+|----------|-----------|-------------|
+| **Python** | `.py` | Classes, functions, methods, decorators, docstrings, imports, inheritance |
+| **TypeScript/TSX** | `.ts`, `.tsx` | Functions, classes, interfaces, type aliases, exports, generics, JSDoc |
+| **Go** | `.go` | Functions, methods, structs, interfaces, packages, type aliases |
+| **Rust** | `.rs` | Structs, traits, enums, impl blocks, type aliases, `///` doc comments |
+| **Java** | `.java` | Classes, interfaces, enums, records, constructors, Javadoc, annotations |
+
 ## Configuration
 
 CodeAtlas can be configured with a `codeatlas.toml` file in your repository root. Generate one with:
@@ -80,7 +98,7 @@ exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]
 
 [codeatlas.parser]
 max_file_size_kb = 500
-include_extensions = [".py", ".ts", ".tsx", ".go"]
+include_extensions = [".py", ".ts", ".tsx", ".go", ".rs", ".java"]
 
 [codeatlas.graph]
 db_path = ".codeatlas/graph.db"
@@ -95,14 +113,21 @@ If no config file is found, sensible defaults are used.
 | `codeatlas init` | Generate a `codeatlas.toml` config file |
 | `codeatlas index [path]` | Index a repository into the knowledge graph |
 | `codeatlas index [path] --incremental` | Only re-index files that changed |
+| `codeatlas diff [path]` | Show files that changed since the last index |
 | `codeatlas stats` | Show graph statistics (files, symbols, relationships) |
+| `codeatlas list-files` | List all indexed files with language and symbol counts |
 | `codeatlas query <term>` | Full-text search across the codebase |
 | `codeatlas query <term> --semantic` | Natural language semantic search |
 | `codeatlas query <term> --hybrid` | Combined FTS + semantic search |
 | `codeatlas show <symbol>` | Inspect a symbol's signature, docs, deps, and call chain |
+| `codeatlas audit` | Run code quality analysis (cycles, dead code, complexity) |
+| `codeatlas find-path <src> <tgt>` | Find shortest dependency path between two symbols |
+| `codeatlas coupling` | Show file coupling analysis |
 | `codeatlas export` | Export graph in DOT or JSON format |
+| `codeatlas viz` | Generate interactive D3.js graph visualization |
 | `codeatlas watch [path]` | Watch for file changes and update graph in real-time |
 | `codeatlas webhook [path]` | Start a GitHub webhook server for push-triggered updates |
+| `codeatlas clean` | Remove the `.codeatlas` directory |
 | `codeatlas serve` | Start the MCP server |
 
 ## MCP Server
@@ -128,7 +153,7 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools
+### Available MCP Tools (15)
 
 | Tool | Description |
 |------|-------------|
@@ -142,6 +167,34 @@ Add to your Claude Code MCP settings:
 | `get_file_dependencies` | File-level dependency graph |
 | `get_graph_stats` | Summary statistics of the indexed graph |
 | `export_graph` | Export graph in DOT or JSON format |
+| `detect_circular_dependencies` | Find import/call cycles in the codebase |
+| `find_dead_code` | Find symbols with zero incoming references |
+| `analyze_complexity` | Symbol centrality (most coupled/critical code) |
+| `find_path_between_symbols` | Shortest dependency path between two symbols |
+| `get_file_coupling` | Cross-file relationship density analysis |
+
+## Graph Visualization
+
+Generate an interactive force-directed graph of your codebase:
+
+```bash
+# Generate and open in browser
+codeatlas viz --open
+
+# Save to a specific file
+codeatlas viz -o my-graph.html
+
+# Filter to specific directory
+codeatlas viz --file-filter src/core/
+```
+
+The visualization features:
+- Force-directed layout with D3.js
+- Color-coded nodes by symbol kind (class, function, interface, etc.)
+- Hover to highlight a symbol's direct connections
+- Search bar to filter symbols by name
+- Zoom and pan with mouse
+- Drag nodes to rearrange
 
 ## GitHub Webhook
 
@@ -158,15 +211,14 @@ Then configure your GitHub repo webhook to POST to `http://your-server:9000/webh
 ```
 Source Files --> Tree-sitter AST --> Symbols + Relationships --> SQLite Graph
                                                                     |
-                                                              +-----+-----+
-                                                              |           |
-                                                          FTS5 Search  FAISS Vectors
-                                                              |           |
-                                                              +-----+-----+
-                                                                    |
-                                                              Hybrid Search
-                                                                    |
-                                                              MCP Server --> AI Agents
+                                                 +--------+---------+--------+
+                                                 |        |         |        |
+                                              FTS5     FAISS     Graph    D3.js
+                                             Search   Vectors   Analysis   Viz
+                                                 |        |         |        |
+                                                 +--------+---------+--------+
+                                                              |
+                                                   CLI + MCP Server --> AI Agents
 ```
 
 **Design decisions:**
@@ -183,7 +235,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests
+# Run tests (260+)
 .venv/bin/pytest -v
 
 # Lint

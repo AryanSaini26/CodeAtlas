@@ -528,6 +528,32 @@ def coupling(db: str, limit: int) -> None:
 
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option(
+    "--file-filter", default=None, help="Only include symbols from files matching this prefix"
+)
+@click.option("-o", "--output", default=None, type=click.Path(), help="Output HTML file path")
+@click.option("--open", "open_browser", is_flag=True, help="Open in default browser")
+def viz(db: str, file_filter: str | None, output: str | None, open_browser: bool) -> None:
+    """Generate an interactive D3.js graph visualization."""
+    from codeatlas.viz import generate_viz
+
+    store = _get_store(Path(db))
+    html = generate_viz(store, file_filter=file_filter)
+    store.close()
+
+    out_path = Path(output) if output else Path(".codeatlas/graph.html")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(html)
+    console.print(f"[green]Visualization saved to {out_path}[/green]")
+
+    if open_browser:
+        import webbrowser
+
+        webbrowser.open(f"file://{out_path.resolve()}")
+
+
+@cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--transport", type=click.Choice(["stdio"]), default="stdio", show_default=True)
 def serve(db: str, transport: str) -> None:
     """Start the MCP server."""

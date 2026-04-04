@@ -301,3 +301,46 @@ def test_coupling_empty_db(tmp_path: Path) -> None:
     result = runner.invoke(cli, ["coupling", "--db", db_path])
     assert result.exit_code == 0
     assert "no cross-file" in result.output.lower()
+
+
+# --- viz command ---
+
+
+def test_viz_generates_html(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    output = str(tmp_path / "graph.html")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["viz", "--db", db_path, "-o", output])
+    assert result.exit_code == 0
+    content = Path(output).read_text()
+    assert "d3.js" in content.lower() or "d3.v7" in content
+    assert "CodeAtlas" in content
+
+
+def test_viz_default_output(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # Run from tmp_path so .codeatlas/ is created there
+    import os
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = runner.invoke(cli, ["viz", "--db", db_path])
+        assert result.exit_code == 0
+        assert (tmp_path / ".codeatlas" / "graph.html").exists()
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_viz_empty_db(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "empty.db")
+    output = str(tmp_path / "graph.html")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["viz", "--db", db_path, "-o", output])
+    assert result.exit_code == 0
+    assert Path(output).exists()
