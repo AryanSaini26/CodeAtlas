@@ -70,6 +70,67 @@ def multi_lang_repo(tmp_path: Path) -> Path:
         "    Port int\n"
         "}\n"
     )
+    # Rust: a data module
+    (tmp_path / "data.rs").write_text(
+        "use std::collections::HashMap;\n\n"
+        "/// A data record.\n"
+        "pub struct Record {\n"
+        "    pub id: u64,\n"
+        "    pub name: String,\n"
+        "}\n\n"
+        "impl Record {\n"
+        "    pub fn new(id: u64, name: String) -> Self {\n"
+        "        Record { id, name }\n"
+        "    }\n"
+        "}\n"
+    )
+
+    # Java: an entity class
+    (tmp_path / "Entity.java").write_text(
+        "package models;\n\n"
+        "public class Entity {\n"
+        "    private int id;\n\n"
+        "    /** Create an entity. */\n"
+        "    public Entity(int id) {\n"
+        "        this.id = id;\n"
+        "    }\n\n"
+        "    public int getId() {\n"
+        "        return id;\n"
+        "    }\n"
+        "}\n"
+    )
+
+    # C++: a utility header
+    (tmp_path / "helpers.hpp").write_text(
+        "#include <string>\n\n"
+        "namespace helpers {\n\n"
+        "/// Format an integer as string.\n"
+        "std::string format(int value);\n\n"
+        "struct Pair {\n"
+        "    int first;\n"
+        "    int second;\n"
+        "};\n\n"
+        "} // namespace helpers\n"
+    )
+
+    # C#: a service class
+    (tmp_path / "AppService.cs").write_text(
+        "using System;\n\n"
+        "namespace App\n"
+        "{\n"
+        "    /// <summary>\n"
+        "    /// Application service.\n"
+        "    /// </summary>\n"
+        "    public class AppService\n"
+        "    {\n"
+        "        public void Run()\n"
+        "        {\n"
+        '            Console.WriteLine("running");\n'
+        "        }\n"
+        "    }\n"
+        "}\n"
+    )
+
     return tmp_path
 
 
@@ -91,8 +152,8 @@ def indexed_store(multi_lang_repo: Path) -> GraphStore:
 
 def test_stats_after_indexing(indexed_store: GraphStore) -> None:
     stats = indexed_store.get_stats()
-    assert stats["files"] == 4  # .py, .py, .ts, .go
-    assert stats["symbols"] > 10
+    assert stats["files"] == 8  # .py x2, .ts, .go, .rs, .java, .hpp, .cs
+    assert stats["symbols"] > 20
     assert stats["relationships"] > 0
 
 
@@ -176,8 +237,8 @@ def test_file_dependencies(indexed_store: GraphStore, multi_lang_repo: Path) -> 
 
 def test_module_overview(indexed_store: GraphStore, multi_lang_repo: Path) -> None:
     overview = indexed_store.get_module_overview(str(multi_lang_repo))
-    assert overview["file_count"] == 4
-    assert overview["symbol_count"] > 10
+    assert overview["file_count"] == 8
+    assert overview["symbol_count"] > 20
 
 
 # --- Pipeline: index -> export ---
@@ -250,7 +311,7 @@ def test_incremental_after_file_change(multi_lang_repo: Path) -> None:
 
 
 def test_all_languages_coexist(indexed_store: GraphStore) -> None:
-    """Verify all three languages are represented in the same graph."""
+    """Verify all languages are represented in the same graph."""
     py_syms = [
         s for s in indexed_store.find_symbols_by_name("UserService") if s.language == "python"
     ]
@@ -258,7 +319,82 @@ def test_all_languages_coexist(indexed_store: GraphStore) -> None:
         s for s in indexed_store.find_symbols_by_name("ApiClient") if s.language == "typescript"
     ]
     go_syms = [s for s in indexed_store.find_symbols_by_name("FormatID") if s.language == "go"]
+    rs_syms = [s for s in indexed_store.find_symbols_by_name("Record") if s.language == "rust"]
+    java_syms = [s for s in indexed_store.find_symbols_by_name("Entity") if s.language == "java"]
+    cpp_syms = [s for s in indexed_store.find_symbols_by_name("Pair") if s.language == "cpp"]
+    cs_syms = [
+        s for s in indexed_store.find_symbols_by_name("AppService") if s.language == "csharp"
+    ]
 
     assert len(py_syms) >= 1
     assert len(ts_syms) >= 1
     assert len(go_syms) >= 1
+    assert len(rs_syms) >= 1
+    assert len(java_syms) >= 1
+    assert len(cpp_syms) >= 1
+    assert len(cs_syms) >= 1
+
+
+# --- New language-specific lookups ---
+
+
+def test_find_rust_struct(indexed_store: GraphStore) -> None:
+    results = indexed_store.find_symbols_by_name("Record")
+    structs = [s for s in results if s.language == "rust"]
+    assert len(structs) == 1
+    assert structs[0].kind.value == "class"
+
+
+def test_find_rust_method(indexed_store: GraphStore) -> None:
+    results = indexed_store.find_symbols_by_name("new")
+    rust_methods = [s for s in results if s.language == "rust" and s.kind.value == "method"]
+    assert len(rust_methods) >= 1
+
+
+def test_find_java_class(indexed_store: GraphStore) -> None:
+    results = indexed_store.find_symbols_by_name("Entity")
+    java_classes = [s for s in results if s.language == "java" and s.kind.value == "class"]
+    assert len(java_classes) == 1
+
+
+def test_find_cpp_struct(indexed_store: GraphStore) -> None:
+    results = indexed_store.find_symbols_by_name("Pair")
+    cpp_structs = [s for s in results if s.language == "cpp"]
+    assert len(cpp_structs) == 1
+
+
+def test_find_cpp_namespace(indexed_store: GraphStore) -> None:
+    results = indexed_store.find_symbols_by_name("helpers")
+    ns = [s for s in results if s.language == "cpp" and s.kind.value == "namespace"]
+    assert len(ns) == 1
+
+
+def test_find_csharp_class(indexed_store: GraphStore) -> None:
+    results = indexed_store.find_symbols_by_name("AppService")
+    cs_classes = [s for s in results if s.language == "csharp" and s.kind.value == "class"]
+    assert len(cs_classes) == 1
+
+
+def test_find_csharp_method(indexed_store: GraphStore) -> None:
+    results = indexed_store.find_symbols_by_name("Run")
+    cs_methods = [s for s in results if s.language == "csharp" and s.kind.value == "method"]
+    assert len(cs_methods) >= 1
+
+
+# --- Pipeline: index -> graph analysis ---
+
+
+def test_language_breakdown(indexed_store: GraphStore) -> None:
+    breakdown = indexed_store.get_language_breakdown()
+    assert "python" in breakdown
+    assert "typescript" in breakdown
+    assert "go" in breakdown
+    assert "rust" in breakdown
+    assert "java" in breakdown
+    assert "cpp" in breakdown
+    assert "csharp" in breakdown
+
+
+def test_module_overview_all_files(indexed_store: GraphStore, multi_lang_repo: Path) -> None:
+    overview = indexed_store.get_module_overview(str(multi_lang_repo))
+    assert overview["file_count"] == 8

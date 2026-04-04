@@ -1,5 +1,9 @@
 # CodeAtlas
 
+[![CI](https://github.com/AryanSaini26/CodeAtlas/actions/workflows/ci.yml/badge.svg)](https://github.com/AryanSaini26/CodeAtlas/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 An open-source MCP server that constructs real-time code knowledge graphs of any repository and exposes them to AI coding agents like Claude Code and Cursor.
 
 ## The Problem
