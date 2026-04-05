@@ -1,6 +1,8 @@
 # CodeAtlas
 
 [![CI](https://github.com/AryanSaini26/CodeAtlas/actions/workflows/ci.yml/badge.svg)](https://github.com/AryanSaini26/CodeAtlas/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/AryanSaini26/CodeAtlas/branch/main/graph/badge.svg)](https://codecov.io/gh/AryanSaini26/CodeAtlas)
+[![PyPI](https://img.shields.io/pypi/v/codeatlas.svg)](https://pypi.org/project/codeatlas/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -244,15 +246,29 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests (300+)
-.venv/bin/pytest -v
+# Run tests with coverage (~86%)
+.venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
-# Lint
+# Lint / format
 .venv/bin/ruff check src tests
-
-# Format
 .venv/bin/ruff format src tests
+
+# Benchmarks (clones requests + click, runs timing/memory/token-savings)
+python benchmarks/bench.py
 ```
+
+## Releasing
+
+Releases are fully automated via GitHub Actions. To cut a new release:
+
+```bash
+# Bump version, tag, and push — CI will build and publish to PyPI
+make release VERSION=0.2.0
+```
+
+Requires:
+1. PyPI Trusted Publishing configured at pypi.org for this repo (no API tokens needed)
+2. `GITHUB_TOKEN` is automatic — no extra secrets required
 
 ## License
 

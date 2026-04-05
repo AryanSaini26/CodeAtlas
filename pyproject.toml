@@ -22,11 +22,6 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
     "Typing :: Typed",
 ]
-
-[project.urls]
-Homepage = "https://github.com/AryanSaini26/CodeAtlas"
-Repository = "https://github.com/AryanSaini26/CodeAtlas"
-Issues = "https://github.com/AryanSaini26/CodeAtlas/issues"
 dependencies = [
     "tree-sitter>=0.23.0",
     "tree-sitter-python>=0.23.0",
@@ -42,12 +37,17 @@ dependencies = [
     "watchdog>=4.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/AryanSaini26/CodeAtlas"
+Repository = "https://github.com/AryanSaini26/CodeAtlas"
+Issues = "https://github.com/AryanSaini26/CodeAtlas/issues"
+
 [project.optional-dependencies]
 mcp = ["mcp>=1.0.0"]
 search = ["faiss-cpu>=1.7.0", "sentence-transformers>=2.0.0"]
 webhook = ["starlette>=0.27.0", "uvicorn>=0.20.0"]
 all = ["codeatlas[mcp,search,webhook]"]
-dev = ["pytest>=7.0.0", "ruff>=0.1.0"]
+dev = ["pytest>=7.0.0", "pytest-cov>=4.0.0", "ruff>=0.1.0"]
 
 [project.scripts]
 codeatlas = "codeatlas.cli:cli"
@@ -58,6 +58,19 @@ packages = ["src/codeatlas"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "--cov=codeatlas --cov-report=term-missing --cov-report=xml --cov-fail-under=60"
+
+[tool.coverage.run]
+source = ["codeatlas"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@abstractmethod",
+]
 
 [tool.ruff]
 line-length = 100

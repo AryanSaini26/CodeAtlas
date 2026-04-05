@@ -140,7 +140,7 @@ class GraphStore:
 
         if result.symbols:
             conn.executemany(
-                """INSERT OR REPLACE INTO symbols
+                """INSERT OR IGNORE INTO symbols
                    (id, name, qualified_name, kind, file_path,
                     start_line, start_col, end_line, end_col,
                     docstring, signature, decorators, language)
