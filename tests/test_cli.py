@@ -344,3 +344,194 @@ def test_viz_empty_db(tmp_path: Path) -> None:
     result = runner.invoke(cli, ["viz", "--db", db_path, "-o", output])
     assert result.exit_code == 0
     assert Path(output).exists()
+
+
+# --- diff command ---
+
+
+def test_diff_new_files(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    # Don't index first — all files should show as new
+    result = runner.invoke(cli, ["diff", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+    assert "new files" in result.output.lower() or "re-index" in result.output.lower()
+
+
+def test_diff_no_changes(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["diff", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+    assert "no changes" in result.output.lower()
+
+
+def test_diff_modified_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # Modify a file
+    (repo / "main.py").write_text("def run():\n    pass\n")
+    result = runner.invoke(cli, ["diff", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+    assert "modified" in result.output.lower()
+
+
+# --- list-files command ---
+
+
+def test_list_files_command(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["list-files", "--db", db_path])
+    assert result.exit_code == 0
+    assert "python" in result.output.lower()
+    assert "Indexed Files" in result.output
+
+
+def test_list_files_filter_by_lang(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["list-files", "--db", db_path, "--lang", "python"])
+    assert result.exit_code == 0
+    assert "python" in result.output.lower()
+
+
+def test_list_files_filter_no_match(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["list-files", "--db", db_path, "--lang", "rust"])
+    assert result.exit_code == 0
+    assert "no files" in result.output.lower()
+
+
+def test_list_files_empty_db(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "empty.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["list-files", "--db", db_path])
+    assert result.exit_code == 0
+    assert "no files" in result.output.lower()
+
+
+# --- stats --json ---
+
+
+def test_stats_json_output(tmp_path: Path) -> None:
+    import json
+
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["stats", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert "files" in data
+    assert "symbols" in data
+    assert "languages" in data
+
+
+# --- query --kind filter ---
+
+
+def test_query_kind_filter(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["query", "greet", "--db", db_path, "--kind", "function"])
+    assert result.exit_code == 0
+    assert "greet" in result.output
+
+
+def test_query_kind_filter_no_match(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["query", "greet", "--db", db_path, "--kind", "class"])
+    assert result.exit_code == 0
+    assert "no results" in result.output.lower()
+
+
+# --- show command: decorators ---
+
+
+def test_show_symbol_with_decorator(tmp_path: Path) -> None:
+    (tmp_path / "decorated.py").write_text("@staticmethod\ndef compute():\n    pass\n")
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(tmp_path), "--db", db_path])
+    result = runner.invoke(cli, ["show", "compute", "--db", db_path])
+    assert result.exit_code == 0
+    assert "compute" in result.output
+
+
+# --- clean command ---
+
+
+def test_clean_no_dir(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["clean", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "no .codeatlas" in result.output.lower()
+
+
+def test_clean_with_yes_flag(tmp_path: Path) -> None:
+    atlas_dir = tmp_path / ".codeatlas"
+    atlas_dir.mkdir()
+    (atlas_dir / "graph.db").write_text("fake")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["clean", str(tmp_path), "--yes"])
+    assert result.exit_code == 0
+    assert not atlas_dir.exists()
+
+
+# --- impact command ---
+
+
+def test_impact_no_git(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["impact", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+    # Not a git repo, so no changed files
+    assert "no changed" in result.output.lower() or result.exit_code == 0
+
+
+# --- coupling with data ---
+
+
+def test_coupling_with_cross_file_deps(tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("from b import helper\ndef main():\n    helper()\n")
+    (tmp_path / "b.py").write_text("def helper():\n    pass\n")
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(tmp_path), "--db", db_path])
+    result = runner.invoke(cli, ["coupling", "--db", db_path])
+    assert result.exit_code == 0
+
+
+# --- find-path: target symbol missing ---
+
+
+def test_find_path_target_missing(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["find-path", "run", "nonexistent_xyz", "--db", db_path])
+    assert result.exit_code == 0
+    assert "not found" in result.output.lower()

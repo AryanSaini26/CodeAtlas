@@ -18,6 +18,7 @@ from codeatlas.models import (
 from codeatlas.server import (
     analyze_complexity,
     detect_circular_dependencies,
+    export_graph,
     find_dead_code,
     find_path_between_symbols,
     get_dependencies,
@@ -200,3 +201,36 @@ def test_get_file_coupling_tool() -> None:
     assert result["count"] > 0
     files = [(p["source_file"], p["target_file"]) for p in result["file_pairs"]]
     assert ("app.py", "utils.py") in files or ("app.py", "models.py") in files
+
+
+def test_trace_call_chain_not_found() -> None:
+    result = json.loads(trace_call_chain("nonexistent"))
+    assert "error" in result
+
+
+def test_get_impact_analysis_not_found() -> None:
+    result = json.loads(get_impact_analysis("nonexistent"))
+    assert "error" in result
+
+
+def test_export_graph_json() -> None:
+    result = export_graph(format="json")
+    data = json.loads(result)
+    assert "nodes" in data
+    assert "links" in data
+
+
+def test_export_graph_dot() -> None:
+    result = export_graph(format="dot")
+    assert "digraph" in result
+
+
+def test_export_graph_with_filter() -> None:
+    result = export_graph(format="json", file_filter="app")
+    data = json.loads(result)
+    assert "nodes" in data
+
+
+def test_find_path_target_not_found() -> None:
+    result = json.loads(find_path_between_symbols("main", "nonexistent"))
+    assert "error" in result
