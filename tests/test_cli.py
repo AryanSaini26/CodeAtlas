@@ -1,6 +1,7 @@
 """Tests for the CLI commands."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 from click.testing import CliRunner
 
@@ -507,8 +508,82 @@ def test_impact_no_git(tmp_path: Path) -> None:
     runner.invoke(cli, ["index", str(repo), "--db", db_path])
     result = runner.invoke(cli, ["impact", str(repo), "--db", db_path])
     assert result.exit_code == 0
-    # Not a git repo, so no changed files
-    assert "no changed" in result.output.lower() or result.exit_code == 0
+    assert "no changed" in result.output.lower()
+
+
+@patch("codeatlas.git_integration.analyze_change_impact")
+def test_impact_with_changed_symbols(mock_impact, tmp_path: Path) -> None:
+    from codeatlas.git_integration import ChangedSymbol, ChangeImpact
+    from codeatlas.models import Position, Span, Symbol, SymbolKind
+
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+
+    sym = Symbol(
+        id="main.py::run",
+        name="run",
+        qualified_name="run",
+        kind=SymbolKind.FUNCTION,
+        file_path="main.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=5, column=0)),
+        language="python",
+    )
+    mock_impact.return_value = ChangeImpact(
+        changed_files=["main.py"],
+        changed_symbols=[ChangedSymbol(symbol=sym, change_type="modified")],
+        affected_symbols=[],
+        affected_files=[],
+    )
+
+    result = runner.invoke(cli, ["impact", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+    assert "changed files" in result.output.lower()
+    assert "changed symbols" in result.output.lower()
+    assert "no other files" in result.output.lower()
+
+
+@patch("codeatlas.git_integration.analyze_change_impact")
+def test_impact_with_affected_symbols(mock_impact, tmp_path: Path) -> None:
+    from codeatlas.git_integration import ChangedSymbol, ChangeImpact
+    from codeatlas.models import Position, Span, Symbol, SymbolKind
+
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+
+    changed_sym = Symbol(
+        id="helpers.py::add",
+        name="add",
+        qualified_name="add",
+        kind=SymbolKind.FUNCTION,
+        file_path="helpers.py",
+        span=Span(start=Position(line=2, column=0), end=Position(line=4, column=0)),
+        language="python",
+    )
+    affected_sym = Symbol(
+        id="main.py::run",
+        name="run",
+        qualified_name="run",
+        kind=SymbolKind.FUNCTION,
+        file_path="main.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=5, column=0)),
+        language="python",
+    )
+    mock_impact.return_value = ChangeImpact(
+        changed_files=["helpers.py"],
+        changed_symbols=[ChangedSymbol(symbol=changed_sym, change_type="modified")],
+        affected_symbols=[affected_sym],
+        affected_files=["main.py"],
+    )
+
+    result = runner.invoke(cli, ["impact", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+    assert "changed files" in result.output.lower()
+    assert "affected symbols" in result.output.lower()
+    assert "affected files" in result.output.lower()
 
 
 # --- coupling with data ---

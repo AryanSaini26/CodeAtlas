@@ -1,6 +1,7 @@
 """Tests for the MCP server tool functions."""
 
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -21,6 +22,7 @@ from codeatlas.server import (
     export_graph,
     find_dead_code,
     find_path_between_symbols,
+    get_change_impact,
     get_dependencies,
     get_file_coupling,
     get_file_dependencies,
@@ -234,3 +236,29 @@ def test_export_graph_with_filter() -> None:
 def test_find_path_target_not_found() -> None:
     result = json.loads(find_path_between_symbols("main", "nonexistent"))
     assert "error" in result
+
+
+@patch("codeatlas.git_integration.analyze_change_impact")
+def test_get_change_impact_tool(mock_impact) -> None:
+    from codeatlas.git_integration import ChangedSymbol, ChangeImpact
+    from codeatlas.models import Position, Span, Symbol, SymbolKind
+
+    sym = Symbol(
+        id="app.py::main",
+        name="main",
+        qualified_name="main",
+        kind=SymbolKind.FUNCTION,
+        file_path="app.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=5, column=0)),
+        language="python",
+    )
+    mock_impact.return_value = ChangeImpact(
+        changed_files=["app.py"],
+        changed_symbols=[ChangedSymbol(symbol=sym, change_type="modified")],
+        affected_symbols=[],
+        affected_files=[],
+    )
+    result = json.loads(get_change_impact(repo_path="/tmp/fake"))
+    assert result["changed_files"] == ["app.py"]
+    assert len(result["changed_symbols"]) == 1
+    assert result["changed_symbols"][0]["name"] == "main"

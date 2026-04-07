@@ -215,3 +215,66 @@ def test_analyze_line_outside_symbol(mock_changed_files, mock_diff_lines) -> Non
 
     result = analyze_change_impact(store, Path("/repo"))
     assert result.changed_symbols == []
+
+
+# --- staged and custom ref ---
+
+
+@patch("codeatlas.git_integration.subprocess.run")
+def test_get_git_changed_files_staged(mock_run) -> None:
+    mock_run.return_value.stdout = "staged.py\n"
+    mock_run.return_value.returncode = 0
+    files = get_git_changed_files(Path("/repo"), staged=True)
+    assert files == ["staged.py"]
+    # Verify --cached flag was used
+    cmd = mock_run.call_args[0][0]
+    assert "--cached" in cmd
+
+
+@patch("codeatlas.git_integration.subprocess.run")
+def test_get_git_changed_files_custom_ref(mock_run) -> None:
+    mock_run.return_value.stdout = "changed.py\n"
+    mock_run.return_value.returncode = 0
+    files = get_git_changed_files(Path("/repo"), ref="main")
+    assert files == ["changed.py"]
+    cmd = mock_run.call_args[0][0]
+    assert "main" in cmd
+
+
+# --- no diff lines fallback ---
+
+
+@patch("codeatlas.git_integration.get_git_diff_lines")
+@patch("codeatlas.git_integration.get_git_changed_files")
+def test_analyze_no_diff_lines_marks_all(mock_changed_files, mock_diff_lines) -> None:
+    """When diff lines can't be determined, all symbols in the file are marked as modified."""
+    mock_changed_files.return_value = ["app.py"]
+    mock_diff_lines.return_value = []  # empty = can't determine lines
+
+    store = GraphStore(":memory:")
+    s1 = _sym("main", "app.py", line=0)
+    s2 = _sym("helper", "app.py", line=20)
+    store.upsert_parse_result(_result("app.py", [s1, s2]))
+
+    result = analyze_change_impact(store, Path("/repo"))
+    assert len(result.changed_symbols) == 2
+    names = {cs.symbol.name for cs in result.changed_symbols}
+    assert names == {"main", "helper"}
+
+
+@patch("codeatlas.git_integration.subprocess.run")
+def test_get_git_diff_lines_no_comma(mock_run) -> None:
+    """Single line change: +10 without ,count."""
+    mock_run.return_value.stdout = "@@ -10 +10 @@\n-old\n+new\n"
+    mock_run.return_value.returncode = 0
+    lines = get_git_diff_lines(Path("/repo"), "app.py")
+    assert lines == [10]
+
+
+@patch("codeatlas.git_integration.subprocess.run")
+def test_get_git_diff_lines_error(mock_run) -> None:
+    from subprocess import CalledProcessError
+
+    mock_run.side_effect = CalledProcessError(1, "git")
+    lines = get_git_diff_lines(Path("/repo"), "app.py")
+    assert lines == []
