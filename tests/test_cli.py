@@ -5,7 +5,18 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
+from codeatlas import __version__
 from codeatlas.cli import cli
+
+# --- version ---
+
+
+def test_version_flag() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--version"])
+    assert result.exit_code == 0
+    assert __version__ in result.output
+    assert "codeatlas" in result.output
 
 
 def _make_repo(tmp_path: Path) -> Path:

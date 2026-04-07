@@ -6,6 +6,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from codeatlas import __version__
 from codeatlas.config import CodeAtlasConfig
 from codeatlas.graph.export import ExportOptions, export_dot, export_json
 from codeatlas.graph.store import GraphStore
@@ -21,6 +22,7 @@ def _get_store(db_path: Path) -> GraphStore:
 
 
 @click.group()
+@click.version_option(version=__version__, prog_name="codeatlas")
 def cli() -> None:
     """CodeAtlas - real-time code knowledge graphs for AI coding agents."""
 
