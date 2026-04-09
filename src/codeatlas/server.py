@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
@@ -142,10 +143,23 @@ def get_impact_analysis(symbol_name: str, max_depth: int = 5) -> str:
 
 
 @mcp.tool()
-def search_symbols(query: str, limit: int = 20) -> str:
-    """Search for symbols by name, docstring, or signature using full-text search."""
+def search_symbols(
+    query: str,
+    limit: int = 20,
+    file_filter: str | None = None,
+    kind_filter: str | None = None,
+) -> str:
+    """Search for symbols by name, docstring, or signature using full-text search.
+
+    Args:
+        query: Search terms (supports camelCase and underscore expansion automatically)
+        limit: Maximum results to return
+        file_filter: Restrict to files whose path contains this substring (e.g. 'src/auth/')
+        kind_filter: Restrict to a symbol kind: function, method, class, interface,
+                     constant, variable, import, module, type_alias, enum, namespace
+    """
     store = get_store()
-    results = store.search(query, limit=limit)
+    results = store.search(query, limit=limit, file_filter=file_filter, kind_filter=kind_filter)
     return json.dumps(
         {
             "query": query,
@@ -154,6 +168,89 @@ def search_symbols(query: str, limit: int = 20) -> str:
                 {
                     "name": s.qualified_name,
                     "kind": s.kind.value,
+                    "file": s.file_path,
+                    "line": s.span.start.line + 1,
+                    "signature": s.signature,
+                    "docstring": s.docstring,
+                }
+                for s in results
+            ],
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
+def get_symbol_details(symbol_name: str) -> str:
+    """Get full metadata and relationship summary for a named symbol in one call.
+
+    Returns signature, docstring, decorators, location, and all incoming/outgoing
+    relationships — eliminating the need to chain get_file_overview + get_dependencies.
+
+    Args:
+        symbol_name: Exact or partial symbol name (e.g. 'UserService', 'parse_file')
+    """
+    store = get_store()
+    matches = store.find_symbols_by_name(symbol_name)
+    if not matches:
+        return json.dumps({"error": f"Symbol '{symbol_name}' not found"})
+
+    results = []
+    for sym in matches:
+        deps = store.get_dependencies(sym.id)
+        dependents = store.get_dependents(sym.id)
+        results.append(
+            {
+                "id": sym.id,
+                "name": sym.name,
+                "qualified_name": sym.qualified_name,
+                "kind": sym.kind.value,
+                "file": sym.file_path,
+                "line": sym.span.start.line + 1,
+                "language": sym.language,
+                "signature": sym.signature,
+                "docstring": sym.docstring,
+                "decorators": sym.decorators,
+                "relationships": {
+                    "outgoing_count": len(deps),
+                    "incoming_count": len(dependents),
+                    "depends_on": [{"target_id": r.target_id, "kind": r.kind.value} for r in deps],
+                    "depended_by": [
+                        {"source_id": r.source_id, "kind": r.kind.value} for r in dependents
+                    ],
+                },
+            }
+        )
+    return json.dumps({"query": symbol_name, "count": len(results), "symbols": results}, indent=2)
+
+
+@mcp.tool()
+def list_symbols_by_kind(
+    kind: str,
+    file_filter: str | None = None,
+    limit: int = 100,
+) -> str:
+    """List all symbols of a specific kind across the codebase.
+
+    Useful for getting a complete inventory: 'show me all classes',
+    'show me all interfaces', 'show me all functions in src/api/'.
+
+    Args:
+        kind: One of: function, method, class, interface, constant, variable,
+              import, module, type_alias, enum, namespace
+        file_filter: Optional path substring to restrict results (e.g. 'src/api/')
+        limit: Maximum number of results (default 100)
+    """
+    store = get_store()
+    results = store.get_symbols_by_kind(kind, file_filter=file_filter, limit=limit)
+    return json.dumps(
+        {
+            "kind": kind,
+            "file_filter": file_filter,
+            "count": len(results),
+            "symbols": [
+                {
+                    "name": s.qualified_name,
                     "file": s.file_path,
                     "line": s.span.start.line + 1,
                     "signature": s.signature,
@@ -192,7 +289,7 @@ def get_graph_stats() -> str:
     Returns file/symbol/relationship counts plus breakdowns by language and symbol kind.
     """
     store = get_store()
-    stats = store.get_stats()
+    stats: dict[str, Any] = dict(store.get_stats())
     stats["languages"] = store.get_language_breakdown()
     stats["kinds"] = store.get_kind_breakdown()
     return json.dumps(stats, indent=2)

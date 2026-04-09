@@ -259,3 +259,109 @@ def test_get_affected_files(graph_store: GraphStore) -> None:
 
     affected = graph_store.get_affected_files("a.py")
     assert "b.py" in affected
+
+
+# --- Scoped search (file_filter, kind_filter) ---
+
+
+def test_search_with_kind_filter(graph_store: GraphStore) -> None:
+    graph_store.upsert_parse_result(
+        _make_result(
+            "scoped.py",
+            [
+                _make_symbol("my_func", file_path="scoped.py", kind=SymbolKind.FUNCTION),
+                _make_symbol("MyClass", file_path="scoped.py", kind=SymbolKind.CLASS),
+            ],
+        )
+    )
+    results = graph_store.search("my", kind_filter="function")
+    assert all(s.kind == SymbolKind.FUNCTION for s in results)
+    names = [s.name for s in results]
+    assert "my_func" in names
+    assert "MyClass" not in names
+
+
+def test_search_with_file_filter(graph_store: GraphStore) -> None:
+    graph_store.upsert_parse_result(
+        _make_result("src/auth.py", [_make_symbol("login", file_path="src/auth.py")])
+    )
+    graph_store.upsert_parse_result(
+        _make_result("src/views.py", [_make_symbol("login", file_path="src/views.py")])
+    )
+    results = graph_store.search("login", file_filter="auth")
+    assert all("auth" in s.file_path for s in results)
+    assert len(results) == 1
+
+
+def test_search_filter_no_match(graph_store: GraphStore) -> None:
+    graph_store.upsert_parse_result(
+        _make_result("filter_test.py", [_make_symbol("helper", file_path="filter_test.py")])
+    )
+    results = graph_store.search("helper", kind_filter="class")
+    assert results == []
+
+
+# --- Query expansion ---
+
+
+def test_fts_expansion_camelcase(graph_store: GraphStore) -> None:
+    sym = _make_symbol("greet_world")
+    graph_store.upsert_parse_result(_make_result(symbols=[sym]))
+    # camelCase version should find the underscore symbol via expansion
+    found = graph_store.search("greetWorld")
+    assert any(s.name == "greet_world" for s in found)
+
+
+def test_fts_expansion_prefix_fallback(graph_store: GraphStore) -> None:
+    sym = _make_symbol("authenticate")
+    graph_store.upsert_parse_result(_make_result(symbols=[sym]))
+    found = graph_store.search("authenticat")
+    assert any(s.name == "authenticate" for s in found)
+
+
+def test_fts_no_expansion_when_direct_match(graph_store: GraphStore) -> None:
+    sym = _make_symbol("helper")
+    graph_store.upsert_parse_result(_make_result(symbols=[sym]))
+    found = graph_store.search("helper")
+    assert found  # direct match, no expansion needed
+    assert found[0].name == "helper"
+
+
+# --- get_symbols_by_kind ---
+
+
+def test_get_symbols_by_kind(graph_store: GraphStore) -> None:
+    graph_store.upsert_parse_result(
+        _make_result(
+            "kind_test.py",
+            [
+                _make_symbol("KindTestClass", file_path="kind_test.py", kind=SymbolKind.CLASS),
+                _make_symbol("kind_test_func", file_path="kind_test.py", kind=SymbolKind.FUNCTION),
+            ],
+        )
+    )
+    classes = graph_store.get_symbols_by_kind("class")
+    assert any(s.name == "KindTestClass" for s in classes)
+    assert all(s.kind == SymbolKind.CLASS for s in classes)
+
+
+def test_get_symbols_by_kind_with_filter(graph_store: GraphStore) -> None:
+    graph_store.upsert_parse_result(
+        _make_result(
+            "src/api.py", [_make_symbol("ApiClass", file_path="src/api.py", kind=SymbolKind.CLASS)]
+        )
+    )
+    graph_store.upsert_parse_result(
+        _make_result(
+            "tests/test_api.py",
+            [_make_symbol("TestClass", file_path="tests/test_api.py", kind=SymbolKind.CLASS)],
+        )
+    )
+    results = graph_store.get_symbols_by_kind("class", file_filter="src/")
+    assert len(results) == 1
+    assert results[0].name == "ApiClass"
+
+
+def test_get_symbols_by_kind_empty(graph_store: GraphStore) -> None:
+    results = graph_store.get_symbols_by_kind("namespace")
+    assert results == []

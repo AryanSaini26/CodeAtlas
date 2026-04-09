@@ -30,6 +30,8 @@ from codeatlas.server import (
     get_graph_stats,
     get_impact_analysis,
     get_module_overview,
+    get_symbol_details,
+    list_symbols_by_kind,
     search_symbols,
     set_store,
     trace_call_chain,
@@ -262,3 +264,77 @@ def test_get_change_impact_tool(mock_impact) -> None:
     assert result["changed_files"] == ["app.py"]
     assert len(result["changed_symbols"]) == 1
     assert result["changed_symbols"][0]["name"] == "main"
+
+
+# --- search_symbols with filters ---
+
+
+def test_search_symbols_with_kind_filter() -> None:
+    result = json.loads(search_symbols("main", kind_filter="function"))
+    assert result["count"] >= 1
+    for r in result["results"]:
+        assert r["kind"] == "function"
+
+
+def test_search_symbols_with_file_filter() -> None:
+    result = json.loads(search_symbols("main", file_filter="app"))
+    assert result["count"] >= 1
+    for r in result["results"]:
+        assert "app" in r["file"]
+
+
+# --- get_symbol_details ---
+
+
+def test_get_symbol_details_found() -> None:
+    result = json.loads(get_symbol_details("main"))
+    assert result["count"] == 1
+    sym = result["symbols"][0]
+    assert sym["kind"] == "function"
+    assert sym["file"] == "app.py"
+    assert "relationships" in sym
+    assert "signature" in sym
+    assert "docstring" in sym
+
+
+def test_get_symbol_details_outgoing_count() -> None:
+    result = json.loads(get_symbol_details("main"))
+    sym = result["symbols"][0]
+    # main has 2 outgoing relationships (calls helper + imports Widget)
+    assert sym["relationships"]["outgoing_count"] == 2
+    assert sym["relationships"]["incoming_count"] == 0
+
+
+def test_get_symbol_details_not_found() -> None:
+    result = json.loads(get_symbol_details("nonexistent_xyz"))
+    assert "error" in result
+
+
+# --- list_symbols_by_kind ---
+
+
+def test_list_symbols_by_kind_class() -> None:
+    result = json.loads(list_symbols_by_kind("class"))
+    assert result["kind"] == "class"
+    assert result["count"] >= 1
+    names = [s["name"] for s in result["symbols"]]
+    assert "Widget" in names
+
+
+def test_list_symbols_by_kind_function() -> None:
+    result = json.loads(list_symbols_by_kind("function"))
+    names = [s["name"] for s in result["symbols"]]
+    assert "main" in names
+
+
+def test_list_symbols_by_kind_invalid() -> None:
+    result = json.loads(list_symbols_by_kind("nonexistentkind"))
+    assert result["count"] == 0
+    assert result["symbols"] == []
+
+
+def test_list_symbols_by_kind_with_filter() -> None:
+    result = json.loads(list_symbols_by_kind("function", file_filter="app"))
+    assert result["count"] >= 1
+    for s in result["symbols"]:
+        assert "app" in s["file"]

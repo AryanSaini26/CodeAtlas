@@ -4,6 +4,7 @@ import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 from codeatlas.models import FileInfo, ParseResult, Relationship, Symbol
 
@@ -274,18 +275,82 @@ class GraphStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def search(self, query: str, limit: int = 20) -> list[Symbol]:
-        """Full-text search over symbol names, docstrings, and signatures."""
-        rows = self._conn.execute(
-            """
+    def _fts_query(
+        self,
+        query: str,
+        limit: int,
+        file_filter: str | None = None,
+        kind_filter: str | None = None,
+    ) -> list[Symbol]:
+        """Execute a raw FTS5 query with optional file/kind filters."""
+        sql = """
             SELECT s.* FROM symbols s
             JOIN symbols_fts fts ON s.id = fts.id
             WHERE symbols_fts MATCH ?
-            ORDER BY rank
-            LIMIT ?
-            """,
-            (query, limit),
-        ).fetchall()
+        """
+        params: list[Any] = [query]
+        if file_filter:
+            sql += " AND s.file_path LIKE ?"
+            params.append(f"%{file_filter}%")
+        if kind_filter:
+            sql += " AND s.kind = ?"
+            params.append(kind_filter)
+        sql += " ORDER BY rank LIMIT ?"
+        params.append(limit)
+        try:
+            rows = self._conn.execute(sql, params).fetchall()
+        except sqlite3.OperationalError:
+            return []
+        return [self._row_to_symbol(r) for r in rows]
+
+    def _expand_query(self, query: str) -> str:
+        """Split underscore_names and CamelCaseNames into space-separated tokens."""
+        import re
+
+        spaced = query.replace("_", " ")
+        spaced = re.sub(r"([a-z])([A-Z])", r"\1 \2", spaced)
+        return spaced.lower().strip()
+
+    def search(
+        self,
+        query: str,
+        limit: int = 20,
+        file_filter: str | None = None,
+        kind_filter: str | None = None,
+    ) -> list[Symbol]:
+        """Full-text search over symbol names, docstrings, and signatures.
+
+        Optionally filter results by file path substring or symbol kind.
+        Automatically expands camelCase/underscore queries if no results found.
+        """
+        results = self._fts_query(query, limit, file_filter, kind_filter)
+        if results:
+            return results
+        # Expansion pass 1: split camelCase/underscores and retry
+        expanded = self._expand_query(query)
+        if expanded != query.lower().strip():
+            results = self._fts_query(expanded, limit, file_filter, kind_filter)
+        if results:
+            return results
+        # Expansion pass 2: prefix wildcard on first token
+        first_token = query.strip().split()[0] if query.strip() else query
+        return self._fts_query(f"{first_token}*", limit, file_filter, kind_filter)
+
+    def get_symbols_by_kind(
+        self,
+        kind: str,
+        file_filter: str | None = None,
+        limit: int = 100,
+    ) -> list[Symbol]:
+        """Return all symbols of a given kind, optionally filtered by file path."""
+        sql = "SELECT * FROM symbols WHERE kind = ?"
+        params: list[Any] = [kind]
+        if file_filter:
+            sql += " AND file_path LIKE ?"
+            params.append(f"%{file_filter}%")
+        sql += " ORDER BY file_path, start_line LIMIT ?"
+        params.append(limit)
+        rows = self._conn.execute(sql, params).fetchall()
         return [self._row_to_symbol(r) for r in rows]
 
     def get_stats(self) -> dict[str, int]:
@@ -611,7 +676,7 @@ class GraphStore:
 
         return None
 
-    def get_file_coupling(self, limit: int = 20) -> list[dict[str, object]]:
+    def get_file_coupling(self, limit: int = 20) -> list[dict[str, Any]]:
         """Compute coupling between file pairs based on cross-file relationships.
 
         Returns file pairs sorted by the number of relationships between them.
