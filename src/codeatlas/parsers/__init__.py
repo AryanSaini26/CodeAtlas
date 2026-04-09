@@ -9,6 +9,7 @@ from codeatlas.parsers.csharp_parser import CSharpParser
 from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.python_parser import PythonParser
+from codeatlas.parsers.ruby_parser import RubyParser
 from codeatlas.parsers.rust_parser import RustParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
 
@@ -26,6 +27,7 @@ class ParserRegistry:
             JavaParser(),
             CppParser(),
             CSharpParser(),
+            RubyParser(),
         ]:
             for ext in parser.supported_extensions:
                 self._parsers[ext] = parser

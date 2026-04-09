@@ -10,6 +10,7 @@ from codeatlas.parsers.csharp_parser import CSharpParser
 from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.python_parser import PythonParser
+from codeatlas.parsers.ruby_parser import RubyParser
 from codeatlas.parsers.rust_parser import RustParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
 
@@ -125,3 +126,18 @@ def sample_csharp_path() -> Path:
 @pytest.fixture
 def sample_csharp_source(sample_csharp_path: Path) -> str:
     return sample_csharp_path.read_text()
+
+
+@pytest.fixture
+def ruby_parser() -> RubyParser:
+    return RubyParser()
+
+
+@pytest.fixture
+def sample_ruby_path() -> Path:
+    return FIXTURES_DIR / "sample_ruby" / "sample_module.rb"
+
+
+@pytest.fixture
+def sample_ruby_source(sample_ruby_path: Path) -> str:
+    return sample_ruby_path.read_text()
