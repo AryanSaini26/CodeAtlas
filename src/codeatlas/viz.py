@@ -1,5 +1,12 @@
 """Self-contained interactive graph visualization using D3.js."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from codeatlas.graph.store import GraphStore
+
 VIZ_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -197,7 +204,7 @@ def render_graph_html(graph_json: str) -> str:
     return VIZ_HTML_TEMPLATE.replace("__GRAPH_JSON__", graph_json)
 
 
-def generate_viz(store: "GraphStore", file_filter: str | None = None) -> str:  # noqa: F821
+def generate_viz(store: GraphStore, file_filter: str | None = None) -> str:
     """Generate a self-contained HTML visualization from a GraphStore."""
     from codeatlas.graph.export import ExportOptions, export_json
 

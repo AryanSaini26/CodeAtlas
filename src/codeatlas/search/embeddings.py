@@ -43,7 +43,7 @@ class SemanticIndex:
 
     def _encode(self, texts: list[str]) -> NDArray[np.float32]:
         model = self._get_model()
-        embeddings: NDArray[np.float32] = model.encode(  # type: ignore[union-attr]
+        embeddings: NDArray[np.float32] = model.encode(  # type: ignore[attr-defined]
             texts, normalize_embeddings=True, show_progress_bar=False
         )
         return embeddings.astype(np.float32)

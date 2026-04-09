@@ -3,6 +3,7 @@
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
@@ -112,7 +113,7 @@ class FileWatcher:
         self._config = config
         self._store = store
         self._registry = ParserRegistry()
-        self._observer: Observer | None = None
+        self._observer: Any = None
 
     def start(self, blocking: bool = True) -> None:
         """Start watching the repository for file changes.

@@ -3,8 +3,10 @@
 These modules require the 'search' extra: pip install codeatlas[search]
 """
 
+from typing import Any
 
-def __getattr__(name: str):  # noqa: ANN001
+
+def __getattr__(name: str) -> Any:
     if name == "SemanticIndex":
         from codeatlas.search.embeddings import SemanticIndex
 

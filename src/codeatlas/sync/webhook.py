@@ -8,6 +8,7 @@ import json
 import logging
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -26,7 +27,7 @@ def _verify_signature(payload: bytes, signature: str, secret: str) -> bool:
     return hmac.compare_digest(expected, signature)
 
 
-def _extract_changed_files(payload: dict) -> tuple[list[str], list[str]]:
+def _extract_changed_files(payload: dict[str, Any]) -> tuple[list[str], list[str]]:
     """Extract added/modified and removed file paths from a push event.
 
     Returns (changed_files, removed_files).

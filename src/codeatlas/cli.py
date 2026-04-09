@@ -1,6 +1,7 @@
 """Click CLI for CodeAtlas."""
 
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -161,9 +162,10 @@ def stats(db: str, as_json: bool) -> None:
     if as_json:
         import json
 
-        s["languages"] = lang_breakdown
-        s["kinds"] = kind_breakdown
-        console.print(json.dumps(s, indent=2))
+        s_any: dict[str, Any] = dict(s)
+        s_any["languages"] = lang_breakdown
+        s_any["kinds"] = kind_breakdown
+        console.print(json.dumps(s_any, indent=2))
     else:
         table = Table(title="CodeAtlas Graph Stats")
         table.add_column("Metric", style="cyan")
@@ -523,7 +525,7 @@ def coupling(db: str, limit: int) -> None:
             str(pair["source_file"]),
             str(pair["target_file"]),
             str(pair["relationship_count"]),
-            ", ".join(pair["kinds"]),
+            ", ".join(str(k) for k in pair["kinds"]),
         )
     console.print(table)
 
@@ -628,4 +630,6 @@ def serve(db: str, transport: str) -> None:
     store = _get_store(Path(db))
     set_store(store)
     console.print(f"[green]Starting CodeAtlas MCP server[/green] (db: {db})")
-    mcp.run(transport=transport)
+    from typing import Literal, cast
+
+    mcp.run(transport=cast(Literal["stdio", "sse", "streamable-http"], transport))

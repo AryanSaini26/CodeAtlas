@@ -133,7 +133,7 @@ def analyze_change_impact(
     for cs in changed_symbols:
         impact = store.get_impact_analysis(cs.symbol.id, max_depth=max_depth)
         for row in impact:
-            affected_ids.add(row["source_id"])
+            affected_ids.add(str(row["source_id"]))
 
     # Resolve affected symbol IDs to full Symbol objects
     affected_symbols: list[Symbol] = []
@@ -141,9 +141,9 @@ def analyze_change_impact(
         # Skip symbols that are themselves changed
         if any(cs.symbol.id == sym_id for cs in changed_symbols):
             continue
-        sym = store.get_symbol_by_id(sym_id)
-        if sym:
-            affected_symbols.append(sym)
+        maybe_sym = store.get_symbol_by_id(sym_id)
+        if maybe_sym is not None:
+            affected_symbols.append(maybe_sym)
 
     # Collect unique affected files
     affected_files = sorted({s.file_path for s in affected_symbols} - set(changed_files))

@@ -51,16 +51,16 @@ def _get_doc_comment(node: Node, source: bytes) -> str | None:
             return "\n".join(ln for ln in lines if ln) or None
         # Triple-slash /// comments (collect consecutive)
         if text.startswith("///"):
-            lines: list[str] = []
-            cur = prev
+            doc_lines: list[str] = []
+            cur: Node | None = prev
             while cur and cur.type == "comment":
                 t = _node_text(cur, source).strip()
                 if t.startswith("///"):
-                    lines.insert(0, t[3:].strip())
+                    doc_lines.insert(0, t[3:].strip())
                     cur = cur.prev_sibling
                 else:
                     break
-            return "\n".join(lines) if lines else None
+            return "\n".join(doc_lines) if doc_lines else None
     return None
 
 
