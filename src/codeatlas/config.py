@@ -26,6 +26,11 @@ class ParserConfig(BaseModel):
             ".h",
             ".cs",
             ".rb",
+            ".js",
+            ".mjs",
+            ".cjs",
+            ".kt",
+            ".kts",
         ],
         description="File extensions to parse",
     )

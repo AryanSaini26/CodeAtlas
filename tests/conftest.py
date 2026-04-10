@@ -9,6 +9,8 @@ from codeatlas.parsers.cpp_parser import CppParser
 from codeatlas.parsers.csharp_parser import CSharpParser
 from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
+from codeatlas.parsers.javascript_parser import JavaScriptParser
+from codeatlas.parsers.kotlin_parser import KotlinParser
 from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
 from codeatlas.parsers.rust_parser import RustParser
@@ -141,3 +143,33 @@ def sample_ruby_path() -> Path:
 @pytest.fixture
 def sample_ruby_source(sample_ruby_path: Path) -> str:
     return sample_ruby_path.read_text()
+
+
+@pytest.fixture
+def javascript_parser() -> JavaScriptParser:
+    return JavaScriptParser()
+
+
+@pytest.fixture
+def sample_javascript_path() -> Path:
+    return FIXTURES_DIR / "sample_javascript" / "sample_module.js"
+
+
+@pytest.fixture
+def sample_javascript_source(sample_javascript_path: Path) -> str:
+    return sample_javascript_path.read_text()
+
+
+@pytest.fixture
+def kotlin_parser() -> KotlinParser:
+    return KotlinParser()
+
+
+@pytest.fixture
+def sample_kotlin_path() -> Path:
+    return FIXTURES_DIR / "sample_kotlin" / "SampleModule.kt"
+
+
+@pytest.fixture
+def sample_kotlin_source(sample_kotlin_path: Path) -> str:
+    return sample_kotlin_path.read_text()
