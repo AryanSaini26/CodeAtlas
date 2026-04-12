@@ -10,9 +10,11 @@ from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.javascript_parser import JavaScriptParser
 from codeatlas.parsers.kotlin_parser import KotlinParser
+from codeatlas.parsers.php_parser import PhpParser
 from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
 from codeatlas.parsers.rust_parser import RustParser
+from codeatlas.parsers.scala_parser import ScalaParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
 
 
@@ -32,6 +34,8 @@ class ParserRegistry:
             RubyParser(),
             JavaScriptParser(),
             KotlinParser(),
+            PhpParser(),
+            ScalaParser(),
         ]:
             for ext in parser.supported_extensions:
                 self._parsers[ext] = parser

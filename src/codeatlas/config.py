@@ -31,6 +31,9 @@ class ParserConfig(BaseModel):
             ".cjs",
             ".kt",
             ".kts",
+            ".php",
+            ".scala",
+            ".sc",
         ],
         description="File extensions to parse",
     )

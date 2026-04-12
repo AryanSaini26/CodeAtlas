@@ -11,9 +11,11 @@ from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.javascript_parser import JavaScriptParser
 from codeatlas.parsers.kotlin_parser import KotlinParser
+from codeatlas.parsers.php_parser import PhpParser
 from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
 from codeatlas.parsers.rust_parser import RustParser
+from codeatlas.parsers.scala_parser import ScalaParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -173,3 +175,33 @@ def sample_kotlin_path() -> Path:
 @pytest.fixture
 def sample_kotlin_source(sample_kotlin_path: Path) -> str:
     return sample_kotlin_path.read_text()
+
+
+@pytest.fixture
+def php_parser() -> PhpParser:
+    return PhpParser()
+
+
+@pytest.fixture
+def sample_php_path() -> Path:
+    return FIXTURES_DIR / "sample_php" / "SampleModule.php"
+
+
+@pytest.fixture
+def sample_php_source(sample_php_path: Path) -> str:
+    return sample_php_path.read_text()
+
+
+@pytest.fixture
+def scala_parser() -> ScalaParser:
+    return ScalaParser()
+
+
+@pytest.fixture
+def sample_scala_path() -> Path:
+    return FIXTURES_DIR / "sample_scala" / "SampleModule.scala"
+
+
+@pytest.fixture
+def sample_scala_source(sample_scala_path: Path) -> str:
+    return sample_scala_path.read_text()
