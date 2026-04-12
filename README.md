@@ -14,7 +14,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for 12 languages: Python, TypeScript/TSX, Go, Rust, Java, C/C++, C#, Ruby, JavaScript, Kotlin, PHP, and Scala
+- **Multi-language parsing** - Tree-sitter AST parsing for 15 languages: Python, TypeScript/TSX, Go, Rust, Java, C/C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, and Elixir
 - **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
 - **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
 - **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
@@ -95,6 +95,9 @@ pip install codeatlas[all]
 | **Ruby** | `.rb` | Classes, modules, methods, constants, require imports, `#` doc comments |
 | **PHP** | `.php` | Classes, interfaces, traits, functions, use imports, PHPDoc |
 | **Scala** | `.scala`, `.sc` | Classes, traits, objects, functions, val/var, Scaladoc |
+| **Bash** | `.sh`, `.bash` | Functions, UPPER_CASE constants, `#` doc comments, call relationships |
+| **Lua** | `.lua` | Functions, local functions, function expressions, variables, `--` doc comments |
+| **Elixir** | `.ex`, `.exs` | Modules, protocols (interfaces), def/defp functions, `@doc` docstrings |
 
 ## Configuration
 
@@ -112,7 +115,7 @@ exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]
 
 [codeatlas.parser]
 max_file_size_kb = 500
-include_extensions = [".py", ".ts", ".tsx", ".js", ".mjs", ".go", ".rs", ".java", ".kt", ".kts", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h", ".cs", ".rb", ".php", ".scala", ".sc"]
+include_extensions = [".py", ".ts", ".tsx", ".js", ".mjs", ".go", ".rs", ".java", ".kt", ".kts", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h", ".cs", ".rb", ".php", ".scala", ".sc", ".sh", ".bash", ".lua", ".ex", ".exs"]
 
 [codeatlas.graph]
 db_path = ".codeatlas/graph.db"
