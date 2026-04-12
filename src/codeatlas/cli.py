@@ -120,6 +120,27 @@ def diff(repo_path: str, db: str) -> None:
         console.print(f"\n[bold]{total} file(s) to re-index[/bold] ({len(unchanged)} unchanged)")
 
 
+@cli.command()
+def languages() -> None:
+    """List all supported languages and their file extensions."""
+    from codeatlas.parsers import ParserRegistry
+
+    registry = ParserRegistry()
+    # Build language → extensions mapping
+    lang_exts: dict[str, list[str]] = {}
+    for ext, parser in registry._parsers.items():
+        lang = parser.language
+        lang_exts.setdefault(lang, []).append(ext)
+
+    table = Table(title="Supported Languages")
+    table.add_column("Language", style="cyan")
+    table.add_column("Extensions", style="green")
+    for lang in sorted(lang_exts):
+        exts = ", ".join(sorted(lang_exts[lang]))
+        table.add_row(lang, exts)
+    console.print(table)
+
+
 @cli.command(name="list-files")
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--lang", default=None, help="Filter by language (python, typescript, go)")

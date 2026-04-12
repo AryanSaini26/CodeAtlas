@@ -14,7 +14,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for Python, TypeScript/TSX, Go, Rust, Java, C/C++, and C#
+- **Multi-language parsing** - Tree-sitter AST parsing for 12 languages: Python, TypeScript/TSX, Go, Rust, Java, C/C++, C#, Ruby, JavaScript, Kotlin, PHP, and Scala
 - **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
 - **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
 - **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
@@ -22,7 +22,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 - **Interactive visualization** - D3.js force-directed graph with search, zoom, and hover inspection
 - **Real-time sync** - Watchdog file watcher and GitHub webhook handler for incremental updates
 - **Change impact analysis** - Git-aware diff analysis showing which symbols and files are affected
-- **MCP server** - 16 tools exposed via the Model Context Protocol for AI agent consumption
+- **MCP server** - 18 tools exposed via the Model Context Protocol for AI agent consumption
 - **Graph export** - DOT (Graphviz) and JSON (D3.js) visualization formats
 - **Config files** - Optional `codeatlas.toml` for per-repo settings
 
@@ -85,11 +85,16 @@ pip install codeatlas[all]
 |----------|-----------|-------------|
 | **Python** | `.py` | Classes, functions, methods, decorators, docstrings, imports, inheritance |
 | **TypeScript/TSX** | `.ts`, `.tsx` | Functions, classes, interfaces, type aliases, exports, generics, JSDoc |
+| **JavaScript** | `.js`, `.mjs`, `.cjs` | Classes, functions, arrow functions, imports, exports, JSDoc |
 | **Go** | `.go` | Functions, methods, structs, interfaces, packages, type aliases |
 | **Rust** | `.rs` | Structs, traits, enums, impl blocks, type aliases, `///` doc comments |
 | **Java** | `.java` | Classes, interfaces, enums, records, constructors, Javadoc, annotations |
+| **Kotlin** | `.kt`, `.kts` | Classes, interfaces, objects, companion objects, functions, KDoc |
 | **C/C++** | `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hxx`, `.h` | Classes, structs, enums, namespaces, templates, inheritance, `///`/`/** */` docs |
 | **C#** | `.cs` | Classes, interfaces, structs, enums, records, properties, XML doc comments, inheritance |
+| **Ruby** | `.rb` | Classes, modules, methods, constants, require imports, `#` doc comments |
+| **PHP** | `.php` | Classes, interfaces, traits, functions, use imports, PHPDoc |
+| **Scala** | `.scala`, `.sc` | Classes, traits, objects, functions, val/var, Scaladoc |
 
 ## Configuration
 
@@ -107,7 +112,7 @@ exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]
 
 [codeatlas.parser]
 max_file_size_kb = 500
-include_extensions = [".py", ".ts", ".tsx", ".go", ".rs", ".java", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h", ".cs"]
+include_extensions = [".py", ".ts", ".tsx", ".js", ".mjs", ".go", ".rs", ".java", ".kt", ".kts", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h", ".cs", ".rb", ".php", ".scala", ".sc"]
 
 [codeatlas.graph]
 db_path = ".codeatlas/graph.db"
@@ -137,6 +142,7 @@ If no config file is found, sensible defaults are used.
 | `codeatlas viz` | Generate interactive D3.js graph visualization |
 | `codeatlas watch [path]` | Watch for file changes and update graph in real-time |
 | `codeatlas webhook [path]` | Start a GitHub webhook server for push-triggered updates |
+| `codeatlas languages` | List all supported languages and file extensions |
 | `codeatlas clean` | Remove the `.codeatlas` directory |
 | `codeatlas serve` | Start the MCP server |
 
@@ -163,15 +169,17 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools (16)
+### Available MCP Tools (18)
 
 | Tool | Description |
 |------|-------------|
 | `get_file_overview` | Structural summary of a source file |
 | `get_dependencies` | What a symbol depends on and what depends on it |
+| `get_symbol_details` | Full metadata + relationships for a symbol in one call |
+| `list_symbols_by_kind` | List all symbols of a kind (e.g. "show me all classes") |
 | `trace_call_chain` | Full call graph traversal from a symbol |
 | `get_impact_analysis` | What breaks if a symbol changes |
-| `search_symbols` | Full-text search across the codebase |
+| `search_symbols` | Full-text search with optional kind/file filters and query expansion |
 | `find_similar_code` | Natural language semantic search |
 | `get_module_overview` | Directory/module summary |
 | `get_file_dependencies` | File-level dependency graph |
@@ -246,7 +254,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests with coverage (~91%)
+# Run tests with coverage (532 tests, ~91%)
 .venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
 # Lint / format
