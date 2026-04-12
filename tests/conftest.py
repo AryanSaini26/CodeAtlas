@@ -5,12 +5,15 @@ from pathlib import Path
 import pytest
 
 from codeatlas.graph.store import GraphStore
+from codeatlas.parsers.bash_parser import BashParser
 from codeatlas.parsers.cpp_parser import CppParser
 from codeatlas.parsers.csharp_parser import CSharpParser
+from codeatlas.parsers.elixir_parser import ElixirParser
 from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.javascript_parser import JavaScriptParser
 from codeatlas.parsers.kotlin_parser import KotlinParser
+from codeatlas.parsers.lua_parser import LuaParser
 from codeatlas.parsers.php_parser import PhpParser
 from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
@@ -205,3 +208,48 @@ def sample_scala_path() -> Path:
 @pytest.fixture
 def sample_scala_source(sample_scala_path: Path) -> str:
     return sample_scala_path.read_text()
+
+
+@pytest.fixture
+def bash_parser() -> BashParser:
+    return BashParser()
+
+
+@pytest.fixture
+def sample_bash_path() -> Path:
+    return FIXTURES_DIR / "sample_bash" / "sample_script.sh"
+
+
+@pytest.fixture
+def sample_bash_source(sample_bash_path: Path) -> str:
+    return sample_bash_path.read_text()
+
+
+@pytest.fixture
+def lua_parser() -> LuaParser:
+    return LuaParser()
+
+
+@pytest.fixture
+def sample_lua_path() -> Path:
+    return FIXTURES_DIR / "sample_lua" / "sample_module.lua"
+
+
+@pytest.fixture
+def sample_lua_source(sample_lua_path: Path) -> str:
+    return sample_lua_path.read_text()
+
+
+@pytest.fixture
+def elixir_parser() -> ElixirParser:
+    return ElixirParser()
+
+
+@pytest.fixture
+def sample_elixir_path() -> Path:
+    return FIXTURES_DIR / "sample_elixir" / "sample_module.ex"
+
+
+@pytest.fixture
+def sample_elixir_source(sample_elixir_path: Path) -> str:
+    return sample_elixir_path.read_text()

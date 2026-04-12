@@ -4,12 +4,15 @@ from pathlib import Path
 
 from codeatlas.models import ParseResult
 from codeatlas.parsers.base import BaseParser
+from codeatlas.parsers.bash_parser import BashParser
 from codeatlas.parsers.cpp_parser import CppParser
 from codeatlas.parsers.csharp_parser import CSharpParser
+from codeatlas.parsers.elixir_parser import ElixirParser
 from codeatlas.parsers.go_parser import GoParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.javascript_parser import JavaScriptParser
 from codeatlas.parsers.kotlin_parser import KotlinParser
+from codeatlas.parsers.lua_parser import LuaParser
 from codeatlas.parsers.php_parser import PhpParser
 from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
@@ -36,6 +39,9 @@ class ParserRegistry:
             KotlinParser(),
             PhpParser(),
             ScalaParser(),
+            BashParser(),
+            LuaParser(),
+            ElixirParser(),
         ]:
             for ext in parser.supported_extensions:
                 self._parsers[ext] = parser

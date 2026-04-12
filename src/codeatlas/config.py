@@ -34,6 +34,11 @@ class ParserConfig(BaseModel):
             ".php",
             ".scala",
             ".sc",
+            ".sh",
+            ".bash",
+            ".lua",
+            ".ex",
+            ".exs",
         ],
         description="File extensions to parse",
     )
