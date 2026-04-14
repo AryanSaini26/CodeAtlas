@@ -14,7 +14,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for 17 languages: Python, TypeScript/TSX, Go, Rust, Java, C/C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, and Haskell
+- **Multi-language parsing** - Tree-sitter AST parsing for 18 languages: Python, TypeScript/TSX, Go, Rust, Java, C/C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, and SQL
 - **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
 - **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
 - **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
@@ -101,6 +101,7 @@ pip install codeatlas[all]
 | **Elixir** | `.ex`, `.exs` | Modules, protocols (interfaces), def/defp functions, `@doc` docstrings |
 | **Swift** | `.swift` | Classes, structs, protocols (interfaces), functions, methods, typealiases, `///`/`/** */` docs |
 | **Haskell** | `.hs`, `.lhs` | Functions, data types, type aliases, newtypes, typeclasses (interfaces), imports, call relationships |
+| **SQL** | `.sql` | Tables, views (CLASS), functions/procedures (FUNCTION), cross-table CALLS from views and functions |
 
 ## Configuration
 
@@ -150,6 +151,10 @@ If no config file is found, sensible defaults are used.
 | `codeatlas coupling` | Show file coupling analysis |
 | `codeatlas hotspots [path]` | Show highest-risk files (git churn × graph in-degree) |
 | `codeatlas hotspots [path] --json` | Output hotspots as JSON |
+| `codeatlas coverage-gaps` | Show public symbols with zero test coverage |
+| `codeatlas report [path]` | Generate a full health report (cycles, dead code, hotspots, gaps) |
+| `codeatlas report [path] --json` | Output health report as JSON |
+| `codeatlas pre-commit` | Add a CodeAtlas incremental-index hook to `.pre-commit-config.yaml` |
 | `codeatlas impact [path]` | Analyze impact of current git changes on the graph |
 | `codeatlas export` | Export graph in DOT or JSON format |
 | `codeatlas viz` | Generate interactive D3.js graph visualization |
@@ -182,7 +187,7 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools (23)
+### Available MCP Tools (24)
 
 | Tool | Description |
 |------|-------------|
@@ -209,6 +214,7 @@ Add to your Claude Code MCP settings:
 | `get_hotspots` | Highest-risk files: git churn × graph in-degree |
 | `get_symbol_coverage` | Which test functions reference a given symbol |
 | `get_api_surface` | All public non-test symbols — the exported API |
+| `get_coverage_gaps` | Public symbols with zero test coverage — prioritise these for new tests |
 
 ## Graph Visualization
 
@@ -272,7 +278,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests with coverage (657 tests, ~89%)
+# Run tests with coverage (694 tests, ~89%)
 .venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
 # Lint / format

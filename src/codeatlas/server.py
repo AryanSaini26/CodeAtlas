@@ -710,3 +710,40 @@ def get_api_surface(file_filter: str | None = None, limit: int = 200) -> str:
         },
         indent=2,
     )
+
+
+@mcp.tool()
+def get_coverage_gaps(file_filter: str | None = None, limit: int = 100) -> str:
+    """Find public symbols with zero test coverage — no test function calls or imports them.
+
+    Returns the highest-priority symbols to write tests for, ordered by file and line.
+    Excludes private symbols (leading underscore), imports, variables, and test-file symbols.
+
+    Args:
+        file_filter: Only include symbols from files matching this path prefix
+        limit: Maximum number of symbols to return (default 100)
+    """
+    store = get_store()
+    gaps = store.get_coverage_gaps(file_filter=file_filter, limit=limit)
+    by_file: dict[str, list[dict[str, Any]]] = {}
+    for s in gaps:
+        by_file.setdefault(s.file_path, []).append(
+            {
+                "name": s.name,
+                "qualified_name": s.qualified_name,
+                "kind": s.kind.value,
+                "line": s.span.start.line + 1,
+                "signature": s.signature,
+            }
+        )
+    return json.dumps(
+        {
+            "total_uncovered": len(gaps),
+            "file_filter": file_filter,
+            "files": [
+                {"file": fp, "count": len(syms), "symbols": syms}
+                for fp, syms in sorted(by_file.items())
+            ],
+        },
+        indent=2,
+    )

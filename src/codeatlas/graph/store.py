@@ -938,6 +938,37 @@ class GraphStore:
         rows = conn.execute(sql, params).fetchall()
         return [self._row_to_symbol(r) for r in rows]
 
+    def get_coverage_gaps(
+        self,
+        file_filter: str | None = None,
+        limit: int = 200,
+    ) -> list[Symbol]:
+        """Return public non-test symbols that have zero test-file references.
+
+        These are the symbols most at risk — they're part of the public API but no
+        test function calls or imports them. Useful for prioritising where to write tests.
+        """
+        conn = self._conn
+        params: list[Any] = []
+        sql = """
+            SELECT * FROM symbols s
+            WHERE s.is_test = 0
+              AND s.name NOT LIKE '\\_%' ESCAPE '\\'
+              AND s.kind NOT IN ('import', 'variable')
+              AND NOT EXISTS (
+                  SELECT 1 FROM relationships r
+                  JOIN symbols src ON r.source_id = src.id
+                  WHERE r.target_id = s.id AND src.is_test = 1
+              )
+        """
+        if file_filter:
+            sql += " AND s.file_path LIKE ?"
+            params.append(f"{file_filter}%")
+        sql += " ORDER BY s.file_path, s.start_line LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(sql, params).fetchall()
+        return [self._row_to_symbol(r) for r in rows]
+
     def close(self) -> None:
         self._conn.close()
 

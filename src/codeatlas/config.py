@@ -42,6 +42,7 @@ class ParserConfig(BaseModel):
             ".swift",
             ".hs",
             ".lhs",
+            ".sql",
         ],
         description="File extensions to parse",
     )

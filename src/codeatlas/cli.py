@@ -817,3 +817,201 @@ def serve(db: str, transport: str) -> None:
     from typing import Literal, cast
 
     mcp.run(transport=cast(Literal["stdio", "sse", "streamable-http"], transport))
+
+
+@cli.command(name="coverage-gaps")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option(
+    "--file-filter", default=None, help="Only show symbols from files matching this prefix"
+)
+@click.option("--limit", default=100, show_default=True)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def coverage_gaps(db: str, file_filter: str | None, limit: int, as_json: bool) -> None:
+    """Show public symbols that have no test coverage.
+
+    Lists symbols that are part of the public API but are never called
+    or imported by any test file. Prioritise these for new test cases.
+    """
+    import json as _json
+
+    store = _get_store(Path(db))
+    gaps = store.get_coverage_gaps(file_filter=file_filter, limit=limit)
+    store.close()
+
+    if as_json:
+        by_file: dict[str, list[dict[str, Any]]] = {}
+        for s in gaps:
+            by_file.setdefault(s.file_path, []).append(
+                {"name": s.name, "kind": s.kind.value, "line": s.span.start.line + 1}
+            )
+        console.print(
+            _json.dumps(
+                {
+                    "total_uncovered": len(gaps),
+                    "files": [
+                        {"file": fp, "symbols": syms} for fp, syms in sorted(by_file.items())
+                    ],
+                },
+                indent=2,
+            )
+        )
+        return
+
+    if not gaps:
+        console.print("[green]All public symbols have test coverage.[/green]")
+        return
+
+    table = Table(title=f"Coverage Gaps — {len(gaps)} uncovered symbol(s)")
+    table.add_column("Symbol", style="cyan")
+    table.add_column("Kind", style="magenta")
+    table.add_column("File")
+    table.add_column("Line", justify="right")
+    for s in gaps:
+        table.add_row(
+            s.qualified_name,
+            s.kind.value,
+            s.file_path,
+            str(s.span.start.line + 1),
+        )
+    console.print(table)
+
+
+@cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON instead of Markdown")
+@click.option("-o", "--output", default=None, type=click.Path(), help="Write report to file")
+def report(db: str, repo_path: str, as_json: bool, output: str | None) -> None:
+    """Generate a health report: cycles, dead code, hotspots, and coverage gaps.
+
+    Combines all graph analysis results into a single Markdown or JSON summary
+    suitable for dropping into a PR description or CI artifact.
+    """
+    import json as _json
+
+    store = _get_store(Path(db))
+
+    # Gather data
+    stats = store.get_stats()
+    cycles = store.detect_cycles()
+    dead = store.find_unused_symbols(include_tests=False)
+    hotspots = store.get_hotspots(repo_path=repo_path, limit=10)
+    gaps = store.get_coverage_gaps(limit=50)
+    store.close()
+
+    if as_json:
+        data = {
+            "stats": stats,
+            "cycles": len(cycles),
+            "dead_code": [{"name": s.qualified_name, "file": s.file_path} for s in dead[:20]],
+            "hotspots": hotspots[:10],
+            "coverage_gaps": [
+                {"name": s.qualified_name, "kind": s.kind.value, "file": s.file_path}
+                for s in gaps[:20]
+            ],
+        }
+        result = _json.dumps(data, indent=2)
+    else:
+        lines = [
+            "# CodeAtlas Health Report",
+            "",
+            "## Summary",
+            "",
+            "| Metric | Value |",
+            "|--------|-------|",
+            f"| Files indexed | {stats.get('total_files', 0)} |",
+            f"| Symbols | {stats.get('total_symbols', 0)} |",
+            f"| Relationships | {stats.get('total_relationships', 0)} |",
+            f"| Dependency cycles | {len(cycles)} |",
+            f"| Dead code symbols | {len(dead)} |",
+            f"| Uncovered public symbols | {len(gaps)} |",
+            "",
+        ]
+
+        if cycles:
+            lines += ["## Dependency Cycles", ""]
+            for i, cycle in enumerate(cycles[:5], 1):
+                lines.append(f"{i}. `{'` → `'.join(str(n) for n in cycle)}`")
+            if len(cycles) > 5:
+                lines.append(f"…and {len(cycles) - 5} more.")
+            lines.append("")
+
+        if dead:
+            lines += ["## Dead Code (top 15)", ""]
+            lines.append("| Symbol | Kind | File |")
+            lines.append("|--------|------|------|")
+            for s in dead[:15]:
+                lines.append(f"| `{s.qualified_name}` | {s.kind.value} | `{s.file_path}` |")
+            lines.append("")
+
+        if hotspots:
+            lines += ["## Hotspot Files (highest risk)", ""]
+            lines.append("| File | Commits | In-Degree | Score |")
+            lines.append("|------|---------|-----------|-------|")
+            for h in hotspots[:10]:
+                lines.append(
+                    f"| `{h['file']}` | {h['commits']} | {h['in_degree']} | {h['hotspot_score']} |"
+                )
+            lines.append("")
+
+        if gaps:
+            lines += ["## Coverage Gaps (top 20)", ""]
+            lines.append("| Symbol | Kind | File | Line |")
+            lines.append("|--------|------|------|------|")
+            for s in gaps[:20]:
+                lines.append(
+                    f"| `{s.qualified_name}` | {s.kind.value} | `{s.file_path}` | {s.span.start.line + 1} |"
+                )
+            lines.append("")
+
+        if not cycles and not dead and not gaps:
+            lines += ["## ", "> All checks passed — no issues detected.", ""]
+
+        result = "\n".join(lines)
+
+    if output:
+        Path(output).write_text(result)
+        console.print(f"[green]Report written to {output}[/green]")
+    else:
+        console.print(result)
+
+
+@cli.command(name="pre-commit")
+@click.option(
+    "--hook-type",
+    type=click.Choice(["pre-commit", "post-commit"]),
+    default="post-commit",
+    show_default=True,
+    help="Which git hook stage to run on",
+)
+def pre_commit(hook_type: str) -> None:
+    """Add a CodeAtlas incremental-index hook to .pre-commit-config.yaml.
+
+    Appends a hook that keeps the knowledge graph up to date on every commit
+    without blocking the commit (runs as post-commit by default).
+    """
+    config_path = Path(".pre-commit-config.yaml")
+    hook_block = f"""
+# CodeAtlas: keep knowledge graph in sync
+- repo: local
+  hooks:
+    - id: codeatlas-index
+      name: CodeAtlas incremental index
+      language: system
+      entry: codeatlas index --incremental
+      stages: [{hook_type}]
+      pass_filenames: false
+"""
+    if config_path.exists():
+        existing = config_path.read_text()
+        if "codeatlas-index" in existing:
+            console.print(
+                "[yellow]codeatlas-index hook already present in .pre-commit-config.yaml[/yellow]"
+            )
+            return
+        config_path.write_text(existing + hook_block)
+        console.print("[green]Appended codeatlas-index hook to .pre-commit-config.yaml[/green]")
+    else:
+        config_path.write_text(f"repos:{hook_block}")
+        console.print("[green]Created .pre-commit-config.yaml with codeatlas-index hook[/green]")
+    console.print("Run [cyan]pre-commit install[/cyan] to activate.")

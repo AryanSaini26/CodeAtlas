@@ -20,6 +20,7 @@ from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
 from codeatlas.parsers.rust_parser import RustParser
 from codeatlas.parsers.scala_parser import ScalaParser
+from codeatlas.parsers.sql_parser import SqlParser
 from codeatlas.parsers.swift_parser import SwiftParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
 
@@ -285,3 +286,18 @@ def sample_haskell_path() -> Path:
 @pytest.fixture
 def sample_haskell_source(sample_haskell_path: Path) -> str:
     return sample_haskell_path.read_text()
+
+
+@pytest.fixture
+def sql_parser() -> SqlParser:
+    return SqlParser()
+
+
+@pytest.fixture
+def sample_sql_path() -> Path:
+    return FIXTURES_DIR / "sample_sql" / "schema.sql"
+
+
+@pytest.fixture
+def sample_sql_source(sample_sql_path: Path) -> str:
+    return sample_sql_path.read_text()

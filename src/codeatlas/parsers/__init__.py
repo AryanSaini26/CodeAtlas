@@ -19,6 +19,7 @@ from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
 from codeatlas.parsers.rust_parser import RustParser
 from codeatlas.parsers.scala_parser import ScalaParser
+from codeatlas.parsers.sql_parser import SqlParser
 from codeatlas.parsers.swift_parser import SwiftParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
 
@@ -46,6 +47,7 @@ class ParserRegistry:
             ElixirParser(),
             SwiftParser(),
             HaskellParser(),
+            SqlParser(),
         ]:
             for ext in parser.supported_extensions:
                 self._parsers[ext] = parser

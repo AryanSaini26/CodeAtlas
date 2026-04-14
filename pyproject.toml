@@ -42,6 +42,7 @@ dependencies = [
     "tree-sitter-elixir>=0.3.0",
     "tree-sitter-swift>=0.0.1",
     "tree-sitter-haskell>=0.23.0",
+    "tree-sitter-sql>=0.3.0",
     "pydantic>=2.0.0",
     "click>=8.0.0",
     "rich>=13.0.0",
