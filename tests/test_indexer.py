@@ -1,6 +1,7 @@
 """Tests for the repository indexer."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -207,3 +208,89 @@ def test_incremental_index_detects_new_files(
 
     bonus_syms = store.find_symbols_by_name("bonus")
     assert len(bonus_syms) >= 1
+
+
+def test_incremental_index_with_resolve(
+    indexer_and_store: tuple[RepoIndexer, GraphStore],
+    sample_repo: Path,
+) -> None:
+    """Cover the resolve_imports branch in incremental when files changed."""
+    indexer, store = indexer_and_store
+    indexer.index_full(resolve=False)
+
+    # Modify a file so incremental detects a change
+    (sample_repo / "utils.py").write_text("def new_util():\n    pass\n")
+
+    stats = indexer.index_incremental(resolve=True)
+    assert stats["parsed"] == 1
+
+
+def test_incremental_oserror_skipped(
+    indexer_and_store: tuple[RepoIndexer, GraphStore],
+    sample_repo: Path,
+) -> None:
+    """Cover the OSError continue path in index_incremental."""
+    indexer, _store = indexer_and_store
+
+    # Make read_bytes raise OSError for one file
+    original_read_bytes = Path.read_bytes
+
+    call_count = [0]
+
+    def patched_read_bytes(self: Path) -> bytes:
+        if self.name == "app.py":
+            call_count[0] += 1
+            raise OSError("permission denied")
+        return original_read_bytes(self)
+
+    with patch.object(Path, "read_bytes", patched_read_bytes):
+        stats = indexer.index_incremental(resolve=False)
+
+    # app.py was skipped via OSError, the rest were processed normally
+    assert call_count[0] >= 1
+
+
+def test_index_files_parse_error_counted(
+    indexer_and_store: tuple[RepoIndexer, GraphStore],
+    sample_repo: Path,
+) -> None:
+    """Cover the except Exception path in _index_files."""
+    indexer, _store = indexer_and_store
+
+    with patch.object(
+        indexer._registry, "parse_file", side_effect=RuntimeError("bad parse")
+    ):
+        files = indexer._discover_files()
+        stats = indexer._index_files(files, "Test label")
+
+    assert stats["errors"] == len(files)
+    assert stats["parsed"] == 0
+
+
+def test_index_files_skipped_counted(
+    indexer_and_store: tuple[RepoIndexer, GraphStore],
+    sample_repo: Path,
+) -> None:
+    """Cover the stats['skipped'] path when parse_file returns None."""
+    indexer, _store = indexer_and_store
+
+    with patch.object(indexer._registry, "parse_file", return_value=None):
+        files = indexer._discover_files()
+        stats = indexer._index_files(files, "Test label")
+
+    assert stats["skipped"] == len(files)
+    assert stats["parsed"] == 0
+
+
+def test_index_files_batch_flush(
+    indexer_and_store: tuple[RepoIndexer, GraphStore],
+    sample_repo: Path,
+) -> None:
+    """Cover the mid-batch flush when batch_size is small."""
+    indexer, store = indexer_and_store
+    files = indexer._discover_files()
+    assert len(files) >= 3  # need more than batch_size=2
+
+    stats = indexer._index_files(files, "Batch test", batch_size=2)
+    assert stats["parsed"] == len(files)
+    assert stats["errors"] == 0
