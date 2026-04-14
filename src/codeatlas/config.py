@@ -43,6 +43,10 @@ class ParserConfig(BaseModel):
             ".hs",
             ".lhs",
             ".sql",
+            ".c",
+            ".zig",
+            ".ml",
+            ".mli",
         ],
         description="File extensions to parse",
     )

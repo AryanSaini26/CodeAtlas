@@ -621,3 +621,118 @@ def test_find_path_target_missing(tmp_path: Path) -> None:
     result = runner.invoke(cli, ["find-path", "run", "nonexistent_xyz", "--db", db_path])
     assert result.exit_code == 0
     assert "not found" in result.output.lower()
+
+
+# --- coverage-gaps ---
+
+
+def test_coverage_gaps_empty_db(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["coverage-gaps", "--db", db_path])
+    assert result.exit_code == 0
+
+
+def test_coverage_gaps_with_indexed_repo(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["coverage-gaps", "--db", db_path])
+    assert result.exit_code == 0
+
+
+def test_coverage_gaps_json_output(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["coverage-gaps", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert "total_uncovered" in result.output
+    assert "files" in result.output
+
+
+def test_coverage_gaps_all_covered(tmp_path: Path) -> None:
+    """When no public symbols exist, 'all covered' message shown."""
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["coverage-gaps", "--db", db_path])
+    assert result.exit_code == 0
+
+
+# --- report ---
+
+
+def test_report_runs_successfully(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["report", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+
+
+def test_report_json_output(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["report", str(repo), "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert "stats" in result.output
+    assert "cycles" in result.output
+    assert "dead_code" in result.output
+    assert "coverage_gaps" in result.output
+
+
+def test_report_writes_to_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    output_file = str(tmp_path / "report.md")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["report", str(repo), "--db", db_path, "-o", output_file])
+    assert result.exit_code == 0
+    assert Path(output_file).exists()
+
+
+# --- pre-commit ---
+
+
+def test_pre_commit_creates_new_file(tmp_path: Path) -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(cli, ["pre-commit"])
+        assert result.exit_code == 0
+        assert Path(".pre-commit-config.yaml").exists()
+        content = Path(".pre-commit-config.yaml").read_text()
+        assert "codeatlas-index" in content
+
+
+def test_pre_commit_appends_to_existing(tmp_path: Path) -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".pre-commit-config.yaml").write_text("repos:\n  - repo: local\n")
+        result = runner.invoke(cli, ["pre-commit"])
+        assert result.exit_code == 0
+        content = Path(".pre-commit-config.yaml").read_text()
+        assert "codeatlas-index" in content
+
+
+def test_pre_commit_idempotent(tmp_path: Path) -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        runner.invoke(cli, ["pre-commit"])
+        result = runner.invoke(cli, ["pre-commit"])
+        assert result.exit_code == 0
+        assert "already present" in result.output.lower()
+
+
+def test_pre_commit_custom_hook_type(tmp_path: Path) -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(cli, ["pre-commit", "--hook-type", "pre-commit"])
+        assert result.exit_code == 0
+        content = Path(".pre-commit-config.yaml").read_text()
+        assert "pre-commit" in content

@@ -6,6 +6,7 @@ import pytest
 
 from codeatlas.graph.store import GraphStore
 from codeatlas.parsers.bash_parser import BashParser
+from codeatlas.parsers.c_parser import CParser
 from codeatlas.parsers.cpp_parser import CppParser
 from codeatlas.parsers.csharp_parser import CSharpParser
 from codeatlas.parsers.elixir_parser import ElixirParser
@@ -15,6 +16,7 @@ from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.javascript_parser import JavaScriptParser
 from codeatlas.parsers.kotlin_parser import KotlinParser
 from codeatlas.parsers.lua_parser import LuaParser
+from codeatlas.parsers.ocaml_parser import OCamlParser
 from codeatlas.parsers.php_parser import PhpParser
 from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
@@ -23,6 +25,7 @@ from codeatlas.parsers.scala_parser import ScalaParser
 from codeatlas.parsers.sql_parser import SqlParser
 from codeatlas.parsers.swift_parser import SwiftParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
+from codeatlas.parsers.zig_parser import ZigParser
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -286,6 +289,51 @@ def sample_haskell_path() -> Path:
 @pytest.fixture
 def sample_haskell_source(sample_haskell_path: Path) -> str:
     return sample_haskell_path.read_text()
+
+
+@pytest.fixture
+def zig_parser() -> ZigParser:
+    return ZigParser()
+
+
+@pytest.fixture
+def sample_zig_path() -> Path:
+    return FIXTURES_DIR / "sample_zig" / "sample_module.zig"
+
+
+@pytest.fixture
+def sample_zig_source(sample_zig_path: Path) -> str:
+    return sample_zig_path.read_text()
+
+
+@pytest.fixture
+def ocaml_parser() -> OCamlParser:
+    return OCamlParser()
+
+
+@pytest.fixture
+def sample_ocaml_path() -> Path:
+    return FIXTURES_DIR / "sample_ocaml" / "sample_module.ml"
+
+
+@pytest.fixture
+def sample_ocaml_source(sample_ocaml_path: Path) -> str:
+    return sample_ocaml_path.read_text()
+
+
+@pytest.fixture
+def c_parser() -> CParser:
+    return CParser()
+
+
+@pytest.fixture
+def sample_c_path() -> Path:
+    return FIXTURES_DIR / "sample_c" / "sample_module.c"
+
+
+@pytest.fixture
+def sample_c_source(sample_c_path: Path) -> str:
+    return sample_c_path.read_text()
 
 
 @pytest.fixture

@@ -5,6 +5,7 @@ from pathlib import Path
 from codeatlas.models import ParseResult
 from codeatlas.parsers.base import BaseParser
 from codeatlas.parsers.bash_parser import BashParser
+from codeatlas.parsers.c_parser import CParser
 from codeatlas.parsers.cpp_parser import CppParser
 from codeatlas.parsers.csharp_parser import CSharpParser
 from codeatlas.parsers.elixir_parser import ElixirParser
@@ -14,6 +15,7 @@ from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.javascript_parser import JavaScriptParser
 from codeatlas.parsers.kotlin_parser import KotlinParser
 from codeatlas.parsers.lua_parser import LuaParser
+from codeatlas.parsers.ocaml_parser import OCamlParser
 from codeatlas.parsers.php_parser import PhpParser
 from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
@@ -22,6 +24,7 @@ from codeatlas.parsers.scala_parser import ScalaParser
 from codeatlas.parsers.sql_parser import SqlParser
 from codeatlas.parsers.swift_parser import SwiftParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
+from codeatlas.parsers.zig_parser import ZigParser
 
 
 class ParserRegistry:
@@ -42,6 +45,9 @@ class ParserRegistry:
             KotlinParser(),
             PhpParser(),
             ScalaParser(),
+            CParser(),
+            ZigParser(),
+            OCamlParser(),
             BashParser(),
             LuaParser(),
             ElixirParser(),

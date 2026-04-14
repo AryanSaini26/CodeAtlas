@@ -14,7 +14,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for 18 languages: Python, TypeScript/TSX, Go, Rust, Java, C/C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, and SQL
+- **Multi-language parsing** - Tree-sitter AST parsing for 21 languages: Python, TypeScript/TSX, Go, Rust, Java, C, C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, and OCaml
 - **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
 - **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
 - **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
@@ -102,6 +102,9 @@ pip install codeatlas[all]
 | **Swift** | `.swift` | Classes, structs, protocols (interfaces), functions, methods, typealiases, `///`/`/** */` docs |
 | **Haskell** | `.hs`, `.lhs` | Functions, data types, type aliases, newtypes, typeclasses (interfaces), imports, call relationships |
 | **SQL** | `.sql` | Tables, views (CLASS), functions/procedures (FUNCTION), cross-table CALLS from views and functions |
+| **C** | `.c` | Functions, typedef structs/enums (CLASS), type aliases, includes (IMPORT), call relationships |
+| **Zig** | `.zig` | Functions, structs/enums/unions (CLASS), `@import` (IMPORT), UPPER_CASE constants, call relationships |
+| **OCaml** | `.ml`, `.mli` | Functions (`let`), types (CLASS), modules (MODULE), module methods, `open` imports, call relationships |
 
 ## Configuration
 
@@ -119,7 +122,7 @@ exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]
 
 [codeatlas.parser]
 max_file_size_kb = 500
-include_extensions = [".py", ".ts", ".tsx", ".js", ".mjs", ".go", ".rs", ".java", ".kt", ".kts", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h", ".cs", ".rb", ".php", ".scala", ".sc", ".sh", ".bash", ".lua", ".ex", ".exs", ".swift", ".hs", ".lhs"]
+include_extensions = [".py", ".ts", ".tsx", ".js", ".mjs", ".go", ".rs", ".java", ".kt", ".kts", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h", ".cs", ".rb", ".php", ".scala", ".sc", ".sh", ".bash", ".lua", ".ex", ".exs", ".swift", ".hs", ".lhs", ".sql", ".c", ".zig", ".ml", ".mli"]
 
 [codeatlas.graph]
 db_path = ".codeatlas/graph.db"
