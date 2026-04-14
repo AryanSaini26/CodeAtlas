@@ -27,25 +27,32 @@ python3.12 -m venv .venv
 .venv/bin/ruff format src tests
 ```
 
+## Type Checking
+
+```bash
+.venv/bin/mypy src/codeatlas --ignore-missing-imports
+```
+
 ## Project Structure
 
 ```
 src/codeatlas/
-  parsers/        # Tree-sitter AST parsers (Python, TypeScript, Go)
-  graph/          # SQLite graph store and export
-  search/         # FAISS semantic search and hybrid search
-  sync/           # File watcher and GitHub webhook handler
-  server.py       # MCP server with 10 tools
-  cli.py          # Click CLI
-  config.py       # Pydantic config models
-  models.py       # Core data models (Symbol, Relationship, etc.)
-  indexer.py      # Repository indexer
+  parsers/         # Tree-sitter AST parsers (17 languages)
+  graph/           # SQLite graph store, analysis, and export (DOT/JSON/Mermaid)
+  search/          # FAISS semantic search and hybrid (BM25 + vector) search
+  sync/            # File watcher and GitHub webhook handler
+  server.py        # MCP server (23 tools)
+  cli.py           # Click CLI
+  config.py        # Pydantic config models
+  models.py        # Core data models (Symbol, Relationship, etc.)
+  indexer.py       # Repository indexer
+  git_integration.py  # Git diff and churn integration
 tests/
-  test_parsers/   # Parser tests (Python, TypeScript, Go)
-  test_graph/     # Graph store and export tests
-  test_search/    # Semantic and hybrid search tests
-  test_sync/      # File watcher and webhook tests
-  fixtures/       # Sample source files for testing
+  test_parsers/    # Per-language parser tests
+  test_graph/      # Graph store, analysis, and export tests
+  test_search/     # Semantic and hybrid search tests
+  test_sync/       # File watcher and webhook tests
+  fixtures/        # Sample source files per language
 ```
 
 ## Adding a New Language Parser

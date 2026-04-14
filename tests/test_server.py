@@ -21,6 +21,7 @@ from codeatlas.server import (
     analyze_complexity,
     detect_circular_dependencies,
     export_graph,
+    find_by_decorator,
     find_dead_code,
     find_path_between_symbols,
     get_api_surface,
@@ -35,6 +36,7 @@ from codeatlas.server import (
     get_module_overview,
     get_symbol_coverage,
     get_symbol_details,
+    get_symbol_history,
     list_symbols_by_kind,
     search_symbols,
     set_store,
@@ -475,3 +477,104 @@ def test_get_hotspots_no_git(tmp_path: Any) -> None:
     result = json.loads(get_hotspots(repo_path=str(tmp_path), limit=5))
     assert result["count"] == 0
     assert result["hotspots"] == []
+
+
+def test_get_hotspots_with_mocked_churn(tmp_path: Any) -> None:
+    # Mock git churn so we can exercise the join logic without a real repo
+    with patch("codeatlas.git_integration.get_git_churn") as mock_churn:
+        mock_churn.return_value = [
+            {"file": "app.py", "commits": 5},
+            {"file": "utils.py", "commits": 3},
+        ]
+        result = json.loads(get_hotspots(repo_path=str(tmp_path), limit=10))
+        assert result["count"] == 2
+        scores = {h["file"]: h["hotspot_score"] for h in result["hotspots"]}
+        # app.py has main with 0 in_degree → score = 5 * (1 + 0) = 5
+        # utils.py has helper with in_degree 1 → score = 3 * (1 + 1) = 6
+        assert scores["utils.py"] > scores["app.py"]
+
+
+# --- find_by_decorator ---
+
+
+def test_find_by_decorator_finds_match() -> None:
+    from codeatlas.models import FileInfo, ParseResult, Position, Span, Symbol, SymbolKind
+
+    store = GraphStore(":memory:")
+    decorated = Symbol(
+        id="api.py::route_handler",
+        name="route_handler",
+        qualified_name="route_handler",
+        kind=SymbolKind.FUNCTION,
+        file_path="api.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=5, column=0)),
+        language="python",
+        decorators=["app.route", "login_required"],
+    )
+    store.upsert_parse_result(
+        ParseResult(
+            file_info=FileInfo(path="api.py", language="python", content_hash="x"),
+            symbols=[decorated],
+            relationships=[],
+        )
+    )
+    set_store(store)
+    result = json.loads(find_by_decorator("route"))
+    assert result["count"] == 1
+    assert result["symbols"][0]["name"] == "route_handler"
+    assert "app.route" in result["symbols"][0]["decorators"]
+
+
+def test_find_by_decorator_no_match() -> None:
+    result = json.loads(find_by_decorator("nonexistent_decorator_xyz"))
+    assert result["count"] == 0
+    assert result["symbols"] == []
+
+
+# --- get_symbol_history ---
+
+
+def test_get_symbol_history_symbol_not_found() -> None:
+    result = json.loads(get_symbol_history("nonexistent_xyz_123"))
+    assert "error" in result
+
+
+def test_get_symbol_history_no_git(tmp_path: Any) -> None:
+    # main exists in fixture but tmp_path has no git → 0 commits, no error
+    result = json.loads(get_symbol_history("main", repo_path=str(tmp_path)))
+    assert result["symbol"] == "main"
+    assert result["commit_count"] == 0
+
+
+def test_get_symbol_history_parses_commits(tmp_path: Any) -> None:
+    fake_output = (
+        "abc12345\x1fAlice\x1falice@example.com\x1f2026-01-01\x1fInitial commit\n"
+        "def67890\x1fBob\x1fbob@example.com\x1f2026-01-02\x1fFix bug"
+    )
+    mock_result = type("MockResult", (), {"stdout": fake_output})()
+    with patch("subprocess.run", return_value=mock_result):
+        result = json.loads(get_symbol_history("main", repo_path="."))
+    assert result["commit_count"] == 2
+    assert result["commits"][0]["author"] == "Alice"
+    assert result["commits"][0]["hash"] == "abc12345"
+    assert result["commits"][1]["message"] == "Fix bug"
+
+
+# --- export_graph mermaid format ---
+
+
+def test_export_graph_mermaid_format() -> None:
+    out = export_graph(format="mermaid")
+    assert out.startswith("classDiagram")
+
+
+def test_export_graph_dot_format() -> None:
+    out = export_graph(format="dot")
+    assert out.startswith("digraph")
+
+
+def test_export_graph_default_is_json() -> None:
+    out = export_graph()
+    data = json.loads(out)
+    assert "nodes" in data
+    assert "links" in data

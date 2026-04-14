@@ -242,7 +242,15 @@ def query(
     store = _get_store(Path(db))
 
     if semantic or hybrid:
-        from codeatlas.search.embeddings import SemanticIndex
+        try:
+            from codeatlas.search.embeddings import SemanticIndex
+        except ImportError:
+            store.close()
+            console.print(
+                "[red]Semantic search requires extra dependencies.[/red]\n"
+                "Install with: [cyan]pip install codeatlas[search][/cyan]"
+            )
+            return
 
         sem_index = SemanticIndex()
         data_dir = Path(db).parent

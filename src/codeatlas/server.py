@@ -2,18 +2,20 @@
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp import FastMCP
 
 from codeatlas.graph.export import ExportOptions, export_dot, export_json, export_mermaid
 from codeatlas.graph.store import GraphStore
-from codeatlas.search.embeddings import SemanticIndex
+
+if TYPE_CHECKING:
+    from codeatlas.search.embeddings import SemanticIndex
 
 mcp = FastMCP("codeatlas")
 
 _store: GraphStore | None = None
-_semantic: SemanticIndex | None = None
+_semantic: "SemanticIndex | None" = None
 
 
 def get_store() -> GraphStore:
@@ -32,9 +34,16 @@ def set_store(store: GraphStore) -> None:
     _store = store
 
 
-def get_semantic_index() -> SemanticIndex:
+def get_semantic_index() -> "SemanticIndex":
     global _semantic
     if _semantic is None:
+        try:
+            from codeatlas.search.embeddings import SemanticIndex
+        except ImportError as e:
+            raise RuntimeError(
+                "Semantic search requires extra dependencies. "
+                "Install with: pip install codeatlas[search]"
+            ) from e
         _semantic = SemanticIndex()
         store = get_store()
         db_path = Path(".codeatlas")
