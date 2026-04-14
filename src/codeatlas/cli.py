@@ -60,7 +60,8 @@ def init(repo_path: str) -> None:
 @click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 @click.option("--db", default=".codeatlas/graph.db", show_default=True, help="Database path")
 @click.option("--incremental", is_flag=True, help="Only re-index changed files")
-def index(repo_path: str, db: str, incremental: bool) -> None:
+@click.option("--watch", is_flag=True, help="Keep watching for changes after indexing")
+def index(repo_path: str, db: str, incremental: bool, watch: bool) -> None:
     """Index a repository into the knowledge graph."""
     config = CodeAtlasConfig.find_and_load(Path(repo_path))
     config.graph.db_path = Path(db)
@@ -72,7 +73,15 @@ def index(repo_path: str, db: str, incremental: bool) -> None:
     else:
         indexer.index_full()
 
-    store.close()
+    if watch:
+        watcher = FileWatcher(config, store)
+        console.print("[green]Index complete — watching for changes (Ctrl+C to stop)...[/green]")
+        try:
+            watcher.start(blocking=True)
+        finally:
+            store.close()
+    else:
+        store.close()
 
 
 @cli.command()
@@ -223,8 +232,13 @@ def stats(db: str, as_json: bool) -> None:
     default=None,
     help="Filter by symbol kind (function, class, method, interface, etc.)",
 )
-def query(query: str, db: str, limit: int, semantic: bool, hybrid: bool, kind: str | None) -> None:
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def query(
+    query: str, db: str, limit: int, semantic: bool, hybrid: bool, kind: str | None, as_json: bool
+) -> None:
     """Search for symbols by name or docstring."""
+    import json as json_mod
+
     store = _get_store(Path(db))
 
     if semantic or hybrid:
@@ -253,6 +267,25 @@ def query(query: str, db: str, limit: int, semantic: bool, hybrid: bool, kind: s
 
     if kind:
         results = [s for s in results if s.kind.value == kind.lower()]
+
+    if as_json:
+        console.print(
+            json_mod.dumps(
+                [
+                    {
+                        "name": s.qualified_name,
+                        "kind": s.kind.value,
+                        "file": s.file_path,
+                        "line": s.span.start.line + 1,
+                        "signature": s.signature,
+                        "docstring": s.docstring,
+                    }
+                    for s in results
+                ],
+                indent=2,
+            )
+        )
+        return
 
     if not results:
         console.print("[yellow]No results found.[/yellow]")
@@ -310,14 +343,43 @@ def export(
 @click.argument("symbol_name")
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--depth", default=3, show_default=True, help="Max traversal depth for call chain")
-def show(symbol_name: str, db: str, depth: int) -> None:
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def show(symbol_name: str, db: str, depth: int, as_json: bool) -> None:
     """Inspect a symbol: signature, docstring, dependencies, and dependents."""
+    import json as json_mod
+
     store = _get_store(Path(db))
     matches = store.find_symbols_by_name(symbol_name)
 
     if not matches:
         console.print(f"[yellow]No symbol found matching '{symbol_name}'[/yellow]")
         store.close()
+        return
+
+    if as_json:
+        output = []
+        for sym in matches:
+            deps = store.get_dependencies(sym.id)
+            dependents = store.get_dependents(sym.id)
+            output.append(
+                {
+                    "id": sym.id,
+                    "name": sym.qualified_name,
+                    "kind": sym.kind.value,
+                    "file": sym.file_path,
+                    "line": sym.span.start.line + 1,
+                    "signature": sym.signature,
+                    "docstring": sym.docstring,
+                    "decorators": sym.decorators,
+                    "is_test": sym.is_test,
+                    "dependencies": [{"target": r.target_id, "kind": r.kind.value} for r in deps],
+                    "dependents": [
+                        {"source": r.source_id, "kind": r.kind.value} for r in dependents
+                    ],
+                }
+            )
+        store.close()
+        console.print(json_mod.dumps(output, indent=2))
         return
 
     for sym in matches:
@@ -330,6 +392,8 @@ def show(symbol_name: str, db: str, depth: int) -> None:
             console.print(f"  Docstring: [dim]{sym.docstring}[/dim]")
         if sym.decorators:
             console.print(f"  Decorators: {', '.join(sym.decorators)}")
+        if sym.is_test:
+            console.print("  [dim](test file)[/dim]")
 
         # Dependencies (what it calls/imports)
         deps = store.get_dependencies(sym.id)
@@ -425,15 +489,56 @@ def clean(repo_path: str, yes: bool) -> None:
 @click.option("--unused", "show_unused", is_flag=True, help="Show unused symbols only")
 @click.option("--centrality", "show_centrality", is_flag=True, help="Show symbol centrality only")
 @click.option("--limit", default=20, show_default=True, help="Max results for centrality")
-def audit(db: str, show_cycles: bool, show_unused: bool, show_centrality: bool, limit: int) -> None:
+@click.option("--include-tests", is_flag=True, help="Include test symbols in dead code analysis")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def audit(
+    db: str,
+    show_cycles: bool,
+    show_unused: bool,
+    show_centrality: bool,
+    limit: int,
+    include_tests: bool,
+    as_json: bool,
+) -> None:
     """Run code quality analysis: cycles, dead code, and complexity."""
+    import json as json_mod
+
     store = _get_store(Path(db))
 
     # If no specific flag, show all
     show_all = not (show_cycles or show_unused or show_centrality)
 
+    cycles = store.detect_cycles() if (show_all or show_cycles) else []
+    unused = (
+        store.find_unused_symbols(include_tests=include_tests) if (show_all or show_unused) else []
+    )
+    centrality = store.get_symbol_centrality(limit=limit) if (show_all or show_centrality) else []
+
+    store.close()
+
+    if as_json:
+        console.print(
+            json_mod.dumps(
+                {
+                    "cycles": cycles,
+                    "unused": [
+                        {
+                            "name": s.qualified_name,
+                            "kind": s.kind.value,
+                            "file": s.file_path,
+                            "line": s.span.start.line + 1,
+                            "is_test": s.is_test,
+                        }
+                        for s in unused
+                    ],
+                    "centrality": [dict(e) for e in centrality],
+                },
+                indent=2,
+            )
+        )
+        return
+
     if show_all or show_cycles:
-        cycles = store.detect_cycles()
         if cycles:
             table = Table(title=f"Circular Dependencies ({len(cycles)} cycles)")
             table.add_column("#", justify="right", style="dim")
@@ -447,7 +552,6 @@ def audit(db: str, show_cycles: bool, show_unused: bool, show_centrality: bool, 
         console.print()
 
     if show_all or show_unused:
-        unused = store.find_unused_symbols()
         if unused:
             table = Table(title=f"Unused Symbols ({len(unused)} found)")
             table.add_column("Name", style="yellow")
@@ -464,7 +568,6 @@ def audit(db: str, show_cycles: bool, show_unused: bool, show_centrality: bool, 
         console.print()
 
     if show_all or show_centrality:
-        centrality = store.get_symbol_centrality(limit=limit)
         if centrality:
             table = Table(title=f"Symbol Centrality (top {len(centrality)})")
             table.add_column("Name", style="cyan")
@@ -485,8 +588,6 @@ def audit(db: str, show_cycles: bool, show_unused: bool, show_centrality: bool, 
             console.print(table)
         else:
             console.print("[dim]No relationships found for centrality analysis.[/dim]")
-
-    store.close()
 
 
 @cli.command(name="find-path")

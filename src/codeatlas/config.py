@@ -39,6 +39,9 @@ class ParserConfig(BaseModel):
             ".lua",
             ".ex",
             ".exs",
+            ".swift",
+            ".hs",
+            ".lhs",
         ],
         description="File extensions to parse",
     )

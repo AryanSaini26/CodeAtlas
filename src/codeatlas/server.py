@@ -509,3 +509,118 @@ def find_similar_code(query: str, limit: int = 10) -> str:
         },
         indent=2,
     )
+
+
+@mcp.tool()
+def find_by_decorator(
+    decorator_name: str,
+    file_filter: str | None = None,
+    limit: int = 50,
+) -> str:
+    """Find all symbols that have a specific decorator or annotation.
+
+    Useful for questions like "which functions are cached?", "find all route handlers",
+    or "show me all abstract methods".
+
+    Args:
+        decorator_name: Partial or full decorator name (e.g. 'cached_property', 'route', 'Override')
+        file_filter: Optional path substring to restrict results (e.g. 'src/api/')
+        limit: Maximum number of results to return
+    """
+    store = get_store()
+    results = store.find_symbols_by_decorator(decorator_name, file_filter=file_filter, limit=limit)
+    return json.dumps(
+        {
+            "decorator": decorator_name,
+            "file_filter": file_filter,
+            "count": len(results),
+            "symbols": [
+                {
+                    "name": s.qualified_name,
+                    "kind": s.kind.value,
+                    "file": s.file_path,
+                    "line": s.span.start.line + 1,
+                    "decorators": s.decorators,
+                    "signature": s.signature,
+                }
+                for s in results
+            ],
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
+def get_symbol_history(
+    symbol_name: str,
+    repo_path: str = ".",
+    max_commits: int = 10,
+) -> str:
+    """Get the git commit history for a symbol — who changed it, when, and why.
+
+    Shows commits that touched the file containing the symbol, filtered to the
+    symbol's line range. Useful for understanding why code evolved and who to ask.
+
+    Args:
+        symbol_name: Name of the symbol to look up
+        repo_path: Path to the git repository (default: current directory)
+        max_commits: Maximum number of commits to return
+    """
+    import subprocess
+
+    store = get_store()
+    matches = store.find_symbols_by_name(symbol_name)
+    if not matches:
+        return json.dumps({"error": f"Symbol '{symbol_name}' not found"})
+
+    sym = matches[0]
+    start_line = sym.span.start.line + 1
+    end_line = sym.span.end.line + 1
+
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "log",
+                f"-{max_commits}",
+                "--pretty=format:%H%x1f%an%x1f%ae%x1f%ad%x1f%s",
+                "--date=short",
+                f"-L{start_line},{end_line}:{sym.file_path}",
+            ],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        raw = result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        raw = ""
+
+    commits: list[dict[str, Any]] = []
+    if raw:
+        for line in raw.splitlines():
+            if not line or "\x1f" not in line:
+                continue
+            parts = line.split("\x1f", 4)
+            if len(parts) == 5:
+                commits.append(
+                    {
+                        "hash": parts[0][:8],
+                        "author": parts[1],
+                        "email": parts[2],
+                        "date": parts[3],
+                        "message": parts[4],
+                    }
+                )
+
+    return json.dumps(
+        {
+            "symbol": sym.qualified_name,
+            "kind": sym.kind.value,
+            "file": sym.file_path,
+            "lines": f"{start_line}-{end_line}",
+            "commit_count": len(commits),
+            "commits": commits,
+        },
+        indent=2,
+    )

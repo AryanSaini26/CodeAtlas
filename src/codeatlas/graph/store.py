@@ -1,5 +1,6 @@
 """SQLite-backed code knowledge graph store."""
 
+import re
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -7,6 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from codeatlas.models import FileInfo, ParseResult, Relationship, Symbol
+
+# Regex to identify test files by path patterns
+_TEST_FILE_RE = re.compile(
+    r"([\\/])(tests?|spec|__tests__)[\\/]"
+    r"|[\\/](test_[^/\\]+|[^/\\]+_test|[^/\\]+\.spec|[^/\\]+\.test)\.[a-z]+$",
+    re.IGNORECASE,
+)
 
 
 class GraphStore:
@@ -35,7 +43,8 @@ class GraphStore:
                 symbol_count INTEGER DEFAULT 0,
                 relationship_count INTEGER DEFAULT 0,
                 size_bytes  INTEGER DEFAULT 0,
-                indexed_at  REAL DEFAULT (unixepoch('now', 'subsec'))
+                indexed_at  REAL DEFAULT (unixepoch('now', 'subsec')),
+                is_test     INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS symbols (
@@ -51,7 +60,8 @@ class GraphStore:
                 docstring       TEXT,
                 signature       TEXT,
                 decorators      TEXT,
-                language        TEXT NOT NULL DEFAULT 'unknown'
+                language        TEXT NOT NULL DEFAULT 'unknown',
+                is_test         INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS relationships (
@@ -71,6 +81,7 @@ class GraphStore:
             CREATE INDEX IF NOT EXISTS idx_rels_source     ON relationships(source_id);
             CREATE INDEX IF NOT EXISTS idx_rels_target     ON relationships(target_id);
             CREATE INDEX IF NOT EXISTS idx_rels_kind       ON relationships(kind);
+            CREATE INDEX IF NOT EXISTS idx_symbols_is_test ON symbols(is_test);
 
             CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(
                 id UNINDEXED,
@@ -101,6 +112,17 @@ class GraphStore:
         """)
         conn.commit()
 
+        # Schema migrations for columns added after initial release
+        for stmt in (
+            "ALTER TABLE symbols ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE files ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0",
+        ):
+            try:
+                conn.execute(stmt)
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
     @contextmanager
     def _transaction(self) -> Generator[sqlite3.Connection, None, None]:
         conn = self._conn
@@ -122,13 +144,19 @@ class GraphStore:
             for result in results:
                 self._upsert_single(conn, result)
 
+    @staticmethod
+    def _is_test_file(file_path: str) -> bool:
+        """Return True if file_path matches common test file naming conventions."""
+        return bool(_TEST_FILE_RE.search(file_path))
+
     def _upsert_single(self, conn: sqlite3.Connection, result: ParseResult) -> None:
         fi = result.file_info
+        is_test = 1 if self._is_test_file(fi.path) else 0
         conn.execute("DELETE FROM files WHERE path = ?", (fi.path,))
 
         conn.execute(
             """INSERT INTO files(path, language, content_hash, symbol_count,
-               relationship_count, size_bytes) VALUES (?,?,?,?,?,?)""",
+               relationship_count, size_bytes, is_test) VALUES (?,?,?,?,?,?,?)""",
             (
                 fi.path,
                 fi.language,
@@ -136,6 +164,7 @@ class GraphStore:
                 fi.symbol_count,
                 fi.relationship_count,
                 fi.size_bytes,
+                is_test,
             ),
         )
 
@@ -144,8 +173,8 @@ class GraphStore:
                 """INSERT OR IGNORE INTO symbols
                    (id, name, qualified_name, kind, file_path,
                     start_line, start_col, end_line, end_col,
-                    docstring, signature, decorators, language)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    docstring, signature, decorators, language, is_test)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 [
                     (
                         sym.id,
@@ -161,6 +190,7 @@ class GraphStore:
                         sym.signature,
                         ",".join(sym.decorators) if sym.decorators else None,
                         sym.language,
+                        is_test,
                     )
                     for sym in result.symbols
                 ],
@@ -305,8 +335,6 @@ class GraphStore:
 
     def _expand_query(self, query: str) -> str:
         """Split underscore_names and CamelCaseNames into space-separated tokens."""
-        import re
-
         spaced = query.replace("_", " ")
         spaced = re.sub(r"([a-z])([A-Z])", r"\1 \2", spaced)
         return spaced.lower().strip()
@@ -345,6 +373,26 @@ class GraphStore:
         """Return all symbols of a given kind, optionally filtered by file path."""
         sql = "SELECT * FROM symbols WHERE kind = ?"
         params: list[Any] = [kind]
+        if file_filter:
+            sql += " AND file_path LIKE ?"
+            params.append(f"%{file_filter}%")
+        sql += " ORDER BY file_path, start_line LIMIT ?"
+        params.append(limit)
+        rows = self._conn.execute(sql, params).fetchall()
+        return [self._row_to_symbol(r) for r in rows]
+
+    def find_symbols_by_decorator(
+        self,
+        decorator_name: str,
+        file_filter: str | None = None,
+        limit: int = 100,
+    ) -> list[Symbol]:
+        """Return symbols that have a specific decorator/annotation.
+
+        Matches partial decorator names (e.g. 'cached_property' matches '@cached_property').
+        """
+        sql = "SELECT * FROM symbols WHERE decorators LIKE ?"
+        params: list[Any] = [f"%{decorator_name}%"]
         if file_filter:
             sql += " AND file_path LIKE ?"
             params.append(f"%{file_filter}%")
@@ -404,45 +452,89 @@ class GraphStore:
         )
 
     def resolve_imports(self) -> dict[str, int]:
-        """Resolve <external>:: and <unresolved>:: targets to actual symbol IDs in the graph.
+        """Resolve <unresolved>:: and <external>:: targets to actual symbol IDs.
 
-        After indexing all files, run this to link cross-file references.
-        Returns counts of resolved vs unresolved references.
+        Uses import-context awareness: when a caller file imports a name, symbols
+        from the same directory are preferred over distant matches.
+        Returns resolved/unresolved counts.
         """
         stats = {"resolved": 0, "unresolved": 0}
         conn = self._conn
 
-        # Build a lookup of symbol name -> id for resolution
-        symbol_lookup: dict[str, str] = {}
-        rows = conn.execute("SELECT id, name, qualified_name FROM symbols").fetchall()
-        for row in rows:
-            symbol_lookup[row["name"]] = row["id"]
-            symbol_lookup[row["qualified_name"]] = row["id"]
+        # Build symbol lookups (exclude import symbols themselves)
+        name_to_symbols: dict[str, list[tuple[str, str]]] = {}  # name → [(id, file_path)]
+        qname_to_id: dict[str, str] = {}  # qualified_name → id
+        for row in conn.execute(
+            "SELECT id, name, qualified_name, file_path FROM symbols WHERE kind != 'import'"
+        ).fetchall():
+            name_to_symbols.setdefault(row["name"], []).append((row["id"], row["file_path"]))
+            qname_to_id[row["qualified_name"]] = row["id"]
 
-        # Find all unresolved targets
+        # Per-file import context: file_path → set of imported names
+        file_import_names: dict[str, set[str]] = {}
+        for row in conn.execute(
+            "SELECT file_path, name FROM symbols WHERE kind = 'import'"
+        ).fetchall():
+            file_import_names.setdefault(row["file_path"], set()).add(row["name"])
+
+        # Fetch unresolved relationships with caller file via source symbol
         unresolved_rows = conn.execute(
-            "SELECT id, target_id FROM relationships WHERE target_id LIKE '<external>::%' OR target_id LIKE '<unresolved>::%'"
+            """
+            SELECT r.id, r.target_id, s.file_path AS caller_file
+            FROM relationships r
+            JOIN symbols s ON r.source_id = s.id
+            WHERE r.target_id LIKE '<external>::%' OR r.target_id LIKE '<unresolved>::%'
+            """
         ).fetchall()
 
         for row in unresolved_rows:
-            raw_target = row["target_id"]
-            # Strip the prefix
-            if raw_target.startswith("<external>::"):
-                ref_name = raw_target[len("<external>::") :]
-            else:
-                ref_name = raw_target[len("<unresolved>::") :]
+            raw_target: str = row["target_id"]
+            rel_id: int = row["id"]
+            caller_file: str = row["caller_file"]
+            caller_dir = str(Path(caller_file).parent)
 
-            # Try exact match, then last segment
-            resolved_id = symbol_lookup.get(ref_name)
+            ref_name = (
+                raw_target[len("<external>::") :]
+                if raw_target.startswith("<external>::")
+                else raw_target[len("<unresolved>::") :]
+            )
+            last_seg = ref_name.rsplit(".", 1)[-1]
+
+            resolved_id: str | None = None
+
+            # Pass 1: exact qualified name
+            resolved_id = qname_to_id.get(ref_name)
+
+            # Pass 2: import-scoped — caller explicitly imports this name → prefer same dir
             if resolved_id is None:
-                # Try the last segment (e.g., "os.path.join" -> "join")
-                last_segment = ref_name.rsplit(".", 1)[-1]
-                resolved_id = symbol_lookup.get(last_segment)
+                imported = file_import_names.get(caller_file, set())
+                candidate_name = (
+                    ref_name
+                    if ref_name in imported
+                    else (last_seg if last_seg in imported else None)
+                )
+                if candidate_name:
+                    candidates = name_to_symbols.get(candidate_name, [])
+                    same_dir = [sid for sid, fp in candidates if fp.startswith(caller_dir)]
+                    resolved_id = (
+                        same_dir[0] if same_dir else (candidates[0][0] if candidates else None)
+                    )
+
+            # Pass 3: last-segment qualified name
+            if resolved_id is None and last_seg != ref_name:
+                resolved_id = qname_to_id.get(last_seg)
+
+            # Pass 4: global name match, preferring same-directory symbols
+            if resolved_id is None:
+                candidates = name_to_symbols.get(ref_name) or name_to_symbols.get(last_seg, [])
+                if candidates:
+                    same_dir = [sid for sid, fp in candidates if fp.startswith(caller_dir)]
+                    resolved_id = same_dir[0] if same_dir else candidates[0][0]
 
             if resolved_id is not None:
                 conn.execute(
                     "UPDATE relationships SET target_id = ? WHERE id = ?",
-                    (resolved_id, row["id"]),
+                    (resolved_id, rel_id),
                 )
                 stats["resolved"] += 1
             else:
@@ -574,22 +666,24 @@ class GraphStore:
 
         return cycles
 
-    def find_unused_symbols(self) -> list[Symbol]:
+    def find_unused_symbols(self, include_tests: bool = False) -> list[Symbol]:
         """Find symbols with no incoming relationships (potential dead code).
 
-        Excludes modules, imports, and common entry points (__init__, main, cli).
+        Excludes modules, imports, common entry points, and test symbols by default.
+        Set include_tests=True to include symbols from test files.
         """
         conn = self._conn
-        rows = conn.execute(
-            """
+        sql = """
             SELECT s.* FROM symbols s
             LEFT JOIN relationships r ON r.target_id = s.id
             WHERE r.id IS NULL
               AND s.kind NOT IN ('module', 'import')
               AND s.name NOT IN ('__init__', 'main', 'cli', '__main__')
-            ORDER BY s.file_path, s.start_line
-            """
-        ).fetchall()
+        """
+        if not include_tests:
+            sql += " AND s.is_test = 0"
+        sql += " ORDER BY s.file_path, s.start_line"
+        rows = conn.execute(sql).fetchall()
         return [self._row_to_symbol(r) for r in rows]
 
     def get_symbol_centrality(self, limit: int = 50) -> list[dict[str, object]]:
@@ -732,6 +826,7 @@ class GraphStore:
     def _row_to_symbol(self, row: sqlite3.Row) -> Symbol:
         from codeatlas.models import Position, Span, SymbolKind
 
+        keys = row.keys()
         return Symbol(
             id=row["id"],
             name=row["name"],
@@ -746,6 +841,7 @@ class GraphStore:
             signature=row["signature"],
             decorators=row["decorators"].split(",") if row["decorators"] else [],
             language=row["language"],
+            is_test=bool(row["is_test"]) if "is_test" in keys else False,
         )
 
     def _row_to_relationship(self, row: sqlite3.Row) -> Relationship:

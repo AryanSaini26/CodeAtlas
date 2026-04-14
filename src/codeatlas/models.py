@@ -52,6 +52,7 @@ class Symbol(BaseModel):
     signature: str | None = None
     decorators: list[str] = Field(default_factory=list)
     language: str = "unknown"
+    is_test: bool = Field(default=False, description="True if symbol lives in a test file")
 
 
 class Relationship(BaseModel):

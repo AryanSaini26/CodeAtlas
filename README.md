@@ -14,7 +14,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for 15 languages: Python, TypeScript/TSX, Go, Rust, Java, C/C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, and Elixir
+- **Multi-language parsing** - Tree-sitter AST parsing for 17 languages: Python, TypeScript/TSX, Go, Rust, Java, C/C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, and Haskell
 - **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
 - **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
 - **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
@@ -98,6 +98,8 @@ pip install codeatlas[all]
 | **Bash** | `.sh`, `.bash` | Functions, UPPER_CASE constants, `#` doc comments, call relationships |
 | **Lua** | `.lua` | Functions, local functions, function expressions, variables, `--` doc comments |
 | **Elixir** | `.ex`, `.exs` | Modules, protocols (interfaces), def/defp functions, `@doc` docstrings |
+| **Swift** | `.swift` | Classes, structs, protocols (interfaces), functions, methods, typealiases, `///`/`/** */` docs |
+| **Haskell** | `.hs`, `.lhs` | Functions, data types, type aliases, newtypes, typeclasses (interfaces), imports, call relationships |
 
 ## Configuration
 
@@ -115,7 +117,7 @@ exclude_dirs = [".git", ".venv", "node_modules", "__pycache__", "dist", "build"]
 
 [codeatlas.parser]
 max_file_size_kb = 500
-include_extensions = [".py", ".ts", ".tsx", ".js", ".mjs", ".go", ".rs", ".java", ".kt", ".kts", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h", ".cs", ".rb", ".php", ".scala", ".sc", ".sh", ".bash", ".lua", ".ex", ".exs"]
+include_extensions = [".py", ".ts", ".tsx", ".js", ".mjs", ".go", ".rs", ".java", ".kt", ".kts", ".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h", ".cs", ".rb", ".php", ".scala", ".sc", ".sh", ".bash", ".lua", ".ex", ".exs", ".swift", ".hs", ".lhs"]
 
 [codeatlas.graph]
 db_path = ".codeatlas/graph.db"
@@ -130,14 +132,19 @@ If no config file is found, sensible defaults are used.
 | `codeatlas init` | Generate a `codeatlas.toml` config file |
 | `codeatlas index [path]` | Index a repository into the knowledge graph |
 | `codeatlas index [path] --incremental` | Only re-index files that changed |
+| `codeatlas index [path] --watch` | Index then keep watching for file changes |
 | `codeatlas diff [path]` | Show files that changed since the last index |
 | `codeatlas stats` | Show graph statistics (files, symbols, relationships) |
 | `codeatlas list-files` | List all indexed files with language and symbol counts |
 | `codeatlas query <term>` | Full-text search across the codebase |
 | `codeatlas query <term> --semantic` | Natural language semantic search |
 | `codeatlas query <term> --hybrid` | Combined FTS + semantic search |
+| `codeatlas query <term> --json` | Output results as a JSON array |
 | `codeatlas show <symbol>` | Inspect a symbol's signature, docs, deps, and call chain |
+| `codeatlas show <symbol> --json` | Output symbol details as JSON |
 | `codeatlas audit` | Run code quality analysis (cycles, dead code, complexity) |
+| `codeatlas audit --json` | Output audit results as JSON |
+| `codeatlas audit --include-tests` | Include test-file symbols in dead code analysis |
 | `codeatlas find-path <src> <tgt>` | Find shortest dependency path between two symbols |
 | `codeatlas coupling` | Show file coupling analysis |
 | `codeatlas impact [path]` | Analyze impact of current git changes on the graph |
@@ -172,7 +179,7 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools (18)
+### Available MCP Tools (20)
 
 | Tool | Description |
 |------|-------------|
@@ -194,6 +201,8 @@ Add to your Claude Code MCP settings:
 | `find_path_between_symbols` | Shortest dependency path between two symbols |
 | `get_file_coupling` | Cross-file relationship density analysis |
 | `get_change_impact` | Git-aware change impact analysis |
+| `find_by_decorator` | Find all symbols tagged with a given decorator/annotation |
+| `get_symbol_history` | Git blame/log history for a symbol (commits that touched it) |
 
 ## Graph Visualization
 
@@ -257,7 +266,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests with coverage (532 tests, ~91%)
+# Run tests with coverage (643 tests, ~90%)
 .venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
 # Lint / format

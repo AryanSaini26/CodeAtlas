@@ -10,6 +10,7 @@ from codeatlas.parsers.cpp_parser import CppParser
 from codeatlas.parsers.csharp_parser import CSharpParser
 from codeatlas.parsers.elixir_parser import ElixirParser
 from codeatlas.parsers.go_parser import GoParser
+from codeatlas.parsers.haskell_parser import HaskellParser
 from codeatlas.parsers.java_parser import JavaParser
 from codeatlas.parsers.javascript_parser import JavaScriptParser
 from codeatlas.parsers.kotlin_parser import KotlinParser
@@ -19,6 +20,7 @@ from codeatlas.parsers.python_parser import PythonParser
 from codeatlas.parsers.ruby_parser import RubyParser
 from codeatlas.parsers.rust_parser import RustParser
 from codeatlas.parsers.scala_parser import ScalaParser
+from codeatlas.parsers.swift_parser import SwiftParser
 from codeatlas.parsers.typescript_parser import TypeScriptParser
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -253,3 +255,33 @@ def sample_elixir_path() -> Path:
 @pytest.fixture
 def sample_elixir_source(sample_elixir_path: Path) -> str:
     return sample_elixir_path.read_text()
+
+
+@pytest.fixture
+def swift_parser() -> SwiftParser:
+    return SwiftParser()
+
+
+@pytest.fixture
+def sample_swift_path() -> Path:
+    return FIXTURES_DIR / "sample_swift" / "SampleModule.swift"
+
+
+@pytest.fixture
+def sample_swift_source(sample_swift_path: Path) -> str:
+    return sample_swift_path.read_text()
+
+
+@pytest.fixture
+def haskell_parser() -> HaskellParser:
+    return HaskellParser()
+
+
+@pytest.fixture
+def sample_haskell_path() -> Path:
+    return FIXTURES_DIR / "sample_haskell" / "SampleModule.hs"
+
+
+@pytest.fixture
+def sample_haskell_source(sample_haskell_path: Path) -> str:
+    return sample_haskell_path.read_text()
