@@ -244,7 +244,7 @@ def test_incremental_oserror_skipped(
         return original_read_bytes(self)
 
     with patch.object(Path, "read_bytes", patched_read_bytes):
-        stats = indexer.index_incremental(resolve=False)
+        indexer.index_incremental(resolve=False)
 
     # app.py was skipped via OSError, the rest were processed normally
     assert call_count[0] >= 1

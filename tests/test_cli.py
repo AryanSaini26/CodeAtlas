@@ -978,3 +978,204 @@ def test_find_usages_no_callers(tmp_path: Path) -> None:
     # run() has no callers in our tiny repo
     result = runner.invoke(cli, ["find-usages", "run", "--db", db_path])
     assert result.exit_code == 0
+
+
+# --- clean with confirmation prompt ---
+
+
+def test_clean_with_confirmation(tmp_path: Path) -> None:
+    """Cover the click.confirm path in clean (no --yes flag, user enters 'y')."""
+    atlas_dir = tmp_path / ".codeatlas"
+    atlas_dir.mkdir()
+    (atlas_dir / "graph.db").write_text("")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["clean", str(tmp_path)], input="y\n")
+    assert result.exit_code == 0
+    assert not atlas_dir.exists()
+
+
+# --- audit with cycles present ---
+
+
+def test_audit_with_cycles(tmp_path: Path) -> None:
+    """Cover the cycles table branch in audit."""
+    from codeatlas.graph.store import GraphStore
+    from codeatlas.models import (
+        FileInfo,
+        ParseResult,
+        Position,
+        Relationship,
+        RelationshipKind,
+        Span,
+        Symbol,
+        SymbolKind,
+    )
+
+    db_path = str(tmp_path / "test.db")
+    store = GraphStore(db_path)
+
+    def _sym(name: str) -> Symbol:
+        return Symbol(
+            id=f"cycle.py::{name}",
+            name=name,
+            qualified_name=name,
+            kind=SymbolKind.FUNCTION,
+            file_path="cycle.py",
+            span=Span(start=Position(line=0, column=0), end=Position(line=3, column=0)),
+        )
+
+    a, b = _sym("alpha"), _sym("beta")
+    rel_ab = Relationship(
+        source_id=a.id, target_id=b.id, kind=RelationshipKind.CALLS, file_path="cycle.py"
+    )
+    rel_ba = Relationship(
+        source_id=b.id, target_id=a.id, kind=RelationshipKind.CALLS, file_path="cycle.py"
+    )
+    result = ParseResult(
+        file_info=FileInfo(
+            path="cycle.py", language="python", content_hash="x", symbol_count=2
+        ),
+        symbols=[a, b],
+        relationships=[rel_ab, rel_ba],
+    )
+    store.upsert_parse_result(result)
+    store.close()
+
+    runner = CliRunner()
+    res = runner.invoke(cli, ["audit", "--db", db_path])
+    assert res.exit_code == 0
+    assert "Circular" in res.output or "cycle" in res.output.lower() or "alpha" in res.output
+
+
+# --- hotspots with results ---
+
+
+def test_hotspots_with_indexed_repo(tmp_path: Path) -> None:
+    """Cover the hotspots table output (lines 828-842)."""
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # get_git_churn returns list[{"file": ..., "commits": ...}]
+    churn_data = [
+        {"file": "main.py", "commits": 5},
+        {"file": "helpers.py", "commits": 2},
+    ]
+    with patch("codeatlas.git_integration.get_git_churn", return_value=churn_data):
+        result = runner.invoke(cli, ["hotspots", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+
+
+# --- viz --open ---
+
+
+def test_viz_open_browser(tmp_path: Path) -> None:
+    """Cover the webbrowser.open path in viz --open."""
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    out_html = str(tmp_path / "graph.html")
+    with patch("webbrowser.open") as mock_open:
+        result = runner.invoke(
+            cli, ["viz", "--db", db_path, "-o", out_html, "--open"]
+        )
+    assert result.exit_code == 0
+    mock_open.assert_called_once()
+
+
+# --- report with cycles/hotspots ---
+
+
+def test_report_with_cycles(tmp_path: Path) -> None:
+    """Cover the cycles section in report markdown output (lines 1060-1065)."""
+    from codeatlas.graph.store import GraphStore
+    from codeatlas.models import (
+        FileInfo,
+        ParseResult,
+        Position,
+        Relationship,
+        RelationshipKind,
+        Span,
+        Symbol,
+        SymbolKind,
+    )
+
+    db_path = str(tmp_path / "rpt.db")
+    store = GraphStore(db_path)
+
+    def _sym(name: str) -> Symbol:
+        return Symbol(
+            id=f"rpt.py::{name}",
+            name=name,
+            qualified_name=name,
+            kind=SymbolKind.FUNCTION,
+            file_path="rpt.py",
+            span=Span(start=Position(line=0, column=0), end=Position(line=3, column=0)),
+        )
+
+    a, b = _sym("foo"), _sym("bar")
+    result = ParseResult(
+        file_info=FileInfo(
+            path="rpt.py", language="python", content_hash="z", symbol_count=2
+        ),
+        symbols=[a, b],
+        relationships=[
+            Relationship(
+                source_id=a.id, target_id=b.id, kind=RelationshipKind.CALLS, file_path="rpt.py"
+            ),
+            Relationship(
+                source_id=b.id, target_id=a.id, kind=RelationshipKind.CALLS, file_path="rpt.py"
+            ),
+        ],
+    )
+    store.upsert_parse_result(result)
+    store.close()
+
+    runner = CliRunner()
+    res = runner.invoke(cli, ["report", str(tmp_path), "--db", db_path])
+    assert res.exit_code == 0
+    assert "Cycle" in res.output or "cycle" in res.output.lower()
+
+
+def test_report_all_clear(tmp_path: Path) -> None:
+    """Cover the 'all checks passed' branch in report (line 1096)."""
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "clear.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    with patch("codeatlas.git_integration.get_git_churn", return_value={}):
+        result = runner.invoke(cli, ["report", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+
+
+# --- show test-file symbol ---
+
+
+def test_show_test_symbol(tmp_path: Path) -> None:
+    """Cover the is_test branch in show command (line 417)."""
+    test_file = tmp_path / "test_utils.py"
+    test_file.write_text("def test_add():\n    assert 1 + 1 == 2\n")
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(tmp_path), "--db", db_path])
+    result = runner.invoke(cli, ["show", "test_add", "--db", db_path])
+    assert result.exit_code == 0
+
+
+# --- __main__ module ---
+
+
+def test_main_module_invocable() -> None:
+    """Cover __main__.py by importing it in a subprocess-like way."""
+    import sys
+    from unittest.mock import patch
+
+    # Patch cli() to avoid actually running it
+    with patch("codeatlas.cli.cli") as mock_cli:
+        if "codeatlas.__main__" in sys.modules:
+            del sys.modules["codeatlas.__main__"]
+        import codeatlas.__main__  # noqa: F401
+
+    # The import executes cli() at module level; mock ensures it doesn't block
+    mock_cli.assert_called_once()

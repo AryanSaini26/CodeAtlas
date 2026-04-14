@@ -286,7 +286,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests with coverage (694 tests, ~89%)
+# Run tests with coverage (819 tests, ~92%)
 .venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
 # Lint / format

@@ -4,12 +4,18 @@ import hashlib
 import hmac
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from starlette.testclient import TestClient
 
 from codeatlas.graph.store import GraphStore
-from codeatlas.sync.webhook import WebhookHandler, _extract_changed_files, _verify_signature
+from codeatlas.sync.webhook import (
+    WebhookHandler,
+    _extract_changed_files,
+    _pull_latest,
+    _verify_signature,
+)
 
 
 @pytest.fixture
@@ -165,6 +171,91 @@ def test_signature_verification_accepts_valid_sig(
         },
     )
     assert response.status_code == 200
+
+
+# --- _pull_latest unit tests ---
+
+
+def test_pull_latest_success(tmp_path: Path) -> None:
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        assert _pull_latest(tmp_path) is True
+
+
+def test_pull_latest_nonzero_exit(tmp_path: Path) -> None:
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=1, stderr="conflict")
+        assert _pull_latest(tmp_path) is False
+
+
+def test_pull_latest_exception(tmp_path: Path) -> None:
+    with patch("subprocess.run", side_effect=OSError("no git")):
+        assert _pull_latest(tmp_path) is False
+
+
+# --- auto_pull failure path ---
+
+
+def test_push_git_pull_failed_returns_500(
+    repo_with_files: Path,
+) -> None:
+    store = GraphStore(":memory:")
+    handler = WebhookHandler(store, repo_with_files, auto_pull=True)
+    app = handler.create_app()
+    client = TestClient(app, raise_server_exceptions=False)
+
+    with patch("codeatlas.sync.webhook._pull_latest", return_value=False):
+        payload = {"commits": [{"added": ["main.py"], "modified": [], "removed": []}]}
+        response = client.post(
+            "/webhook",
+            content=json.dumps(payload),
+            headers={"X-GitHub-Event": "push", "Content-Type": "application/json"},
+        )
+
+    assert response.status_code == 500
+    assert "error" in response.json()
+
+
+# --- nonexistent file silently skipped ---
+
+
+def test_push_nonexistent_file_skipped(webhook_client: TestClient) -> None:
+    payload = {"commits": [{"added": ["ghost.py"], "modified": [], "removed": []}]}
+    response = webhook_client.post(
+        "/webhook",
+        content=json.dumps(payload),
+        headers={"X-GitHub-Event": "push", "Content-Type": "application/json"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["parsed"] == 0
+
+
+# --- parse error counted ---
+
+
+def test_push_parse_error_counted(
+    webhook_client: TestClient, repo_with_files: Path
+) -> None:
+    (repo_with_files / "errfile.py").write_text("x = 1\n")
+    payload = {"commits": [{"added": ["errfile.py"], "modified": [], "removed": []}]}
+
+    # Reach into the app's handler to patch its registry
+    store = GraphStore(":memory:")
+    handler = WebhookHandler(store, repo_with_files, auto_pull=False)
+    app = handler.create_app()
+    client = TestClient(app)
+
+    with patch.object(handler._registry, "parse_file", side_effect=RuntimeError("boom")):
+        response = client.post(
+            "/webhook",
+            content=json.dumps(payload),
+            headers={"X-GitHub-Event": "push", "Content-Type": "application/json"},
+        )
+
+    data = response.json()
+    assert data["errors"] == 1
 
 
 # --- Health endpoint ---
