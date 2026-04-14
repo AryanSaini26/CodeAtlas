@@ -2,6 +2,8 @@
 
 from typing import Any
 
+import pytest
+
 from codeatlas.graph.store import GraphStore
 from codeatlas.models import (
     FileInfo,
@@ -501,3 +503,105 @@ def test_get_hotspots_returns_list_when_no_git(graph_store: GraphStore, tmp_path
     # A directory with no git history returns an empty list (no churn data)
     results = graph_store.get_hotspots(repo_path=str(tmp_path))
     assert isinstance(results, list)
+
+
+# --- _transaction rollback on error ---
+
+
+def test_transaction_rollback_on_error(graph_store: GraphStore) -> None:
+    """Cover _transaction's except branch (rollback + re-raise)."""
+    # Ensure a RuntimeError raised inside _transaction propagates out
+    with pytest.raises(RuntimeError, match="intentional rollback"):
+        with graph_store._transaction():
+            raise RuntimeError("intentional rollback")
+
+
+# --- find_symbols_by_name with kind filter ---
+
+
+def test_find_symbols_by_name_with_kind(graph_store: GraphStore) -> None:
+    """Cover the kind-filtered branch in find_symbols_by_name (line 238)."""
+    graph_store.upsert_parse_result(
+        _make_result(
+            "kind_test.py",
+            [
+                _make_symbol("kind_func", file_path="kind_test.py", kind=SymbolKind.FUNCTION),
+                _make_symbol("KindClass", file_path="kind_test.py", kind=SymbolKind.CLASS),
+            ],
+        )
+    )
+    # Filtering by kind should return only the CLASS
+    results = graph_store.find_symbols_by_name("KindClass", kind="class")
+    assert all(s.kind == SymbolKind.CLASS for s in results)
+    assert len(results) >= 1
+    # Filtering by a non-matching kind should return empty
+    results_wrong = graph_store.find_symbols_by_name("KindClass", kind="function")
+    assert results_wrong == []
+
+
+# --- find_symbols_by_decorator with file_filter ---
+
+
+def test_find_symbols_by_decorator_with_file_filter(graph_store: GraphStore) -> None:
+    """Cover the file_filter branch in find_symbols_by_decorator (lines 400-401)."""
+
+    # Manually insert symbols with decorators in different files
+    sym_a = _make_symbol("cached_fn", file_path="cache.py", kind=SymbolKind.FUNCTION)
+    sym_b = _make_symbol("other_fn", file_path="other.py", kind=SymbolKind.FUNCTION)
+    # We need to set decorators; create via model directly
+    sym_a_with_dec = sym_a.model_copy(update={"decorators": ["cache"]})
+    sym_b_with_dec = sym_b.model_copy(update={"decorators": ["cache"]})
+
+    from codeatlas.models import FileInfo, ParseResult  # noqa: PLC0415
+
+    graph_store.upsert_parse_result(
+        ParseResult(
+            file_info=FileInfo(path="cache.py", language="python", content_hash="a", symbol_count=1),
+            symbols=[sym_a_with_dec],
+            relationships=[],
+        )
+    )
+    graph_store.upsert_parse_result(
+        ParseResult(
+            file_info=FileInfo(path="other.py", language="python", content_hash="b", symbol_count=1),
+            symbols=[sym_b_with_dec],
+            relationships=[],
+        )
+    )
+
+    results = graph_store.find_symbols_by_decorator("cache", file_filter="cache.py")
+    assert all("cache" in s.file_path for s in results)
+    assert len(results) >= 1
+
+
+# --- FTS OperationalError returns empty ---
+
+
+def test_fts_query_operational_error_returns_empty(graph_store: GraphStore) -> None:
+    """Cover the except sqlite3.OperationalError branch in _fts_query (lines 334-335).
+
+    Passing a syntactically invalid FTS5 query triggers OperationalError without mocking.
+    """
+    # An unclosed parenthesis is an FTS5 syntax error
+    results = graph_store._fts_query("NEAR(", limit=10)
+    assert results == []
+
+
+# --- find_shortest_path skips external/unresolved ---
+
+
+def test_find_path_skips_external_nodes(graph_store: GraphStore) -> None:
+    """Cover the external/unresolved node skip in find_path (line 752)."""
+    a = _make_symbol("alpha", file_path="path.py", kind=SymbolKind.FUNCTION)
+    b = _make_symbol("beta", file_path="path.py", kind=SymbolKind.FUNCTION)
+    # Add an external node that should be filtered out, plus a direct a→b edge
+    rel_to_ext = _make_relationship(a.id, "<external>::os.path", file_path="path.py")
+    rel_a_b = _make_relationship(a.id, b.id, file_path="path.py")
+    graph_store.upsert_parse_result(
+        _make_result("path.py", [a, b], relationships=[rel_to_ext, rel_a_b])
+    )
+
+    path = graph_store.find_path(a.id, b.id)
+    # Should find the direct path a→b, external node not in result
+    assert path is not None
+    assert all("<external>" not in node for node in path)

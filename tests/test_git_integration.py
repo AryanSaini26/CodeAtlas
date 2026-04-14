@@ -6,6 +6,7 @@ from unittest.mock import patch
 from codeatlas.git_integration import (
     analyze_change_impact,
     get_git_changed_files,
+    get_git_churn,
     get_git_diff_lines,
 )
 from codeatlas.graph.store import GraphStore
@@ -278,3 +279,75 @@ def test_get_git_diff_lines_error(mock_run) -> None:
     mock_run.side_effect = CalledProcessError(1, "git")
     lines = get_git_diff_lines(Path("/repo"), "app.py")
     assert lines == []
+
+
+# --- get_git_churn ---
+
+
+@patch("codeatlas.git_integration.subprocess.run")
+def test_get_git_churn_parses_output(mock_run) -> None:
+    """Cover the non-empty line parsing path in get_git_churn (lines 175-177)."""
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stdout = "app.py\nhelpers.py\napp.py\n\nhelpers.py\n"
+    result = get_git_churn(Path("/repo"))
+    files = [r["file"] for r in result]
+    assert "app.py" in files
+    assert "helpers.py" in files
+    # app.py appeared twice
+    app_entry = next(r for r in result if r["file"] == "app.py")
+    assert app_entry["commits"] == 2
+
+
+@patch("codeatlas.git_integration.subprocess.run")
+def test_get_git_churn_timeout_returns_empty(mock_run) -> None:
+    """Cover the TimeoutExpired exception path (line 180)."""
+    from subprocess import TimeoutExpired
+
+    mock_run.side_effect = TimeoutExpired("git", 20)
+    result = get_git_churn(Path("/repo"))
+    assert result == []
+
+
+@patch("codeatlas.git_integration.subprocess.run")
+def test_get_git_churn_file_not_found_returns_empty(mock_run) -> None:
+    """Cover the FileNotFoundError exception path (line 181)."""
+    mock_run.side_effect = FileNotFoundError("git not found")
+    result = get_git_churn(Path("/repo"))
+    assert result == []
+
+
+# --- analyze_change_impact: skip changed symbols in affected ---
+
+
+@patch("codeatlas.git_integration.get_git_diff_lines")
+@patch("codeatlas.git_integration.get_git_changed_files")
+def test_analyze_skips_changed_symbol_in_affected(
+    mock_changed_files,  # type: ignore[no-untyped-def]
+    mock_diff_lines,  # type: ignore[no-untyped-def]
+) -> None:
+    """Cover line 144: symbol already in changed_symbols is skipped from affected."""
+    store = GraphStore(":memory:")
+    caller = _sym("caller", file_path="app.py", line=1)
+    callee = _sym("callee", file_path="app.py", line=10)
+    rel = Relationship(
+        source_id=caller.id,
+        target_id=callee.id,
+        kind=RelationshipKind.CALLS,
+        file_path="app.py",
+    )
+    result = ParseResult(
+        file_info=FileInfo(path="app.py", language="python", content_hash="x", symbol_count=2),
+        symbols=[caller, callee],
+        relationships=[rel],
+    )
+    store.upsert_parse_result(result)
+
+    # Both caller and callee are in the changed file
+    mock_changed_files.return_value = ["app.py"]
+    mock_diff_lines.return_value = [2, 11]  # covers both symbols (1-indexed lines, spans start_line+1)
+
+    impact = analyze_change_impact(store, Path("/repo"))
+    # callee appears in changed_symbols, so it shouldn't also appear in affected_symbols
+    changed_ids = {cs.symbol.id for cs in impact.changed_symbols}
+    affected_ids = {s.id for s in impact.affected_symbols}
+    assert not (changed_ids & affected_ids), "Changed symbols must not appear in affected"
