@@ -310,7 +310,7 @@ class GraphStore:
         query: str,
         limit: int,
         file_filter: str | None = None,
-        kind_filter: str | None = None,
+        kind_filter: str | list[str] | None = None,
     ) -> list[Symbol]:
         """Execute a raw FTS5 query with optional file/kind filters."""
         sql = """
@@ -323,8 +323,10 @@ class GraphStore:
             sql += " AND s.file_path LIKE ?"
             params.append(f"%{file_filter}%")
         if kind_filter:
-            sql += " AND s.kind = ?"
-            params.append(kind_filter)
+            kinds = [kind_filter] if isinstance(kind_filter, str) else list(kind_filter)
+            placeholders = ",".join("?" * len(kinds))
+            sql += f" AND s.kind IN ({placeholders})"
+            params.extend(kinds)
         sql += " ORDER BY rank LIMIT ?"
         params.append(limit)
         try:
@@ -344,11 +346,12 @@ class GraphStore:
         query: str,
         limit: int = 20,
         file_filter: str | None = None,
-        kind_filter: str | None = None,
+        kind_filter: str | list[str] | None = None,
     ) -> list[Symbol]:
         """Full-text search over symbol names, docstrings, and signatures.
 
         Optionally filter results by file path substring or symbol kind.
+        ``kind_filter`` accepts a single kind string or a list of kinds.
         Automatically expands camelCase/underscore queries if no results found.
         """
         results = self._fts_query(query, limit, file_filter, kind_filter)

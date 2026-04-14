@@ -293,6 +293,12 @@ def test_search_symbols_with_file_filter() -> None:
         assert "app" in r["file"]
 
 
+def test_search_symbols_multi_kind_filter() -> None:
+    result = json.loads(search_symbols("main", kind_filter="function,class"))
+    for r in result["results"]:
+        assert r["kind"] in ("function", "class")
+
+
 # --- get_symbol_details ---
 
 

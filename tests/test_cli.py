@@ -476,6 +476,17 @@ def test_query_kind_filter_no_match(tmp_path: Path) -> None:
     assert "no results" in result.output.lower()
 
 
+def test_query_multi_kind_filter(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["query", "greet", "--db", db_path, "--kind", "function,class"])
+    assert result.exit_code == 0
+    # greet is a function so it should appear
+    assert "greet" in result.output
+
+
 # --- show command: decorators ---
 
 

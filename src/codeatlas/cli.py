@@ -230,7 +230,7 @@ def stats(db: str, as_json: bool) -> None:
 @click.option(
     "--kind",
     default=None,
-    help="Filter by symbol kind (function, class, method, interface, etc.)",
+    help="Filter by symbol kind — comma-separated for multiple (e.g. 'class,interface')",
 )
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def query(
@@ -240,6 +240,12 @@ def query(
     import json as json_mod
 
     store = _get_store(Path(db))
+
+    # Parse comma-separated kinds
+    kind_filter: str | list[str] | None = None
+    if kind:
+        parts = [k.strip() for k in kind.split(",") if k.strip()]
+        kind_filter = parts[0] if len(parts) == 1 else parts
 
     if semantic or hybrid:
         try:
@@ -268,13 +274,14 @@ def query(
         else:
             raw = sem_index.search(query, store, limit=limit)
             results = [sym for sym, _ in raw]
+        # Post-filter semantic/hybrid results by kind (no SQL path available)
+        if kind_filter:
+            kinds_set = {kind_filter} if isinstance(kind_filter, str) else set(kind_filter)
+            results = [s for s in results if s.kind.value in kinds_set]
     else:
-        results = store.search(query, limit=limit)
+        results = store.search(query, limit=limit, kind_filter=kind_filter)
 
     store.close()
-
-    if kind:
-        results = [s for s in results if s.kind.value == kind.lower()]
 
     if as_json:
         console.print(

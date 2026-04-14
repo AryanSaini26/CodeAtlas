@@ -164,11 +164,18 @@ def search_symbols(
         query: Search terms (supports camelCase and underscore expansion automatically)
         limit: Maximum results to return
         file_filter: Restrict to files whose path contains this substring (e.g. 'src/auth/')
-        kind_filter: Restrict to a symbol kind: function, method, class, interface,
-                     constant, variable, import, module, type_alias, enum, namespace
+        kind_filter: Restrict to one or more symbol kinds — comma-separated to match multiple
+                     (e.g. 'function' or 'class,interface'). Valid values: function, method,
+                     class, interface, constant, variable, import, module, type_alias, enum,
+                     namespace
     """
     store = get_store()
-    results = store.search(query, limit=limit, file_filter=file_filter, kind_filter=kind_filter)
+    # Parse comma-separated kind list (e.g. "class,interface" → ["class", "interface"])
+    parsed_kind: str | list[str] | None = None
+    if kind_filter:
+        parts = [k.strip() for k in kind_filter.split(",") if k.strip()]
+        parsed_kind = parts[0] if len(parts) == 1 else parts
+    results = store.search(query, limit=limit, file_filter=file_filter, kind_filter=parsed_kind)
     return json.dumps(
         {
             "query": query,

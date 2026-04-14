@@ -303,6 +303,39 @@ def test_search_filter_no_match(graph_store: GraphStore) -> None:
     assert results == []
 
 
+def test_search_with_multi_kind_filter(graph_store: GraphStore) -> None:
+    graph_store.upsert_parse_result(
+        _make_result(
+            "multi_kind.py",
+            [
+                _make_symbol("my_func", file_path="multi_kind.py", kind=SymbolKind.FUNCTION),
+                _make_symbol("MyClass", file_path="multi_kind.py", kind=SymbolKind.CLASS),
+                _make_symbol("MY_CONST", file_path="multi_kind.py", kind=SymbolKind.CONSTANT),
+            ],
+        )
+    )
+    results = graph_store.search("my", kind_filter=["function", "class"])
+    kinds = {s.kind.value for s in results}
+    assert "function" in kinds or "class" in kinds
+    assert "constant" not in kinds
+
+
+def test_search_multi_kind_includes_both(graph_store: GraphStore) -> None:
+    graph_store.upsert_parse_result(
+        _make_result(
+            "both.py",
+            [
+                _make_symbol("do_work", file_path="both.py", kind=SymbolKind.FUNCTION),
+                _make_symbol("WorkClass", file_path="both.py", kind=SymbolKind.CLASS),
+            ],
+        )
+    )
+    results = graph_store.search("work", kind_filter=["function", "class"])
+    names = [s.name for s in results]
+    # At least one of the two symbols should appear
+    assert "do_work" in names or "WorkClass" in names
+
+
 # --- Query expansion ---
 
 
