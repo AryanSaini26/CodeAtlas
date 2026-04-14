@@ -878,6 +878,45 @@ def test_hotspots_json_empty(tmp_path: Path) -> None:
 # --- export mermaid ---
 
 
+def test_trace_not_found(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["trace", "nonexistent_xyz", "--db", db_path])
+    assert result.exit_code == 0
+    assert "not found" in result.output.lower()
+
+
+def test_trace_found_no_calls(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # helpers.add doesn't call anything tracked
+    result = runner.invoke(cli, ["trace", "add", "--db", db_path])
+    assert result.exit_code == 0
+
+
+def test_trace_with_calls(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # run() calls greet()
+    result = runner.invoke(cli, ["trace", "run", "--db", db_path])
+    assert result.exit_code == 0
+
+
+def test_trace_json_output(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["trace", "run", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert '"symbol"' in result.output
+    assert '"edges"' in result.output
+
+
 def test_export_mermaid(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     db_path = str(tmp_path / "test.db")

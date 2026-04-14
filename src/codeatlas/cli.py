@@ -639,6 +639,60 @@ def find_path(source: str, target: str, db: str, depth: int) -> None:
 
 
 @cli.command()
+@click.argument("symbol_name")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--depth", default=5, show_default=True, help="Max call depth to traverse")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def trace(symbol_name: str, db: str, depth: int, as_json: bool) -> None:
+    """Trace the call chain from a symbol up to --depth levels deep.
+
+    Shows every function that SYMBOL_NAME calls, and what those call, recursively.
+    """
+    import json as json_mod
+
+    store = _get_store(Path(db))
+    matches = store.find_symbols_by_name(symbol_name)
+    if not matches:
+        console.print(f"[yellow]Symbol '{symbol_name}' not found.[/yellow]")
+        store.close()
+        return
+
+    sym = matches[0]
+    chain = store.trace_call_chain(sym.id, max_depth=depth)
+    store.close()
+
+    if as_json:
+        console.print(
+            json_mod.dumps(
+                {
+                    "symbol": symbol_name,
+                    "symbol_id": sym.id,
+                    "depth": depth,
+                    "edges": chain,
+                },
+                indent=2,
+            )
+        )
+        return
+
+    if not chain:
+        console.print(f"[dim]No outgoing calls found for '{symbol_name}'.[/dim]")
+        return
+
+    table = Table(title=f"Call chain from '{symbol_name}' (depth ≤ {depth})")
+    table.add_column("Depth", justify="right", style="dim")
+    table.add_column("Caller", style="cyan")
+    table.add_column("Callee", style="green")
+    for edge in chain:
+        table.add_row(
+            str(edge["depth"]),
+            str(edge["source_id"]).split("::")[-1],
+            str(edge["target_id"]).split("::")[-1],
+        )
+    console.print(table)
+
+
+@cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--limit", default=20, show_default=True, help="Max file pairs to show")
 def coupling(db: str, limit: int) -> None:

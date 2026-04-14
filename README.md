@@ -163,6 +163,7 @@ If no config file is found, sensible defaults are used.
 | `codeatlas viz` | Generate interactive D3.js graph visualization |
 | `codeatlas watch [path]` | Watch for file changes and update graph in real-time |
 | `codeatlas webhook [path]` | Start a GitHub webhook server for push-triggered updates |
+| `codeatlas trace <symbol>` | Trace call chain from a symbol (depth-limited BFS) |
 | `codeatlas languages` | List all supported languages and file extensions |
 | `codeatlas clean` | Remove the `.codeatlas` directory |
 | `codeatlas serve` | Start the MCP server |
@@ -190,7 +191,7 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools (24)
+### Available MCP Tools (25)
 
 | Tool | Description |
 |------|-------------|
@@ -218,6 +219,7 @@ Add to your Claude Code MCP settings:
 | `get_symbol_coverage` | Which test functions reference a given symbol |
 | `get_api_surface` | All public non-test symbols — the exported API |
 | `get_coverage_gaps` | Public symbols with zero test coverage — prioritise these for new tests |
+| `get_file_content` | Return raw source content of a file, optionally sliced to a line range |
 
 ## Graph Visualization
 

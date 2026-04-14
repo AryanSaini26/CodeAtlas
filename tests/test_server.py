@@ -26,7 +26,9 @@ from codeatlas.server import (
     find_path_between_symbols,
     get_api_surface,
     get_change_impact,
+    get_coverage_gaps,
     get_dependencies,
+    get_file_content,
     get_file_coupling,
     get_file_dependencies,
     get_file_overview,
@@ -578,3 +580,69 @@ def test_export_graph_default_is_json() -> None:
     data = json.loads(out)
     assert "nodes" in data
     assert "links" in data
+
+
+# --- get_coverage_gaps ---
+
+
+def test_get_coverage_gaps_empty() -> None:
+    """With no test-file symbols, all public symbols are gaps."""
+    result = json.loads(get_coverage_gaps())
+    assert "total_uncovered" in result
+    assert "files" in result
+    assert isinstance(result["total_uncovered"], int)
+
+
+def test_get_coverage_gaps_with_file_filter() -> None:
+    result = json.loads(get_coverage_gaps(file_filter="app.py"))
+    assert result["file_filter"] == "app.py"
+    assert "files" in result
+
+
+def test_get_coverage_gaps_limit() -> None:
+    result = json.loads(get_coverage_gaps(limit=1))
+    total = result["total_uncovered"]
+    returned = sum(len(f["symbols"]) for f in result["files"])
+    assert returned <= min(total, 1)
+
+
+# --- get_file_content ---
+
+
+def test_get_file_content_not_found() -> None:
+    result = json.loads(get_file_content("/nonexistent/path/file.py"))
+    assert "error" in result
+
+
+def test_get_file_content_full_file(tmp_path: Any) -> None:
+    f = tmp_path / "hello.py"
+    f.write_text("def foo():\n    return 1\n")
+    result = json.loads(get_file_content(str(f)))
+    assert result["content"] == "def foo():\n    return 1\n"
+    assert result["total_lines"] == 2
+    assert result["start_line"] == 1
+    assert result["end_line"] == 2
+
+
+def test_get_file_content_line_range(tmp_path: Any) -> None:
+    f = tmp_path / "multi.py"
+    f.write_text("line1\nline2\nline3\nline4\nline5\n")
+    result = json.loads(get_file_content(str(f), start_line=2, end_line=4))
+    assert result["content"] == "line2\nline3\nline4"
+    assert result["start_line"] == 2
+    assert result["end_line"] == 4
+
+
+def test_get_file_content_start_only(tmp_path: Any) -> None:
+    f = tmp_path / "code.py"
+    f.write_text("a\nb\nc\n")
+    result = json.loads(get_file_content(str(f), start_line=2))
+    assert "b" in result["content"]
+    assert "c" in result["content"]
+
+
+def test_get_file_content_file_path_in_result(tmp_path: Any) -> None:
+    f = tmp_path / "src.py"
+    f.write_text("x = 1\n")
+    result = json.loads(get_file_content(str(f)))
+    assert str(f) in result["file_path"]

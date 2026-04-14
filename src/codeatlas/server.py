@@ -713,6 +713,54 @@ def get_api_surface(file_filter: str | None = None, limit: int = 200) -> str:
 
 
 @mcp.tool()
+def get_file_content(
+    file_path: str,
+    start_line: int | None = None,
+    end_line: int | None = None,
+) -> str:
+    """Return the raw source content of a file, optionally restricted to a line range.
+
+    Useful for reading the actual code around a symbol returned by other tools.
+    Lines are 1-indexed. If start_line/end_line are omitted the whole file is returned.
+
+    Args:
+        file_path: Absolute or relative path to the source file
+        start_line: First line to return (1-indexed, inclusive)
+        end_line: Last line to return (1-indexed, inclusive)
+    """
+    path = Path(file_path)
+    if not path.exists():
+        return json.dumps({"error": f"File not found: {file_path}"})
+    try:
+        content = path.read_text(errors="replace")
+    except OSError as exc:
+        return json.dumps({"error": str(exc)})
+
+    lines = content.splitlines()
+    total = len(lines)
+
+    if start_line is not None or end_line is not None:
+        lo = max(1, start_line or 1)
+        hi = min(total, end_line or total)
+        selected = lines[lo - 1 : hi]
+        snippet = "\n".join(selected)
+    else:
+        lo, hi = 1, total
+        snippet = content
+
+    return json.dumps(
+        {
+            "file_path": str(path),
+            "start_line": lo,
+            "end_line": hi,
+            "total_lines": total,
+            "content": snippet,
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
 def get_coverage_gaps(file_filter: str | None = None, limit: int = 100) -> str:
     """Find public symbols with zero test coverage — no test function calls or imports them.
 
