@@ -9,7 +9,7 @@ from rich.table import Table
 
 from codeatlas import __version__
 from codeatlas.config import CodeAtlasConfig
-from codeatlas.graph.export import ExportOptions, export_dot, export_json
+from codeatlas.graph.export import ExportOptions, export_dot, export_json, export_mermaid
 from codeatlas.graph.store import GraphStore
 from codeatlas.indexer import RepoIndexer
 from codeatlas.sync.watcher import FileWatcher
@@ -309,7 +309,11 @@ def query(
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option(
-    "--format", "fmt", type=click.Choice(["dot", "json"]), default="dot", show_default=True
+    "--format",
+    "fmt",
+    type=click.Choice(["dot", "json", "mermaid"]),
+    default="dot",
+    show_default=True,
 )
 @click.option(
     "--file-filter", default=None, help="Only export symbols from files matching this prefix"
@@ -321,12 +325,14 @@ def query(
 def export(
     db: str, fmt: str, file_filter: str | None, include_externals: bool, output: str | None
 ) -> None:
-    """Export the knowledge graph to DOT or JSON format."""
+    """Export the knowledge graph to DOT, JSON, or Mermaid format."""
     store = _get_store(Path(db))
     opts = ExportOptions(include_externals=include_externals, file_filter=file_filter)
 
     if fmt == "dot":
         result = export_dot(store, opts)
+    elif fmt == "mermaid":
+        result = export_mermaid(store, opts)
     else:
         result = export_json(store, opts)
 
@@ -648,6 +654,54 @@ def coupling(db: str, limit: int) -> None:
             str(pair["target_file"]),
             str(pair["relationship_count"]),
             ", ".join(str(k) for k in pair["kinds"]),
+        )
+    console.print(table)
+
+
+@cli.command()
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--limit", default=20, show_default=True, help="Max hotspot files to show")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def hotspots(repo_path: str, db: str, limit: int, as_json: bool) -> None:
+    """Show hotspot files: most git-churned AND most depended-upon code.
+
+    Hotspot score = commit_count × (1 + in_degree). Files that both change
+    frequently and have many dependents are highest risk.
+    """
+    import json as _json
+
+    from codeatlas.git_integration import get_git_churn
+
+    store = _get_store(Path(db))
+    results = store.get_hotspots(repo_path=repo_path, limit=limit)
+    store.close()
+
+    if as_json:
+        console.print(_json.dumps({"count": len(results), "hotspots": results}, indent=2))
+        return
+
+    if not results:
+        churn = get_git_churn(Path(repo_path), limit=5)
+        if not churn:
+            console.print("[dim]No git history found in this repository.[/dim]")
+        else:
+            console.print("[dim]No indexed files matched git history.[/dim]")
+        return
+
+    table = Table(title=f"Hotspot Files (top {len(results)})")
+    table.add_column("File", style="cyan", no_wrap=False)
+    table.add_column("Commits", justify="right", style="yellow")
+    table.add_column("In-Degree", justify="right", style="magenta")
+    table.add_column("Symbols", justify="right")
+    table.add_column("Score", justify="right", style="bold red")
+    for r in results:
+        table.add_row(
+            str(r["file"]),
+            str(r["commits"]),
+            str(r["in_degree"]),
+            str(r["symbol_count"]),
+            str(r["hotspot_score"]),
         )
     console.print(table)
 

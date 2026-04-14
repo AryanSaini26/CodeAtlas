@@ -1,6 +1,7 @@
 """Tests for the MCP server tool functions."""
 
 import json
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -22,14 +23,17 @@ from codeatlas.server import (
     export_graph,
     find_dead_code,
     find_path_between_symbols,
+    get_api_surface,
     get_change_impact,
     get_dependencies,
     get_file_coupling,
     get_file_dependencies,
     get_file_overview,
     get_graph_stats,
+    get_hotspots,
     get_impact_analysis,
     get_module_overview,
+    get_symbol_coverage,
     get_symbol_details,
     list_symbols_by_kind,
     search_symbols,
@@ -338,3 +342,136 @@ def test_list_symbols_by_kind_with_filter() -> None:
     assert result["count"] >= 1
     for s in result["symbols"]:
         assert "app" in s["file"]
+
+
+# --- get_api_surface ---
+
+
+def test_get_api_surface_returns_public_symbols() -> None:
+    result = json.loads(get_api_surface())
+    assert result["total"] >= 1
+    all_names = [s["name"] for f in result["files"] for s in f["symbols"]]
+    assert "main" in all_names
+    assert "Widget" in all_names
+
+
+def test_get_api_surface_excludes_private() -> None:
+    from codeatlas.models import Position, Span, Symbol, SymbolKind
+
+    store = GraphStore(":memory:")
+    pub = Symbol(
+        id="app2.py::public_fn",
+        name="public_fn",
+        qualified_name="public_fn",
+        kind=SymbolKind.FUNCTION,
+        file_path="app2.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=5, column=0)),
+        language="python",
+    )
+    priv = Symbol(
+        id="app2.py::_private_fn",
+        name="_private_fn",
+        qualified_name="_private_fn",
+        kind=SymbolKind.FUNCTION,
+        file_path="app2.py",
+        span=Span(start=Position(line=6, column=0), end=Position(line=10, column=0)),
+        language="python",
+    )
+    from codeatlas.models import FileInfo, ParseResult
+
+    store.upsert_parse_result(
+        ParseResult(
+            file_info=FileInfo(path="app2.py", language="python", content_hash="x"),
+            symbols=[pub, priv],
+            relationships=[],
+        )
+    )
+    set_store(store)
+    result = json.loads(get_api_surface())
+    all_names = [s["name"] for f in result["files"] for s in f["symbols"]]
+    assert "public_fn" in all_names
+    assert "_private_fn" not in all_names
+
+
+def test_get_api_surface_with_file_filter() -> None:
+    result = json.loads(get_api_surface(file_filter="app"))
+    for f in result["files"]:
+        assert "app" in f["file"]
+
+
+# --- get_symbol_coverage ---
+
+
+def test_get_symbol_coverage_covered() -> None:
+    from codeatlas.models import FileInfo, ParseResult, Position, Span, Symbol, SymbolKind
+
+    store = GraphStore(":memory:")
+    prod = Symbol(
+        id="src/svc.py::process",
+        name="process",
+        qualified_name="process",
+        kind=SymbolKind.FUNCTION,
+        file_path="src/svc.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=5, column=0)),
+        language="python",
+    )
+    test_fn = Symbol(
+        id="tests/test_svc.py::test_process",
+        name="test_process",
+        qualified_name="test_process",
+        kind=SymbolKind.FUNCTION,
+        file_path="tests/test_svc.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=5, column=0)),
+        language="python",
+        is_test=True,
+    )
+    rel = Relationship(
+        source_id="tests/test_svc.py::test_process",
+        target_id="src/svc.py::process",
+        kind=RelationshipKind.CALLS,
+        file_path="tests/test_svc.py",
+    )
+    store.upsert_parse_result(
+        ParseResult(
+            file_info=FileInfo(path="src/svc.py", language="python", content_hash="a"),
+            symbols=[prod],
+            relationships=[],
+        )
+    )
+    store.upsert_parse_result(
+        ParseResult(
+            file_info=FileInfo(path="tests/test_svc.py", language="python", content_hash="b"),
+            symbols=[test_fn],
+            relationships=[rel],
+        )
+    )
+    set_store(store)
+    result = json.loads(get_symbol_coverage("process"))
+    assert "results" in result
+    assert len(result["results"]) >= 1
+    entry = result["results"][0]
+    assert entry["covered"] is True
+    assert any(r["name"] == "test_process" for r in entry["test_references"])
+
+
+def test_get_symbol_coverage_not_covered() -> None:
+    result = json.loads(get_symbol_coverage("helper"))
+    assert "results" in result
+    entry = result["results"][0]
+    assert entry["covered"] is False
+    assert entry["test_references"] == []
+
+
+def test_get_symbol_coverage_not_found() -> None:
+    result = json.loads(get_symbol_coverage("does_not_exist_xyz"))
+    assert "error" in result
+
+
+# --- get_hotspots ---
+
+
+def test_get_hotspots_no_git(tmp_path: Any) -> None:
+    # Non-git directory → empty hotspots list, not an error
+    result = json.loads(get_hotspots(repo_path=str(tmp_path), limit=5))
+    assert result["count"] == 0
+    assert result["hotspots"] == []

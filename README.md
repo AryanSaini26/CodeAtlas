@@ -61,6 +61,7 @@ codeatlas watch /path/to/repo
 # Export the graph
 codeatlas export --format dot -o graph.dot
 codeatlas export --format json -o graph.json
+codeatlas export --format mermaid -o diagram.md
 ```
 
 ## Installation
@@ -147,6 +148,8 @@ If no config file is found, sensible defaults are used.
 | `codeatlas audit --include-tests` | Include test-file symbols in dead code analysis |
 | `codeatlas find-path <src> <tgt>` | Find shortest dependency path between two symbols |
 | `codeatlas coupling` | Show file coupling analysis |
+| `codeatlas hotspots [path]` | Show highest-risk files (git churn × graph in-degree) |
+| `codeatlas hotspots [path] --json` | Output hotspots as JSON |
 | `codeatlas impact [path]` | Analyze impact of current git changes on the graph |
 | `codeatlas export` | Export graph in DOT or JSON format |
 | `codeatlas viz` | Generate interactive D3.js graph visualization |
@@ -179,7 +182,7 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools (20)
+### Available MCP Tools (23)
 
 | Tool | Description |
 |------|-------------|
@@ -203,6 +206,9 @@ Add to your Claude Code MCP settings:
 | `get_change_impact` | Git-aware change impact analysis |
 | `find_by_decorator` | Find all symbols tagged with a given decorator/annotation |
 | `get_symbol_history` | Git blame/log history for a symbol (commits that touched it) |
+| `get_hotspots` | Highest-risk files: git churn × graph in-degree |
+| `get_symbol_coverage` | Which test functions reference a given symbol |
+| `get_api_surface` | All public non-test symbols — the exported API |
 
 ## Graph Visualization
 
@@ -266,7 +272,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests with coverage (643 tests, ~90%)
+# Run tests with coverage (657 tests, ~89%)
 .venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
 # Lint / format

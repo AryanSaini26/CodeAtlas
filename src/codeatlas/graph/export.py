@@ -1,6 +1,7 @@
-"""Graph export to DOT (Graphviz) and JSON (D3.js) formats."""
+"""Graph export to DOT (Graphviz), JSON (D3.js), and Mermaid formats."""
 
 import json
+import re
 from dataclasses import dataclass
 
 from codeatlas.graph.store import GraphStore
@@ -146,6 +147,97 @@ def export_json(store: GraphStore, options: ExportOptions | None = None) -> str:
 
     data = {"nodes": nodes, "links": links}
     return json.dumps(data, indent=2)
+
+
+def export_mermaid(store: GraphStore, options: ExportOptions | None = None) -> str:
+    """Export the class/interface hierarchy as a Mermaid classDiagram.
+
+    Renders classes, interfaces, enums, and their inheritance/implementation
+    edges. Methods are listed inside each class block (up to 6 per class).
+    """
+    opts = options or ExportOptions()
+    conn = store._conn
+
+    params: list[str] = []
+    sym_query = """
+        SELECT id, name, qualified_name, kind, file_path
+        FROM symbols
+        WHERE kind IN ('class', 'interface', 'struct', 'enum')
+    """
+    if opts.file_filter:
+        sym_query += " AND file_path LIKE ?"
+        params.append(f"{opts.file_filter}%")
+    symbols = conn.execute(sym_query, params).fetchall()
+    symbol_ids = {row["id"] for row in symbols}
+
+    # Map qualified_name → methods (up to 6)
+    method_params: list[str] = []
+    method_query = """
+        SELECT name, qualified_name, kind, signature
+        FROM symbols
+        WHERE kind = 'method'
+    """
+    if opts.file_filter:
+        method_query += " AND file_path LIKE ?"
+        method_params.append(f"{opts.file_filter}%")
+    method_rows = conn.execute(method_query, method_params).fetchall()
+
+    class_to_methods: dict[str, list[str]] = {}
+    for mr in method_rows:
+        qn = mr["qualified_name"] or ""
+        if "." in qn:
+            parent_qn = qn.rsplit(".", 1)[0]
+            display = mr["signature"] or mr["name"]
+            # Trim long signatures to keep diagram readable
+            if len(display) > 60:
+                display = display[:57] + "..."
+            class_to_methods.setdefault(parent_qn, []).append(display)
+
+    lines = ["classDiagram"]
+
+    for row in symbols:
+        safe = _mermaid_id(row["name"])
+        kind = row["kind"]
+        lines.append(f"    class {safe} {{")
+        if kind == "interface":
+            lines.append("        <<interface>>")
+        elif kind == "enum":
+            lines.append("        <<enumeration>>")
+        for sig in class_to_methods.get(row["qualified_name"], [])[:6]:
+            lines.append(f"        +{_mermaid_safe(sig)}")
+        lines.append("    }")
+
+    # Inheritance / implements edges
+    rels = conn.execute(
+        "SELECT source_id, target_id, kind FROM relationships WHERE kind IN ('inherits', 'implements')"
+    ).fetchall()
+    id_to_name: dict[str, str] = {row["id"]: row["name"] for row in symbols}
+    for r in rels:
+        src_id = r["source_id"]
+        tgt_id = r["target_id"]
+        if src_id not in symbol_ids:
+            continue
+        if tgt_id in id_to_name:
+            tgt_name = id_to_name[tgt_id]
+        elif tgt_id.startswith("<unresolved>::") or tgt_id.startswith("<external>::"):
+            tgt_name = tgt_id.split("::")[-1]
+        else:
+            continue
+        src_name = id_to_name[src_id]
+        arrow = "<|--" if r["kind"] == "inherits" else "<|.."
+        lines.append(f"    {_mermaid_id(tgt_name)} {arrow} {_mermaid_id(src_name)}")
+
+    return "\n".join(lines)
+
+
+def _mermaid_id(name: str) -> str:
+    """Strip non-identifier characters for Mermaid node names."""
+    return re.sub(r"[^a-zA-Z0-9_]", "_", name)
+
+
+def _mermaid_safe(text: str) -> str:
+    """Escape characters that would break a Mermaid class member line."""
+    return text.replace("{", "(").replace("}", ")").replace('"', "'").replace("\n", " ")
 
 
 def _dot_id(symbol_id: str) -> str:

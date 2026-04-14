@@ -3,6 +3,7 @@
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from codeatlas.graph.store import GraphStore
 from codeatlas.models import Symbol
@@ -154,3 +155,27 @@ def analyze_change_impact(
         affected_symbols=affected_symbols,
         affected_files=affected_files,
     )
+
+
+def get_git_churn(repo_path: Path, limit: int = 100) -> list[dict[str, Any]]:
+    """Count how many commits touched each file (scans up to 1000 commits).
+
+    Returns a list of {file, commits} dicts sorted by commit frequency descending.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "log", "--format=", "--name-only", "-1000"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        counts: dict[str, int] = {}
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line:
+                counts[line] = counts.get(line, 0) + 1
+        sorted_files = sorted(counts.items(), key=lambda x: -x[1])[:limit]
+        return [{"file": f, "commits": int(c)} for f, c in sorted_files]
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return []

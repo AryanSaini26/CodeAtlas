@@ -1,5 +1,7 @@
 """Tests for the SQLite graph store."""
 
+from typing import Any
+
 from codeatlas.graph.store import GraphStore
 from codeatlas.models import (
     FileInfo,
@@ -365,3 +367,104 @@ def test_get_symbols_by_kind_with_filter(graph_store: GraphStore) -> None:
 def test_get_symbols_by_kind_empty(graph_store: GraphStore) -> None:
     results = graph_store.get_symbols_by_kind("namespace")
     assert results == []
+
+
+# --- get_api_surface ---
+
+
+def test_get_api_surface_excludes_private(graph_store: GraphStore) -> None:
+    pub = _make_symbol("public_func", file_path="src/app.py", kind=SymbolKind.FUNCTION)
+    priv = _make_symbol("_private_func", file_path="src/app.py", kind=SymbolKind.FUNCTION)
+    imp = _make_symbol("os", file_path="src/app.py", kind=SymbolKind.IMPORT)
+    graph_store.upsert_parse_result(_make_result("src/app.py", [pub, priv, imp]))
+    surface = graph_store.get_api_surface()
+    names = [s.name for s in surface]
+    assert "public_func" in names
+    assert "_private_func" not in names
+    assert "os" not in names
+
+
+def test_get_api_surface_excludes_test_symbols(graph_store: GraphStore) -> None:
+    prod = _make_symbol("do_work", file_path="src/worker.py", kind=SymbolKind.FUNCTION)
+    test_sym = Symbol(
+        id="tests/test_worker.py::test_do_work",
+        name="test_do_work",
+        qualified_name="test_do_work",
+        kind=SymbolKind.FUNCTION,
+        file_path="tests/test_worker.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=5, column=0)),
+        language="python",
+        is_test=True,
+    )
+    graph_store.upsert_parse_result(_make_result("src/worker.py", [prod]))
+    graph_store.upsert_parse_result(_make_result("tests/test_worker.py", [test_sym]))
+    surface = graph_store.get_api_surface()
+    names = [s.name for s in surface]
+    assert "do_work" in names
+    assert "test_do_work" not in names
+
+
+def test_get_api_surface_file_filter(graph_store: GraphStore) -> None:
+    s1 = _make_symbol("api_handler", file_path="src/api/routes.py", kind=SymbolKind.FUNCTION)
+    s2 = _make_symbol("db_connect", file_path="src/db/conn.py", kind=SymbolKind.FUNCTION)
+    graph_store.upsert_parse_result(_make_result("src/api/routes.py", [s1]))
+    graph_store.upsert_parse_result(_make_result("src/db/conn.py", [s2]))
+    surface = graph_store.get_api_surface(file_filter="src/api")
+    names = [s.name for s in surface]
+    assert "api_handler" in names
+    assert "db_connect" not in names
+
+
+# --- get_symbol_coverage ---
+
+
+def test_get_symbol_coverage_found(graph_store: GraphStore) -> None:
+    prod = _make_symbol("process_order", file_path="src/orders.py", kind=SymbolKind.FUNCTION)
+    test_func = Symbol(
+        id="tests/test_orders.py::test_process_order",
+        name="test_process_order",
+        qualified_name="test_process_order",
+        kind=SymbolKind.FUNCTION,
+        file_path="tests/test_orders.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=5, column=0)),
+        language="python",
+        is_test=True,
+    )
+    rel = _make_relationship(
+        "tests/test_orders.py::test_process_order",
+        "src/orders.py::process_order",
+        kind=RelationshipKind.CALLS,
+        file_path="tests/test_orders.py",
+    )
+    graph_store.upsert_parse_result(_make_result("src/orders.py", [prod]))
+    graph_store.upsert_parse_result(_make_result("tests/test_orders.py", [test_func], [rel]))
+    coverage = graph_store.get_symbol_coverage("process_order")
+    assert "results" in coverage
+    assert len(coverage["results"]) >= 1
+    entry = coverage["results"][0]
+    assert entry["covered"] is True
+    assert len(entry["test_references"]) >= 1
+    assert "test_process_order" in [r["name"] for r in entry["test_references"]]
+
+
+def test_get_symbol_coverage_not_covered(graph_store: GraphStore) -> None:
+    sym = _make_symbol("uncovered_func", file_path="src/utils.py", kind=SymbolKind.FUNCTION)
+    graph_store.upsert_parse_result(_make_result("src/utils.py", [sym]))
+    coverage = graph_store.get_symbol_coverage("uncovered_func")
+    assert "results" in coverage
+    assert coverage["results"][0]["covered"] is False
+    assert coverage["results"][0]["test_references"] == []
+
+
+def test_get_symbol_coverage_not_found(graph_store: GraphStore) -> None:
+    coverage = graph_store.get_symbol_coverage("nonexistent_xyz_abc")
+    assert "error" in coverage
+
+
+# --- get_hotspots (unit-level: no real git, verifies structure) ---
+
+
+def test_get_hotspots_returns_list_when_no_git(graph_store: GraphStore, tmp_path: Any) -> None:
+    # A directory with no git history returns an empty list (no churn data)
+    results = graph_store.get_hotspots(repo_path=str(tmp_path))
+    assert isinstance(results, list)

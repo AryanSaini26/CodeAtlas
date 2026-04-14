@@ -818,6 +818,126 @@ class GraphStore:
         ).fetchall()
         return sorted(row["file_path"] for row in rows)
 
+    def get_hotspots(self, repo_path: str | Path, limit: int = 20) -> list[dict[str, Any]]:
+        """Return files ranked by git churn × graph in-degree.
+
+        Combines how often a file changes in git with how many other symbols
+        depend on it, surfacing the highest-risk code for review.
+        """
+        from codeatlas.git_integration import get_git_churn
+
+        churn = get_git_churn(Path(repo_path), limit=200)
+        if not churn:
+            return []
+
+        conn = self._conn
+        results: list[dict[str, Any]] = []
+        for entry in churn:
+            fp = entry["file"]
+            row = conn.execute(
+                """
+                SELECT
+                    COUNT(DISTINCT s.id) as symbol_count,
+                    COALESCE(SUM(in_deg.cnt), 0) as total_in_degree
+                FROM symbols s
+                LEFT JOIN (
+                    SELECT target_id, COUNT(*) as cnt
+                    FROM relationships GROUP BY target_id
+                ) in_deg ON in_deg.target_id = s.id
+                WHERE s.file_path = ? OR s.file_path LIKE ?
+                """,
+                (fp, f"%/{fp}"),
+            ).fetchone()
+            commits = entry["commits"]
+            in_degree = int(row["total_in_degree"]) if row else 0
+            symbol_count = int(row["symbol_count"]) if row else 0
+            score = commits * (1 + in_degree)
+            results.append(
+                {
+                    "file": fp,
+                    "commits": commits,
+                    "in_degree": in_degree,
+                    "symbol_count": symbol_count,
+                    "hotspot_score": score,
+                }
+            )
+
+        results.sort(key=lambda x: -x["hotspot_score"])
+        return results[:limit]
+
+    def get_symbol_coverage(self, symbol_name: str) -> dict[str, Any]:
+        """Find which test functions/files reference a given symbol.
+
+        Uses the is_test flag to identify test-file callers, giving a quick
+        picture of whether a symbol has direct test coverage.
+        """
+        syms = self.find_symbols_by_name(symbol_name)
+        if not syms:
+            return {"error": f"Symbol '{symbol_name}' not found", "results": []}
+
+        conn = self._conn
+        results: list[dict[str, Any]] = []
+        for sym in syms:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT s.name, s.qualified_name, s.kind, s.file_path,
+                       s.start_line, r.kind as rel_kind
+                FROM relationships r
+                JOIN symbols s ON r.source_id = s.id
+                WHERE r.target_id = ? AND s.is_test = 1
+                ORDER BY s.file_path, s.start_line
+                """,
+                (sym.id,),
+            ).fetchall()
+            test_refs = [
+                {
+                    "name": r["name"],
+                    "qualified_name": r["qualified_name"],
+                    "kind": r["kind"],
+                    "file": r["file_path"],
+                    "line": r["start_line"],
+                    "relationship": r["rel_kind"],
+                }
+                for r in rows
+            ]
+            results.append(
+                {
+                    "symbol": sym.qualified_name,
+                    "kind": sym.kind.value,
+                    "file": sym.file_path,
+                    "is_test": sym.is_test,
+                    "test_references": test_refs,
+                    "covered": len(test_refs) > 0,
+                }
+            )
+
+        return {"results": results, "total_symbols": len(results)}
+
+    def get_api_surface(
+        self,
+        file_filter: str | None = None,
+        limit: int = 200,
+    ) -> list[Symbol]:
+        """Return public non-test symbols (excludes leading-underscore names and imports/variables).
+
+        Useful for generating documentation or understanding the exported API of a codebase.
+        """
+        conn = self._conn
+        params: list[Any] = []
+        sql = """
+            SELECT * FROM symbols
+            WHERE is_test = 0
+              AND name NOT LIKE '\\_%' ESCAPE '\\'
+              AND kind NOT IN ('import', 'variable')
+        """
+        if file_filter:
+            sql += " AND file_path LIKE ?"
+            params.append(f"{file_filter}%")
+        sql += " ORDER BY file_path, start_line LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(sql, params).fetchall()
+        return [self._row_to_symbol(r) for r in rows]
+
     def close(self) -> None:
         self._conn.close()
 

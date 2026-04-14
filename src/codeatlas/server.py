@@ -6,7 +6,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from codeatlas.graph.export import ExportOptions, export_dot, export_json
+from codeatlas.graph.export import ExportOptions, export_dot, export_json, export_mermaid
 from codeatlas.graph.store import GraphStore
 from codeatlas.search.embeddings import SemanticIndex
 
@@ -297,16 +297,18 @@ def get_graph_stats() -> str:
 
 @mcp.tool()
 def export_graph(format: str = "json", file_filter: str | None = None) -> str:
-    """Export the knowledge graph in DOT (Graphviz) or JSON (D3.js) format.
+    """Export the knowledge graph in DOT (Graphviz), JSON (D3.js), or Mermaid format.
 
     Args:
-        format: 'dot' or 'json'
+        format: 'dot', 'json', or 'mermaid'
         file_filter: Only include symbols from files matching this prefix
     """
     store = get_store()
     opts = ExportOptions(file_filter=file_filter)
     if format == "dot":
         return export_dot(store, opts)
+    if format == "mermaid":
+        return export_mermaid(store, opts)
     return export_json(store, opts)
 
 
@@ -621,6 +623,81 @@ def get_symbol_history(
             "lines": f"{start_line}-{end_line}",
             "commit_count": len(commits),
             "commits": commits,
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
+def get_hotspots(repo_path: str = ".", limit: int = 20) -> str:
+    """Identify the highest-risk files by combining git churn with graph in-degree.
+
+    A file that changes frequently AND is heavily depended upon is a hotspot —
+    it's both likely to introduce bugs and likely to break many callers when it does.
+
+    Args:
+        repo_path: Path to the git repository (default: current directory)
+        limit: Maximum number of hotspot files to return
+    """
+    store = get_store()
+    hotspots = store.get_hotspots(repo_path=repo_path, limit=limit)
+    return json.dumps(
+        {
+            "count": len(hotspots),
+            "hotspots": hotspots,
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
+def get_symbol_coverage(symbol_name: str) -> str:
+    """Find which test functions/files reference a given symbol.
+
+    Checks the is_test flag on callers to build a test-coverage map for a symbol.
+    Returns which test files cover it and via what relationship (CALLS, IMPORTS, etc.).
+
+    Args:
+        symbol_name: The name of the symbol to look up
+    """
+    store = get_store()
+    result = store.get_symbol_coverage(symbol_name)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+def get_api_surface(file_filter: str | None = None, limit: int = 200) -> str:
+    """Return all public non-test symbols — the exported API of the codebase.
+
+    Excludes symbols starting with '_' (private by convention), imports, variables,
+    and anything in test files. Useful for generating documentation or writing a client.
+
+    Args:
+        file_filter: Only include symbols from files matching this path prefix
+        limit: Maximum number of symbols to return (default 200)
+    """
+    store = get_store()
+    symbols = store.get_api_surface(file_filter=file_filter, limit=limit)
+    by_file: dict[str, list[dict[str, Any]]] = {}
+    for s in symbols:
+        by_file.setdefault(s.file_path, []).append(
+            {
+                "name": s.name,
+                "qualified_name": s.qualified_name,
+                "kind": s.kind.value,
+                "line": s.span.start.line,
+                "signature": s.signature,
+                "docstring": s.docstring,
+            }
+        )
+    return json.dumps(
+        {
+            "total": len(symbols),
+            "file_filter": file_filter,
+            "files": [
+                {"file": fp, "count": len(syms), "symbols": syms}
+                for fp, syms in sorted(by_file.items())
+            ],
         },
         indent=2,
     )
