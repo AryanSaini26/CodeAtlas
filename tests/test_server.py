@@ -24,6 +24,7 @@ from codeatlas.server import (
     find_by_decorator,
     find_dead_code,
     find_path_between_symbols,
+    find_usages,
     get_api_surface,
     get_change_impact,
     get_coverage_gaps,
@@ -646,3 +647,43 @@ def test_get_file_content_file_path_in_result(tmp_path: Any) -> None:
     f.write_text("x = 1\n")
     result = json.loads(get_file_content(str(f)))
     assert str(f) in result["file_path"]
+
+
+# --- find_usages ---
+
+
+def test_find_usages_not_found() -> None:
+    result = json.loads(find_usages("nonexistent_xyz"))
+    assert "error" in result
+
+
+def test_find_usages_returns_callers() -> None:
+    # main calls helper, so helper should have 1 usage
+    result = json.loads(find_usages("helper"))
+    assert result["symbol"] == "helper"
+    assert result["usage_count"] >= 1
+    assert "usages" in result
+
+
+def test_find_usages_zero_callers() -> None:
+    # Widget (CLASS in models.py) is imported by main but that's an IMPORTS rel
+    result = json.loads(find_usages("Widget"))
+    assert result["symbol"] == "Widget"
+    assert "usage_count" in result
+    assert "usages" in result
+
+
+def test_find_usages_structure() -> None:
+    result = json.loads(find_usages("helper"))
+    assert "symbol_id" in result
+    assert "kind" in result
+    assert "file" in result
+    for usage in result["usages"]:
+        assert "file" in usage
+        assert "references" in usage
+
+
+def test_find_usages_limit() -> None:
+    result = json.loads(find_usages("helper", limit=1))
+    total_refs = sum(len(u["references"]) for u in result["usages"])
+    assert total_refs <= 1

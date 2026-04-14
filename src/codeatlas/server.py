@@ -795,3 +795,47 @@ def get_coverage_gaps(file_filter: str | None = None, limit: int = 100) -> str:
         },
         indent=2,
     )
+
+
+@mcp.tool()
+def find_usages(symbol_name: str, limit: int = 50) -> str:
+    """Find every place in the codebase that calls, imports, or references a symbol.
+
+    Returns all relationships where the symbol is the *target* — i.e., what depends on it.
+    Useful for impact analysis: "if I change this function, what breaks?"
+
+    Args:
+        symbol_name: Name of the symbol to look up (partial matches supported)
+        limit: Maximum number of usages to return (default 50)
+    """
+    store = get_store()
+    matches = store.find_symbols_by_name(symbol_name)
+    if not matches:
+        return json.dumps({"error": f"Symbol '{symbol_name}' not found", "symbol": symbol_name})
+
+    sym = matches[0]
+    dependents = store.get_dependents(sym.id)[:limit]
+
+    by_file: dict[str, list[dict[str, Any]]] = {}
+    for rel in dependents:
+        caller_file = rel.file_path
+        line = rel.span.start.line + 1 if rel.span else None
+        by_file.setdefault(caller_file, []).append(
+            {
+                "caller_id": rel.source_id,
+                "kind": rel.kind.value,
+                "line": line,
+            }
+        )
+
+    return json.dumps(
+        {
+            "symbol": sym.qualified_name,
+            "symbol_id": sym.id,
+            "kind": sym.kind.value,
+            "file": sym.file_path,
+            "usage_count": len(dependents),
+            "usages": [{"file": fp, "references": refs} for fp, refs in sorted(by_file.items())],
+        },
+        indent=2,
+    )

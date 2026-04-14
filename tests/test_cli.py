@@ -925,3 +925,45 @@ def test_export_mermaid(tmp_path: Path) -> None:
     result = runner.invoke(cli, ["export", "--format", "mermaid", "--db", db_path])
     assert result.exit_code == 0
     assert "classDiagram" in result.output
+
+
+# --- find-usages ---
+
+
+def test_find_usages_not_found(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["find-usages", "nonexistent_xyz", "--db", db_path])
+    assert result.exit_code == 0
+    assert "not found" in result.output.lower()
+
+
+def test_find_usages_found(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # greet is called by run
+    result = runner.invoke(cli, ["find-usages", "greet", "--db", db_path])
+    assert result.exit_code == 0
+
+
+def test_find_usages_json(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["find-usages", "greet", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert '"symbol"' in result.output
+    assert '"usages"' in result.output
+
+
+def test_find_usages_no_callers(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # run() has no callers in our tiny repo
+    result = runner.invoke(cli, ["find-usages", "run", "--db", db_path])
+    assert result.exit_code == 0

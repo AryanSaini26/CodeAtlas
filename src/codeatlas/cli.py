@@ -692,6 +692,73 @@ def trace(symbol_name: str, db: str, depth: int, as_json: bool) -> None:
     console.print(table)
 
 
+@cli.command(name="find-usages")
+@click.argument("symbol_name")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--limit", default=50, show_default=True, help="Max usages to show")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def find_usages(symbol_name: str, db: str, limit: int, as_json: bool) -> None:
+    """Find every call site, import, and reference to SYMBOL_NAME.
+
+    Shows which files and callers depend on this symbol — useful before
+    refactoring to understand the blast radius of a change.
+    """
+    import json as json_mod
+
+    store = _get_store(Path(db))
+    matches = store.find_symbols_by_name(symbol_name)
+    if not matches:
+        console.print(f"[yellow]Symbol '{symbol_name}' not found.[/yellow]")
+        store.close()
+        return
+
+    sym = matches[0]
+    dependents = store.get_dependents(sym.id)[:limit]
+    store.close()
+
+    if as_json:
+        by_file: dict[str, list[dict[str, Any]]] = {}
+        for rel in dependents:
+            by_file.setdefault(rel.file_path, []).append(
+                {
+                    "caller_id": rel.source_id,
+                    "kind": rel.kind.value,
+                    "line": rel.span.start.line + 1 if rel.span else None,
+                }
+            )
+        console.print(
+            json_mod.dumps(
+                {
+                    "symbol": sym.qualified_name,
+                    "usage_count": len(dependents),
+                    "usages": [
+                        {"file": fp, "references": refs} for fp, refs in sorted(by_file.items())
+                    ],
+                },
+                indent=2,
+            )
+        )
+        return
+
+    if not dependents:
+        console.print(f"[dim]No usages found for '{symbol_name}'.[/dim]")
+        return
+
+    table = Table(title=f"Usages of '{sym.qualified_name}' ({len(dependents)} reference(s))")
+    table.add_column("Caller", style="cyan")
+    table.add_column("Kind", style="magenta")
+    table.add_column("File")
+    table.add_column("Line", justify="right")
+    for rel in dependents:
+        table.add_row(
+            rel.source_id.split("::")[-1],
+            rel.kind.value,
+            rel.file_path,
+            str(rel.span.start.line + 1) if rel.span else "—",
+        )
+    console.print(table)
+
+
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--limit", default=20, show_default=True, help="Max file pairs to show")
