@@ -798,6 +798,73 @@ def get_coverage_gaps(file_filter: str | None = None, limit: int = 100) -> str:
 
 
 @mcp.tool()
+def get_symbol_context(symbol_name: str, context_lines: int = 5) -> str:
+    """Return a symbol's full metadata AND the surrounding source code in one call.
+
+    Combines get_symbol_details + get_file_content so agents can understand a symbol
+    without making two separate tool calls.
+
+    Args:
+        symbol_name: Name of the symbol to look up
+        context_lines: Extra lines to include before/after the symbol's span (default 5)
+    """
+    store = get_store()
+    matches = store.find_symbols_by_name(symbol_name)
+    if not matches:
+        return json.dumps({"error": f"Symbol '{symbol_name}' not found"})
+
+    sym = matches[0]
+    deps = store.get_dependencies(sym.id)
+    dependents = store.get_dependents(sym.id)
+
+    # Read source snippet
+    source_snippet: str | None = None
+    snippet_start: int | None = None
+    snippet_end: int | None = None
+    file_path = Path(sym.file_path)
+    if file_path.exists():
+        try:
+            lines = file_path.read_text(errors="replace").splitlines()
+            lo = max(0, sym.span.start.line - context_lines)
+            hi = min(len(lines), sym.span.end.line + context_lines + 1)
+            source_snippet = "\n".join(lines[lo:hi])
+            snippet_start = lo + 1  # 1-indexed
+            snippet_end = hi
+        except OSError:
+            pass
+
+    return json.dumps(
+        {
+            "symbol": {
+                "id": sym.id,
+                "name": sym.name,
+                "qualified_name": sym.qualified_name,
+                "kind": sym.kind.value,
+                "file": sym.file_path,
+                "line": sym.span.start.line + 1,
+                "language": sym.language,
+                "signature": sym.signature,
+                "docstring": sym.docstring,
+                "decorators": sym.decorators,
+                "is_test": sym.is_test,
+            },
+            "relationships": {
+                "outgoing_count": len(deps),
+                "incoming_count": len(dependents),
+                "depends_on": [r.target_id for r in deps[:10]],
+                "depended_by": [r.source_id for r in dependents[:10]],
+            },
+            "source": {
+                "snippet": source_snippet,
+                "start_line": snippet_start,
+                "end_line": snippet_end,
+            },
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
 def find_usages(symbol_name: str, limit: int = 50) -> str:
     """Find every place in the codebase that calls, imports, or references a symbol.
 

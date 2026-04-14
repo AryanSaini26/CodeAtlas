@@ -192,7 +192,7 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools (26)
+### Available MCP Tools (27)
 
 | Tool | Description |
 |------|-------------|
@@ -222,6 +222,7 @@ Add to your Claude Code MCP settings:
 | `get_coverage_gaps` | Public symbols with zero test coverage — prioritise these for new tests |
 | `get_file_content` | Return raw source content of a file, optionally sliced to a line range |
 | `find_usages` | Find every call site, import, and reference to a symbol (inverse of trace) |
+| `get_symbol_context` | Symbol metadata + surrounding source snippet in one call |
 
 ## Graph Visualization
 

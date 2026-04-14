@@ -37,6 +37,7 @@ from codeatlas.server import (
     get_hotspots,
     get_impact_analysis,
     get_module_overview,
+    get_symbol_context,
     get_symbol_coverage,
     get_symbol_details,
     get_symbol_history,
@@ -687,3 +688,45 @@ def test_find_usages_limit() -> None:
     result = json.loads(find_usages("helper", limit=1))
     total_refs = sum(len(u["references"]) for u in result["usages"])
     assert total_refs <= 1
+
+
+# --- get_symbol_context ---
+
+
+def test_get_symbol_context_not_found() -> None:
+    result = json.loads(get_symbol_context("nonexistent_xyz_abc"))
+    assert "error" in result
+
+
+def test_get_symbol_context_found() -> None:
+    result = json.loads(get_symbol_context("helper"))
+    assert "symbol" in result
+    assert "relationships" in result
+    assert "source" in result
+
+
+def test_get_symbol_context_symbol_fields() -> None:
+    result = json.loads(get_symbol_context("helper"))
+    sym = result["symbol"]
+    assert sym["name"] == "helper"
+    assert "kind" in sym
+    assert "file" in sym
+    assert "line" in sym
+    assert "language" in sym
+
+
+def test_get_symbol_context_relationships() -> None:
+    result = json.loads(get_symbol_context("helper"))
+    rels = result["relationships"]
+    assert "outgoing_count" in rels
+    assert "incoming_count" in rels
+    assert "depends_on" in rels
+    assert "depended_by" in rels
+
+
+def test_get_symbol_context_source_keys() -> None:
+    result = json.loads(get_symbol_context("helper"))
+    src = result["source"]
+    assert "snippet" in src
+    assert "start_line" in src
+    assert "end_line" in src
