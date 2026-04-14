@@ -31,7 +31,7 @@ jobs:
         run: ruff format --check src tests
 
       - name: Type check
-        run: mypy src/codeatlas --ignore-missing-imports
+        run: mypy src/codeatlas
 
       - name: Test with coverage
         run: pytest -v --cov=codeatlas --cov-report=xml --cov-report=term-missing

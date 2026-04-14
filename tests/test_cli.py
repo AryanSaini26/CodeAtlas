@@ -736,3 +736,153 @@ def test_pre_commit_custom_hook_type(tmp_path: Path) -> None:
         assert result.exit_code == 0
         content = Path(".pre-commit-config.yaml").read_text()
         assert "pre-commit" in content
+
+
+# --- languages ---
+
+
+def test_languages_command() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["languages"])
+    assert result.exit_code == 0
+    # At least the core languages should appear
+    assert "python" in result.output.lower()
+    assert "go" in result.output.lower()
+    assert "rust" in result.output.lower()
+
+
+def test_languages_shows_21_entries() -> None:
+    """Ensure all 21 parsers are listed."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["languages"])
+    assert result.exit_code == 0
+    expected_langs = [
+        "python",
+        "typescript",
+        "go",
+        "rust",
+        "java",
+        "c",
+        "cpp",
+        "csharp",
+        "ruby",
+        "javascript",
+        "kotlin",
+        "php",
+        "scala",
+        "bash",
+        "lua",
+        "elixir",
+        "swift",
+        "haskell",
+        "sql",
+        "zig",
+        "ocaml",
+    ]
+    for lang in expected_langs:
+        assert lang in result.output.lower(), f"Missing language: {lang}"
+
+
+# --- query --json ---
+
+
+def test_query_json_output(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["query", "run", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert '"name"' in result.output
+    assert '"kind"' in result.output
+
+
+def test_query_json_no_results(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["query", "nonexistent_xyz_abc", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert "[]" in result.output
+
+
+# --- show --json ---
+
+
+def test_show_json_output(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["show", "run", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert '"name"' in result.output
+    assert '"kind"' in result.output
+    assert '"file"' in result.output
+
+
+def test_show_json_not_found(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["show", "nonexistent_xyz", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert "nonexistent_xyz" in result.output.lower()
+
+
+# --- audit --json ---
+
+
+def test_audit_json_output(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["audit", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert '"cycles"' in result.output
+    assert '"unused"' in result.output
+    assert '"centrality"' in result.output
+
+
+def test_audit_json_empty_db(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["audit", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert '"cycles"' in result.output
+
+
+# --- hotspots ---
+
+
+def test_hotspots_no_git(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # Non-git directory: should handle gracefully
+    result = runner.invoke(cli, ["hotspots", str(tmp_path), "--db", db_path])
+    assert result.exit_code == 0
+
+
+def test_hotspots_json_empty(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["hotspots", str(tmp_path), "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert '"count"' in result.output
+    assert '"hotspots"' in result.output
+
+
+# --- export mermaid ---
+
+
+def test_export_mermaid(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["export", "--format", "mermaid", "--db", db_path])
+    assert result.exit_code == 0
+    assert "classDiagram" in result.output
