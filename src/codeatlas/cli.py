@@ -886,6 +886,41 @@ def hubs(db: str, limit: int, as_json: bool) -> None:
 
 
 @cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--min-size", default=3, show_default=True, help="Minimum community size to report")
+@click.option("--limit", default=20, show_default=True, help="Max communities to show")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def communities(db: str, min_size: int, limit: int, as_json: bool) -> None:
+    """Detect communities (tightly-connected subsystems) via label propagation.
+
+    Each community groups symbols that form a cohesive module — useful for
+    agents asking "what's related to X?" or for orienting in an unfamiliar repo.
+    """
+    import json as _json
+
+    store = _get_store(Path(db))
+    results = store.get_community_summary(min_size=min_size)[:limit]
+    store.close()
+
+    if as_json:
+        console.print(_json.dumps({"count": len(results), "communities": results}, indent=2))
+        return
+
+    if not results:
+        console.print("[dim]No communities found (try lowering --min-size).[/dim]")
+        return
+
+    table = Table(title=f"Communities (top {len(results)})")
+    table.add_column("#", justify="right", style="dim")
+    table.add_column("Size", justify="right", style="bold green")
+    table.add_column("Sample members", style="cyan")
+    for i, c in enumerate(results, 1):
+        sample = ", ".join(f"{m['name']}" for m in c["sample"])
+        table.add_row(str(i), str(c["size"]), sample)
+    console.print(table)
+
+
+@cli.command()
 @click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--ref", default="HEAD", show_default=True, help="Git ref to diff against")

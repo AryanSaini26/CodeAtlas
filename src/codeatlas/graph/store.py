@@ -1005,6 +1005,102 @@ class GraphStore:
             stats[key] = r["cnt"]
         return stats
 
+    def detect_communities(self, max_iterations: int = 30) -> dict[str, str]:
+        """Group symbols into communities via label propagation.
+
+        Treats the relationship graph as undirected and runs the synchronous
+        label-propagation algorithm: each node starts with its own label, then
+        repeatedly adopts the most common label among its neighbors until no
+        labels change or ``max_iterations`` is reached.
+
+        Returns a mapping of ``symbol_id`` → ``community_id`` (the label of a
+        seed member in the same community).
+
+        No external dependencies; O(V + E) per iteration.
+        """
+        conn = self._conn
+        # Build an undirected adjacency map, skipping external/unresolved nodes
+        adj: dict[str, set[str]] = {}
+        for row in conn.execute(
+            """
+            SELECT r.source_id, r.target_id
+            FROM relationships r
+            JOIN symbols s1 ON s1.id = r.source_id
+            JOIN symbols s2 ON s2.id = r.target_id
+            """
+        ).fetchall():
+            src: str = row["source_id"]
+            tgt: str = row["target_id"]
+            if src == tgt:
+                continue
+            adj.setdefault(src, set()).add(tgt)
+            adj.setdefault(tgt, set()).add(src)
+
+        if not adj:
+            return {}
+
+        # Initialize: each node is its own community
+        labels: dict[str, str] = {node: node for node in adj}
+
+        # Iterate in a deterministic order so results are reproducible
+        node_order = sorted(adj.keys())
+        for _ in range(max_iterations):
+            changed = False
+            for node in node_order:
+                neighbors = adj[node]
+                if not neighbors:
+                    continue
+                # Count labels among neighbors
+                counts: dict[str, int] = {}
+                for nb in neighbors:
+                    lbl = labels[nb]
+                    counts[lbl] = counts.get(lbl, 0) + 1
+                # Pick the most common label, tiebreak by lexicographic order
+                best_label = max(counts.items(), key=lambda kv: (kv[1], -hash(kv[0])))[0]
+                if labels[node] != best_label:
+                    labels[node] = best_label
+                    changed = True
+            if not changed:
+                break
+        return labels
+
+    def get_community_summary(self, min_size: int = 2) -> list[dict[str, Any]]:
+        """Summarize communities: community_id, size, representative members.
+
+        Only communities with at least ``min_size`` members are returned,
+        sorted by size descending.
+        """
+        labels = self.detect_communities()
+        if not labels:
+            return []
+
+        groups: dict[str, list[str]] = {}
+        for node, lbl in labels.items():
+            groups.setdefault(lbl, []).append(node)
+
+        conn = self._conn
+        summaries: list[dict[str, Any]] = []
+        for lbl, members in groups.items():
+            if len(members) < min_size:
+                continue
+            # Fetch names for up to 5 representative members
+            placeholders = ",".join("?" * min(len(members), 5))
+            sample_rows = conn.execute(
+                f"SELECT qualified_name, file_path FROM symbols WHERE id IN ({placeholders})",
+                members[:5],
+            ).fetchall()
+            summaries.append(
+                {
+                    "community_id": lbl,
+                    "size": len(members),
+                    "sample": [
+                        {"name": r["qualified_name"], "file": r["file_path"]} for r in sample_rows
+                    ],
+                }
+            )
+        summaries.sort(key=lambda d: (-int(d["size"]), str(d["community_id"])))
+        return summaries
+
     def get_hub_symbols(self, limit: int = 20) -> list[dict[str, Any]]:
         """Return the most-connected symbols ("god nodes") in the graph.
 

@@ -612,6 +612,55 @@ def test_find_path_skips_external_nodes(graph_store: GraphStore) -> None:
     assert all("<external>" not in node for node in path)
 
 
+# --- Community detection ---
+
+
+def test_detect_communities_empty_graph(graph_store: GraphStore) -> None:
+    assert graph_store.detect_communities() == {}
+
+
+def test_detect_communities_ignores_isolated_symbols(graph_store: GraphStore) -> None:
+    """Symbols with no relationships should not appear in the labels dict."""
+    lonely = _make_symbol("lonely", file_path="a.py")
+    graph_store.upsert_parse_result(_make_result("a.py", [lonely]))
+    assert graph_store.detect_communities() == {}
+
+
+def test_detect_communities_groups_connected_nodes(graph_store: GraphStore) -> None:
+    """Two disconnected cliques should end up with two distinct labels."""
+    # Clique 1: a ↔ b
+    a = _make_symbol("a", file_path="c1.py")
+    b = _make_symbol("b", file_path="c1.py")
+    # Clique 2: c ↔ d
+    c = _make_symbol("c", file_path="c2.py")
+    d = _make_symbol("d", file_path="c2.py")
+    rels1 = [_make_relationship(a.id, b.id, file_path="c1.py")]
+    rels2 = [_make_relationship(c.id, d.id, file_path="c2.py")]
+    graph_store.upsert_parse_result(_make_result("c1.py", [a, b], rels1))
+    graph_store.upsert_parse_result(_make_result("c2.py", [c, d], rels2))
+
+    labels = graph_store.detect_communities()
+    # a and b share a label, c and d share a label, but the two groups differ
+    assert labels[a.id] == labels[b.id]
+    assert labels[c.id] == labels[d.id]
+    assert labels[a.id] != labels[c.id]
+
+
+def test_get_community_summary_respects_min_size(graph_store: GraphStore) -> None:
+    a = _make_symbol("a", file_path="x.py")
+    b = _make_symbol("b", file_path="x.py")
+    rels = [_make_relationship(a.id, b.id, file_path="x.py")]
+    graph_store.upsert_parse_result(_make_result("x.py", [a, b], rels))
+
+    # Size 2 community should be filtered out when min_size=3
+    assert graph_store.get_community_summary(min_size=3) == []
+    # But included when min_size=2
+    summaries = graph_store.get_community_summary(min_size=2)
+    assert len(summaries) == 1
+    assert summaries[0]["size"] == 2
+    assert len(summaries[0]["sample"]) == 2
+
+
 # --- Hub symbols (god nodes) ---
 
 

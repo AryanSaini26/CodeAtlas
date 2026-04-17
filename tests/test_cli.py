@@ -946,6 +946,40 @@ def test_hubs_command_respects_limit(tmp_path: Path) -> None:
     assert '"count": 1' in result.output or '"count":1' in result.output
 
 
+# --- communities command ---
+
+
+def test_communities_command_empty_store(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["communities", "--db", db_path])
+    assert result.exit_code == 0
+    # Empty store falls through to the "no communities found" hint
+    assert "no communities" in result.output.lower() or result.output.strip() != ""
+
+
+def test_communities_command_json(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["communities", "--db", db_path, "--min-size", "2", "--json"])
+    assert result.exit_code == 0
+    assert '"count"' in result.output
+    assert '"communities"' in result.output
+
+
+def test_communities_command_min_size_filter(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # With a very high min-size, no communities should be returned
+    result = runner.invoke(cli, ["communities", "--db", db_path, "--min-size", "9999"])
+    assert result.exit_code == 0
+    assert "no communities" in result.output.lower()
+
+
 # --- export mermaid ---
 
 

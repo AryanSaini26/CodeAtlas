@@ -192,6 +192,8 @@ AST-proven facts apart from heuristic guesses:
 | `codeatlas hotspots [path] --json` | Output hotspots as JSON |
 | `codeatlas hubs` | Show hub symbols — the most-connected ("god") nodes in the graph |
 | `codeatlas hubs --json` | Output hub symbols as JSON |
+| `codeatlas communities` | Detect tightly-connected subsystems via label propagation |
+| `codeatlas communities --json` | Output community groupings as JSON |
 | `codeatlas coverage-gaps` | Show public symbols with zero test coverage |
 | `codeatlas report [path]` | Generate a full health report (cycles, dead code, hotspots, gaps) |
 | `codeatlas report [path] --json` | Output health report as JSON |
