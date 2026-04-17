@@ -87,8 +87,51 @@ def index(repo_path: str, db: str, incremental: bool, watch: bool) -> None:
 @cli.command()
 @click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
-def diff(repo_path: str, db: str) -> None:
-    """Show files that changed since the last index."""
+@click.option(
+    "--since",
+    default=None,
+    help="Git ref; when set, show symbol-level diff (added/removed/modified) vs this ref",
+)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON (only with --since)")
+def diff(repo_path: str, db: str, since: str | None, as_json: bool) -> None:
+    """Show files (or symbols with --since) that changed since a reference point.
+
+    Without --since: compares current file hashes against the indexed DB.
+    With --since <ref>: re-parses the old and new versions of each changed
+    file and classifies symbols as added / removed / modified.
+    """
+    if since:
+        import json as _json
+
+        from codeatlas.git_integration import compute_symbol_diff
+
+        result = compute_symbol_diff(Path(repo_path), since_ref=since)
+
+        if as_json:
+            console.print(_json.dumps(result, indent=2))
+            return
+
+        totals = {k: len(v) for k, v in result.items()}
+        if not any(totals.values()):
+            console.print(f"[dim]No symbol-level changes since {since}.[/dim]")
+            return
+        if result["added"]:
+            console.print(f"[green]Added ({totals['added']}):[/green]")
+            for s in result["added"]:
+                console.print(f"  + {s['name']}  [dim]{s['kind']}  {s['file']}[/dim]")
+        if result["removed"]:
+            console.print(f"[red]Removed ({totals['removed']}):[/red]")
+            for s in result["removed"]:
+                console.print(f"  - {s['name']}  [dim]{s['kind']}  {s['file']}[/dim]")
+        if result["modified"]:
+            console.print(f"[yellow]Modified ({totals['modified']}):[/yellow]")
+            for s in result["modified"]:
+                console.print(
+                    f"  ~ {s['name']}  [dim]{s['kind']}  {s['file']}"
+                    f" (line {s['old_line']} -> {s['new_line']})[/dim]"
+                )
+        return
+
     import hashlib
 
     config = CodeAtlasConfig.find_and_load(Path(repo_path))

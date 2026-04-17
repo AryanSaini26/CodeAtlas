@@ -5,7 +5,10 @@ from unittest.mock import patch
 
 from codeatlas.git_integration import (
     analyze_change_impact,
+    compute_symbol_diff,
+    get_file_at_ref,
     get_git_changed_files,
+    get_git_changed_files_range,
     get_git_churn,
     get_git_diff_lines,
 )
@@ -354,3 +357,100 @@ def test_analyze_skips_changed_symbol_in_affected(
     changed_ids = {cs.symbol.id for cs in impact.changed_symbols}
     affected_ids = {s.id for s in impact.affected_symbols}
     assert not (changed_ids & affected_ids), "Changed symbols must not appear in affected"
+
+
+# --- symbol-level diff ---
+
+
+def _init_git_repo(tmp_path: Path) -> None:
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Tester"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "commit.gpgsign", "false"], cwd=tmp_path, check=True)
+
+
+def _git_commit_all(tmp_path: Path, message: str) -> str:
+    import subprocess
+
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", message], cwd=tmp_path, check=True)
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def test_get_file_at_ref_missing_file_returns_none(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    (tmp_path / "a.py").write_text("def a(): pass\n")
+    _git_commit_all(tmp_path, "init")
+    assert get_file_at_ref(tmp_path, "HEAD", "does_not_exist.py") is None
+
+
+def test_get_file_at_ref_returns_contents(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    (tmp_path / "a.py").write_text("def a(): pass\n")
+    _git_commit_all(tmp_path, "init")
+    assert "def a()" in (get_file_at_ref(tmp_path, "HEAD", "a.py") or "")
+
+
+def test_get_git_changed_files_range(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    (tmp_path / "a.py").write_text("def a(): pass\n")
+    base = _git_commit_all(tmp_path, "base")
+    (tmp_path / "b.py").write_text("def b(): pass\n")
+    _git_commit_all(tmp_path, "add b")
+    files = get_git_changed_files_range(tmp_path, base, "HEAD")
+    assert "b.py" in files
+
+
+def test_compute_symbol_diff_detects_added_removed_modified(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    (tmp_path / "a.py").write_text(
+        "def keep():\n    return 1\n\ndef will_remove():\n    return 2\n"
+    )
+    base = _git_commit_all(tmp_path, "base")
+
+    # Modify: change keep's body so start/end lines shift. Remove will_remove. Add added().
+    (tmp_path / "a.py").write_text(
+        "def added():\n    return 0\n\n"
+        "def keep():\n    return 1\n    # extra line to shift span\n    return 2\n"
+    )
+    _git_commit_all(tmp_path, "modify")
+
+    result = compute_symbol_diff(tmp_path, since_ref=base)
+    names_added = {s["name"] for s in result["added"]}
+    names_removed = {s["name"] for s in result["removed"]}
+    names_modified = {s["name"] for s in result["modified"]}
+    assert "added" in names_added
+    assert "will_remove" in names_removed
+    assert "keep" in names_modified
+
+
+def test_compute_symbol_diff_ignores_unknown_language(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    (tmp_path / "notes.txt").write_text("hello\n")
+    base = _git_commit_all(tmp_path, "base")
+    (tmp_path / "notes.txt").write_text("goodbye\n")
+    _git_commit_all(tmp_path, "modify")
+
+    result = compute_symbol_diff(tmp_path, since_ref=base)
+    assert result == {"added": [], "removed": [], "modified": []}
+
+
+def test_compute_symbol_diff_handles_new_file(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    (tmp_path / "seed.py").write_text("x = 1\n")
+    base = _git_commit_all(tmp_path, "seed")
+    (tmp_path / "fresh.py").write_text("def fresh():\n    return 1\n")
+    _git_commit_all(tmp_path, "add fresh")
+
+    result = compute_symbol_diff(tmp_path, since_ref=base)
+    names_added = {s["name"] for s in result["added"]}
+    assert "fresh" in names_added

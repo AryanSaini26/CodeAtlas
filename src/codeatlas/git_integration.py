@@ -157,6 +157,135 @@ def analyze_change_impact(
     )
 
 
+def get_file_at_ref(repo_path: Path, ref: str, file_path: str) -> str | None:
+    """Return the contents of ``file_path`` at the given git ``ref``.
+
+    Returns None when the file did not exist at that ref (so callers can
+    treat it as a pure "added" file in diff reports).
+    """
+    try:
+        result = subprocess.run(
+            ["git", "show", f"{ref}:{file_path}"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
+def get_git_changed_files_range(
+    repo_path: Path, since_ref: str, until_ref: str = "HEAD"
+) -> list[str]:
+    """List files changed between ``since_ref`` and ``until_ref``.
+
+    Uses ``git diff since..until`` (two-dot range) so only files with
+    committed changes on the until side show up. Untracked/working-tree
+    changes are ignored; callers that need those should use
+    ``get_git_changed_files``.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "diff",
+                "--name-only",
+                "--diff-filter=ACMRD",
+                f"{since_ref}..{until_ref}",
+            ],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return [f.strip() for f in result.stdout.splitlines() if f.strip()]
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return []
+
+
+def compute_symbol_diff(
+    repo_path: Path,
+    since_ref: str,
+    until_ref: str = "HEAD",
+) -> dict[str, list[dict[str, Any]]]:
+    """Compare symbols between two git refs.
+
+    Parses the old and new versions of every changed file with the
+    project's parser registry and classifies each symbol (by its
+    qualified_name) as added, removed, or modified. "Modified" means
+    the qualified_name exists in both versions but the signature or
+    line span changed.
+
+    Returns::
+
+        {
+          "added":    [{"name", "kind", "file"}, ...],
+          "removed":  [{"name", "kind", "file"}, ...],
+          "modified": [{"name", "kind", "file", "old_line", "new_line"}, ...],
+        }
+    """
+    from codeatlas.parsers import ParserRegistry
+
+    registry = ParserRegistry()
+    repo = Path(repo_path).resolve()
+    changed = get_git_changed_files_range(repo, since_ref, until_ref)
+    added: list[dict[str, Any]] = []
+    removed: list[dict[str, Any]] = []
+    modified: list[dict[str, Any]] = []
+
+    for rel_path in changed:
+        parser = registry.get_parser(Path(rel_path))
+        if parser is None:
+            continue
+
+        old_source = get_file_at_ref(repo, since_ref, rel_path)
+        new_source: str | None
+        if until_ref in ("HEAD", "WORKTREE"):
+            abs_path = repo / rel_path
+            new_source = abs_path.read_text(errors="replace") if abs_path.exists() else None
+        else:
+            new_source = get_file_at_ref(repo, until_ref, rel_path)
+
+        old_result = parser.parse_source(old_source, rel_path) if old_source is not None else None
+        new_result = parser.parse_source(new_source, rel_path) if new_source is not None else None
+
+        old_map: dict[str, Symbol] = (
+            {s.qualified_name: s for s in old_result.symbols} if old_result else {}
+        )
+        new_map: dict[str, Symbol] = (
+            {s.qualified_name: s for s in new_result.symbols} if new_result else {}
+        )
+
+        for qn, sym in new_map.items():
+            if qn not in old_map:
+                added.append({"name": qn, "kind": sym.kind.value, "file": rel_path})
+        for qn, sym in old_map.items():
+            if qn not in new_map:
+                removed.append({"name": qn, "kind": sym.kind.value, "file": rel_path})
+        for qn, new_sym in new_map.items():
+            if qn not in old_map:
+                continue
+            old_sym = old_map[qn]
+            if (
+                old_sym.signature != new_sym.signature
+                or old_sym.span.start.line != new_sym.span.start.line
+                or old_sym.span.end.line != new_sym.span.end.line
+            ):
+                modified.append(
+                    {
+                        "name": qn,
+                        "kind": new_sym.kind.value,
+                        "file": rel_path,
+                        "old_line": old_sym.span.start.line + 1,
+                        "new_line": new_sym.span.start.line + 1,
+                    }
+                )
+
+    return {"added": added, "removed": removed, "modified": modified}
+
+
 def get_git_churn(repo_path: Path, limit: int = 100) -> list[dict[str, Any]]:
     """Count how many commits touched each file (scans up to 1000 commits).
 

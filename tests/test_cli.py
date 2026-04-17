@@ -415,6 +415,32 @@ def test_diff_modified_file(tmp_path: Path) -> None:
     assert "modified" in result.output.lower()
 
 
+def test_diff_since_ref_symbol_level(tmp_path: Path) -> None:
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Tester"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "commit.gpgsign", "false"], cwd=tmp_path, check=True)
+    (tmp_path / "a.py").write_text("def a():\n    return 1\n\ndef gone():\n    return 0\n")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=tmp_path, check=True)
+    (tmp_path / "a.py").write_text("def a():\n    return 2\n\ndef fresh():\n    return 3\n")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "change"], cwd=tmp_path, check=True)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["diff", str(tmp_path), "--since", "HEAD~1", "--json"])
+    assert result.exit_code == 0
+    import json as _json
+
+    data = _json.loads(result.output)
+    added = {s["name"] for s in data["added"]}
+    removed = {s["name"] for s in data["removed"]}
+    assert "fresh" in added
+    assert "gone" in removed
+
+
 # --- list-files command ---
 
 

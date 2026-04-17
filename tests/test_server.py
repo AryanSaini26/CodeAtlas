@@ -41,6 +41,7 @@ from codeatlas.server import (
     get_symbol_context,
     get_symbol_coverage,
     get_symbol_details,
+    get_symbol_diff,
     get_symbol_history,
     list_symbols_by_kind,
     search_symbols,
@@ -496,6 +497,15 @@ def test_get_pagerank_kind_filter() -> None:
     result = json.loads(get_pagerank(limit=5, kind_filter="class"))
     for r in result["ranking"]:
         assert r["kind"] == "class"
+
+
+def test_get_symbol_diff_handles_non_git_dir(tmp_path: Any) -> None:
+    # Non-git directory: subprocess calls fail gracefully, all three buckets empty.
+    result = json.loads(get_symbol_diff(since_ref="HEAD", repo_path=str(tmp_path)))
+    assert result["since_ref"] == "HEAD"
+    assert result["added"] == []
+    assert result["removed"] == []
+    assert result["modified"] == []
 
 
 def test_get_hotspots_no_git(tmp_path: Any) -> None:

@@ -645,6 +645,35 @@ def get_symbol_history(
 
 
 @mcp.tool()
+def get_symbol_diff(since_ref: str, repo_path: str = ".") -> str:
+    """Compare symbols between a git ref and the current working tree.
+
+    Classifies every symbol in files that changed as added, removed, or
+    modified (qualified_name exists in both versions but the span or
+    signature changed). Much more precise than file-level diffs when you
+    want to answer "what functions did this branch actually change?"
+
+    Args:
+        since_ref: Git ref to compare against (commit SHA, branch, or HEAD~N)
+        repo_path: Path to the git repository (default: current directory)
+    """
+    from pathlib import Path as _Path
+
+    from codeatlas.git_integration import compute_symbol_diff
+
+    result = compute_symbol_diff(_Path(repo_path), since_ref=since_ref)
+    return json.dumps(
+        {
+            "since_ref": since_ref,
+            "added": result["added"],
+            "removed": result["removed"],
+            "modified": result["modified"],
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
 def get_pagerank(limit: int = 20, kind_filter: str | None = None) -> str:
     """Rank symbols by PageRank importance.
 
