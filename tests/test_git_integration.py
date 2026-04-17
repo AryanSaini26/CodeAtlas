@@ -344,7 +344,10 @@ def test_analyze_skips_changed_symbol_in_affected(
 
     # Both caller and callee are in the changed file
     mock_changed_files.return_value = ["app.py"]
-    mock_diff_lines.return_value = [2, 11]  # covers both symbols (1-indexed lines, spans start_line+1)
+    mock_diff_lines.return_value = [
+        2,
+        11,
+    ]  # covers both symbols (1-indexed lines, spans start_line+1)
 
     impact = analyze_change_impact(store, Path("/repo"))
     # callee appears in changed_symbols, so it shouldn't also appear in affected_symbols

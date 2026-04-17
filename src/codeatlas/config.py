@@ -47,6 +47,11 @@ class ParserConfig(BaseModel):
             ".zig",
             ".ml",
             ".mli",
+            ".jl",
+            ".ps1",
+            ".psm1",
+            ".psd1",
+            ".svelte",
         ],
         description="File extensions to parse",
     )

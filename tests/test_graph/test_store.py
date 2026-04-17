@@ -556,14 +556,18 @@ def test_find_symbols_by_decorator_with_file_filter(graph_store: GraphStore) -> 
 
     graph_store.upsert_parse_result(
         ParseResult(
-            file_info=FileInfo(path="cache.py", language="python", content_hash="a", symbol_count=1),
+            file_info=FileInfo(
+                path="cache.py", language="python", content_hash="a", symbol_count=1
+            ),
             symbols=[sym_a_with_dec],
             relationships=[],
         )
     )
     graph_store.upsert_parse_result(
         ParseResult(
-            file_info=FileInfo(path="other.py", language="python", content_hash="b", symbol_count=1),
+            file_info=FileInfo(
+                path="other.py", language="python", content_hash="b", symbol_count=1
+            ),
             symbols=[sym_b_with_dec],
             relationships=[],
         )

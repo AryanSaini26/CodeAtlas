@@ -235,9 +235,7 @@ def test_push_nonexistent_file_skipped(webhook_client: TestClient) -> None:
 # --- parse error counted ---
 
 
-def test_push_parse_error_counted(
-    webhook_client: TestClient, repo_with_files: Path
-) -> None:
+def test_push_parse_error_counted(webhook_client: TestClient, repo_with_files: Path) -> None:
     (repo_with_files / "errfile.py").write_text("x = 1\n")
     payload = {"commits": [{"added": ["errfile.py"], "modified": [], "removed": []}]}
 

@@ -1,6 +1,5 @@
 """Tests for codeatlas.search lazy-import __init__."""
 
-
 import pytest
 
 

@@ -1032,9 +1032,7 @@ def test_audit_with_cycles(tmp_path: Path) -> None:
         source_id=b.id, target_id=a.id, kind=RelationshipKind.CALLS, file_path="cycle.py"
     )
     result = ParseResult(
-        file_info=FileInfo(
-            path="cycle.py", language="python", content_hash="x", symbol_count=2
-        ),
+        file_info=FileInfo(path="cycle.py", language="python", content_hash="x", symbol_count=2),
         symbols=[a, b],
         relationships=[rel_ab, rel_ba],
     )
@@ -1077,9 +1075,7 @@ def test_viz_open_browser(tmp_path: Path) -> None:
     runner.invoke(cli, ["index", str(repo), "--db", db_path])
     out_html = str(tmp_path / "graph.html")
     with patch("webbrowser.open") as mock_open:
-        result = runner.invoke(
-            cli, ["viz", "--db", db_path, "-o", out_html, "--open"]
-        )
+        result = runner.invoke(cli, ["viz", "--db", db_path, "-o", out_html, "--open"])
     assert result.exit_code == 0
     mock_open.assert_called_once()
 
@@ -1116,9 +1112,7 @@ def test_report_with_cycles(tmp_path: Path) -> None:
 
     a, b = _sym("foo"), _sym("bar")
     result = ParseResult(
-        file_info=FileInfo(
-            path="rpt.py", language="python", content_hash="z", symbol_count=2
-        ),
+        file_info=FileInfo(path="rpt.py", language="python", content_hash="z", symbol_count=2),
         symbols=[a, b],
         relationships=[
             Relationship(

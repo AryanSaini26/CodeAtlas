@@ -14,7 +14,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for 21 languages: Python, TypeScript/TSX, Go, Rust, Java, C, C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, and OCaml
+- **Multi-language parsing** - Tree-sitter AST parsing for 24 languages: Python, TypeScript/TSX, Go, Rust, Java, C, C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, and Svelte
 - **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
 - **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
 - **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
@@ -105,6 +105,9 @@ pip install codeatlas[all]
 | **C** | `.c` | Functions, typedef structs/enums (CLASS), type aliases, includes (IMPORT), call relationships |
 | **Zig** | `.zig` | Functions, structs/enums/unions (CLASS), `@import` (IMPORT), UPPER_CASE constants, call relationships |
 | **OCaml** | `.ml`, `.mli` | Functions (`let`), types (CLASS), modules (MODULE), module methods, `open` imports, call relationships |
+| **Julia** | `.jl` | Modules, structs (CLASS), abstract types (INTERFACE), functions, macros, `import`/`using`, constants, `#` doc comments |
+| **PowerShell** | `.ps1`, `.psm1`, `.psd1` | Functions, classes, methods, constructors, `#` doc comments, cmdlet call relationships |
+| **Svelte** | `.svelte` | Component (CLASS), `<script>` functions, arrow functions, `import` statements, call relationships |
 
 ## Configuration
 

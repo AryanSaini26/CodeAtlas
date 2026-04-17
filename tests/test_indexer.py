@@ -257,9 +257,7 @@ def test_index_files_parse_error_counted(
     """Cover the except Exception path in _index_files."""
     indexer, _store = indexer_and_store
 
-    with patch.object(
-        indexer._registry, "parse_file", side_effect=RuntimeError("bad parse")
-    ):
+    with patch.object(indexer._registry, "parse_file", side_effect=RuntimeError("bad parse")):
         files = indexer._discover_files()
         stats = indexer._index_files(files, "Test label")
 
