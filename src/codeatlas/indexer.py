@@ -9,6 +9,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from codeatlas.config import CodeAtlasConfig
 from codeatlas.graph.store import GraphStore
+from codeatlas.ignore import load_ignore_file
 from codeatlas.models import ParseResult
 from codeatlas.parsers import ParserRegistry
 
@@ -61,6 +62,7 @@ class RepoIndexer:
         exclude = set(self._config.exclude_dirs)
         max_kb = self._config.parser.max_file_size_kb
         extensions = set(self._config.parser.include_extensions)
+        ignore = load_ignore_file(root)
 
         result: list[Path] = []
         for path in root.rglob("*"):
@@ -71,6 +73,9 @@ class RepoIndexer:
             if path.suffix.lower() not in extensions:
                 continue
             if path.stat().st_size > max_kb * 1024:
+                continue
+            rel = path.relative_to(root).as_posix()
+            if ignore.is_ignored(rel):
                 continue
             result.append(path)
         return sorted(result)

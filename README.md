@@ -133,6 +133,25 @@ db_path = ".codeatlas/graph.db"
 
 If no config file is found, sensible defaults are used.
 
+### Ignore files with `.codeatlas-ignore`
+
+Place a `.codeatlas-ignore` file in your repository root to exclude specific
+files or directories from indexing. The syntax mirrors `.gitignore`:
+
+```text
+# Skip generated artifacts
+dist/
+build/
+*.log
+
+# Skip a specific file (but re-include one via negation)
+src/generated/
+!src/generated/manifest.ts
+```
+
+Supported: comments (`#`), blank lines, glob patterns (`*`, `**`, `?`),
+directory-only patterns (`foo/`), and negation (`!pattern`).
+
 ## CLI Commands
 
 | Command | Description |
