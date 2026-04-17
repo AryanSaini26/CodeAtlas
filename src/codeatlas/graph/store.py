@@ -73,7 +73,8 @@ class GraphStore:
                 start_line  INTEGER,
                 start_col   INTEGER,
                 end_line    INTEGER,
-                end_col     INTEGER
+                end_col     INTEGER,
+                confidence  TEXT NOT NULL DEFAULT 'extracted'
             );
 
             CREATE INDEX IF NOT EXISTS idx_symbols_file    ON symbols(file_path);
@@ -116,6 +117,7 @@ class GraphStore:
         for stmt in (
             "ALTER TABLE symbols ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE files ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE relationships ADD COLUMN confidence TEXT NOT NULL DEFAULT 'extracted'",
         ):
             try:
                 conn.execute(stmt)
@@ -200,8 +202,8 @@ class GraphStore:
             conn.executemany(
                 """INSERT INTO relationships
                    (source_id, target_id, kind, file_path,
-                    start_line, start_col, end_line, end_col)
-                   VALUES (?,?,?,?,?,?,?,?)""",
+                    start_line, start_col, end_line, end_col, confidence)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
                 [
                     (
                         rel.source_id,
@@ -212,6 +214,7 @@ class GraphStore:
                         rel.span.start.column if rel.span else None,
                         rel.span.end.line if rel.span else None,
                         rel.span.end.column if rel.span else None,
+                        rel.confidence.value,
                     )
                     for rel in result.relationships
                 ],
@@ -504,8 +507,9 @@ class GraphStore:
             last_seg = ref_name.rsplit(".", 1)[-1]
 
             resolved_id: str | None = None
+            confidence: str = "inferred"
 
-            # Pass 1: exact qualified name
+            # Pass 1: exact qualified name (unique → inferred)
             resolved_id = qname_to_id.get(ref_name)
 
             # Pass 2: import-scoped — caller explicitly imports this name → prefer same dir
@@ -522,6 +526,8 @@ class GraphStore:
                     resolved_id = (
                         same_dir[0] if same_dir else (candidates[0][0] if candidates else None)
                     )
+                    if resolved_id is not None and len(candidates) > 1:
+                        confidence = "ambiguous"
 
             # Pass 3: last-segment qualified name
             if resolved_id is None and last_seg != ref_name:
@@ -533,11 +539,22 @@ class GraphStore:
                 if candidates:
                     same_dir = [sid for sid, fp in candidates if fp.startswith(caller_dir)]
                     resolved_id = same_dir[0] if same_dir else candidates[0][0]
+                    if len(candidates) > 1:
+                        confidence = "ambiguous"
+
+            # If a match was made but multiple symbols share the short name, the
+            # heuristic may have silently picked one — tag as ambiguous.
+            if (
+                resolved_id is not None
+                and confidence == "inferred"
+                and len(name_to_symbols.get(last_seg, [])) > 1
+            ):
+                confidence = "ambiguous"
 
             if resolved_id is not None:
                 conn.execute(
-                    "UPDATE relationships SET target_id = ? WHERE id = ?",
-                    (resolved_id, rel_id),
+                    "UPDATE relationships SET target_id = ?, confidence = ? WHERE id = ?",
+                    (resolved_id, confidence, rel_id),
                 )
                 stats["resolved"] += 1
             else:
@@ -972,6 +989,22 @@ class GraphStore:
         rows = conn.execute(sql, params).fetchall()
         return [self._row_to_symbol(r) for r in rows]
 
+    def get_confidence_stats(self) -> dict[str, int]:
+        """Return a breakdown of relationship counts by confidence level.
+
+        Keys are confidence values (``extracted``, ``inferred``, ``ambiguous``).
+        Missing keys default to 0 so callers can unconditionally index.
+        """
+        conn = self._conn
+        rows = conn.execute(
+            "SELECT confidence, COUNT(*) AS cnt FROM relationships GROUP BY confidence"
+        ).fetchall()
+        stats = {"extracted": 0, "inferred": 0, "ambiguous": 0}
+        for r in rows:
+            key = r["confidence"] or "extracted"
+            stats[key] = r["cnt"]
+        return stats
+
     def get_hub_symbols(self, limit: int = 20) -> list[dict[str, Any]]:
         """Return the most-connected symbols ("god nodes") in the graph.
 
@@ -1046,7 +1079,7 @@ class GraphStore:
         )
 
     def _row_to_relationship(self, row: sqlite3.Row) -> Relationship:
-        from codeatlas.models import Position, RelationshipKind, Span
+        from codeatlas.models import Confidence, Position, RelationshipKind, Span
 
         span = None
         if row["start_line"] is not None:
@@ -1054,10 +1087,13 @@ class GraphStore:
                 start=Position(line=row["start_line"], column=row["start_col"]),
                 end=Position(line=row["end_line"], column=row["end_col"]),
             )
+        keys = row.keys()
+        confidence = Confidence(row["confidence"]) if "confidence" in keys else Confidence.EXTRACTED
         return Relationship(
             source_id=row["source_id"],
             target_id=row["target_id"],
             kind=RelationshipKind(row["kind"]),
             file_path=row["file_path"],
             span=span,
+            confidence=confidence,
         )

@@ -697,6 +697,22 @@ def test_report_json_output(tmp_path: Path) -> None:
     assert "coverage_gaps" in result.output
 
 
+def test_report_includes_confidence_breakdown(tmp_path: Path) -> None:
+    """Report should surface the extracted/inferred/ambiguous relationship counts."""
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    # Markdown output
+    result = runner.invoke(cli, ["report", str(repo), "--db", db_path])
+    assert result.exit_code == 0
+    assert "Extracted relationships" in result.output
+    # JSON output
+    result = runner.invoke(cli, ["report", str(repo), "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert "relationship_confidence" in result.output
+
+
 def test_report_writes_to_file(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     db_path = str(tmp_path / "test.db")

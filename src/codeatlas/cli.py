@@ -1069,6 +1069,7 @@ def report(db: str, repo_path: str, as_json: bool, output: str | None) -> None:
     hotspots = store.get_hotspots(repo_path=repo_path, limit=10)
     gaps = store.get_coverage_gaps(limit=50)
     hubs = store.get_hub_symbols(limit=10)
+    confidence = store.get_confidence_stats()
     store.close()
 
     if as_json:
@@ -1078,6 +1079,7 @@ def report(db: str, repo_path: str, as_json: bool, output: str | None) -> None:
             "dead_code": [{"name": s.qualified_name, "file": s.file_path} for s in dead[:20]],
             "hotspots": hotspots[:10],
             "hub_symbols": hubs[:10],
+            "relationship_confidence": confidence,
             "coverage_gaps": [
                 {"name": s.qualified_name, "kind": s.kind.value, "file": s.file_path}
                 for s in gaps[:20]
@@ -1098,6 +1100,9 @@ def report(db: str, repo_path: str, as_json: bool, output: str | None) -> None:
             f"| Dependency cycles | {len(cycles)} |",
             f"| Dead code symbols | {len(dead)} |",
             f"| Uncovered public symbols | {len(gaps)} |",
+            f"| Extracted relationships | {confidence['extracted']} |",
+            f"| Inferred relationships | {confidence['inferred']} |",
+            f"| Ambiguous relationships | {confidence['ambiguous']} |",
             "",
         ]
 

@@ -6,6 +6,7 @@ import pytest
 
 from codeatlas.graph.store import GraphStore
 from codeatlas.models import (
+    Confidence,
     FileInfo,
     ParseResult,
     Position,
@@ -661,6 +662,79 @@ def test_get_hub_symbols_respects_limit(graph_store: GraphStore) -> None:
     results = graph_store.get_hub_symbols(limit=2)
     assert len(results) == 2
     assert results[0]["name"] == "hub"
+
+
+# --- Relationship confidence tagging ---
+
+
+def test_relationship_default_confidence_is_extracted(graph_store: GraphStore) -> None:
+    a = _make_symbol("a", file_path="x.py")
+    b = _make_symbol("b", file_path="x.py")
+    rel = _make_relationship(a.id, b.id, file_path="x.py")
+    graph_store.upsert_parse_result(_make_result("x.py", [a, b], [rel]))
+
+    rels = graph_store.get_dependencies(a.id)
+    assert len(rels) == 1
+    assert rels[0].confidence == Confidence.EXTRACTED
+
+
+def test_get_confidence_stats_empty(graph_store: GraphStore) -> None:
+    stats = graph_store.get_confidence_stats()
+    assert stats == {"extracted": 0, "inferred": 0, "ambiguous": 0}
+
+
+def test_get_confidence_stats_counts(graph_store: GraphStore) -> None:
+    a = _make_symbol("a", file_path="x.py")
+    b = _make_symbol("b", file_path="x.py")
+    rel = _make_relationship(a.id, b.id, file_path="x.py")
+    graph_store.upsert_parse_result(_make_result("x.py", [a, b], [rel]))
+
+    stats = graph_store.get_confidence_stats()
+    assert stats["extracted"] == 1
+    assert stats["inferred"] == 0
+    assert stats["ambiguous"] == 0
+
+
+def test_resolve_imports_tags_inferred_for_unique_match(graph_store: GraphStore) -> None:
+    """When an unresolved target matches exactly one candidate by name, mark INFERRED."""
+    caller = _make_symbol("caller", file_path="a.py")
+    target = _make_symbol("helper", file_path="b.py")
+    # Emit a relationship with an unresolved target (as parsers do for cross-file refs)
+    rel = Relationship(
+        source_id=caller.id,
+        target_id="<unresolved>::helper",
+        kind=RelationshipKind.CALLS,
+        file_path="a.py",
+    )
+    graph_store.upsert_parse_result(_make_result("a.py", [caller], [rel]))
+    graph_store.upsert_parse_result(_make_result("b.py", [target]))
+
+    stats = graph_store.resolve_imports()
+    assert stats["resolved"] == 1
+
+    conf = graph_store.get_confidence_stats()
+    assert conf["inferred"] == 1
+    assert conf["ambiguous"] == 0
+
+
+def test_resolve_imports_tags_ambiguous_for_multiple_matches(graph_store: GraphStore) -> None:
+    """Multiple candidate targets with same name → AMBIGUOUS."""
+    caller = _make_symbol("caller", file_path="a.py")
+    t1 = _make_symbol("helper", file_path="b.py")
+    t2 = _make_symbol("helper", file_path="c.py")
+    rel = Relationship(
+        source_id=caller.id,
+        target_id="<unresolved>::helper",
+        kind=RelationshipKind.CALLS,
+        file_path="a.py",
+    )
+    graph_store.upsert_parse_result(_make_result("a.py", [caller], [rel]))
+    graph_store.upsert_parse_result(_make_result("b.py", [t1]))
+    graph_store.upsert_parse_result(_make_result("c.py", [t2]))
+
+    graph_store.resolve_imports()
+    conf = graph_store.get_confidence_stats()
+    assert conf["ambiguous"] == 1
 
 
 def test_get_hub_symbols_excludes_imports_and_variables(graph_store: GraphStore) -> None:

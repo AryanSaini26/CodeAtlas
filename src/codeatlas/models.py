@@ -29,6 +29,22 @@ class RelationshipKind(StrEnum):
     REFERENCES = "references"
 
 
+class Confidence(StrEnum):
+    """How trustworthy a relationship's target resolution is.
+
+    - ``EXTRACTED`` — the target was directly present in the parser output
+      (same-file resolution or verbatim ID match). Highest confidence.
+    - ``INFERRED`` — the target was resolved by name-lookup with a single
+      unambiguous match. Likely correct but not AST-proven.
+    - ``AMBIGUOUS`` — multiple candidate targets existed; a heuristic
+      chose one. Treat with caution.
+    """
+
+    EXTRACTED = "extracted"
+    INFERRED = "inferred"
+    AMBIGUOUS = "ambiguous"
+
+
 class Position(BaseModel):
     line: int
     column: int
@@ -63,6 +79,7 @@ class Relationship(BaseModel):
     kind: RelationshipKind
     file_path: str
     span: Span | None = None
+    confidence: Confidence = Confidence.EXTRACTED
 
 
 class FileInfo(BaseModel):

@@ -152,6 +152,20 @@ src/generated/
 Supported: comments (`#`), blank lines, glob patterns (`*`, `**`, `?`),
 directory-only patterns (`foo/`), and negation (`!pattern`).
 
+### Relationship confidence
+
+Every edge in the graph is tagged with a confidence level so agents can tell
+AST-proven facts apart from heuristic guesses:
+
+| Confidence | Meaning |
+|------------|---------|
+| `extracted` | Directly present in the parser output (same-file resolution). Trust. |
+| `inferred`  | Resolved by unique name lookup across files. Likely correct. |
+| `ambiguous` | Multiple candidate targets existed; a heuristic chose one. Treat with caution. |
+
+`codeatlas report` surfaces the counts; the raw stats are also available via
+`GraphStore.get_confidence_stats()`.
+
 ## CLI Commands
 
 | Command | Description |
