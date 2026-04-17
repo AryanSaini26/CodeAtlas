@@ -133,7 +133,12 @@ db_path = ".codeatlas/graph.db"
 
 If no config file is found, sensible defaults are used.
 
-### Ignore files with `.codeatlas-ignore`
+### Ignore files with `.gitignore` / `.codeatlas-ignore`
+
+CodeAtlas automatically honors the repo's `.gitignore` (if present). Add a
+`.codeatlas-ignore` in the repo root when you need extra rules or to negate
+gitignore entries; its patterns are applied after the gitignore rules and
+can override them.
 
 Place a `.codeatlas-ignore` file in your repository root to exclude specific
 files or directories from indexing. The syntax mirrors `.gitignore`:

@@ -103,6 +103,50 @@ def test_suffix_path_match() -> None:
     assert m.is_ignored("app/dist/bundle.js")
 
 
+def test_leading_slash_stripped(tmp_path: Path) -> None:
+    """A gitignore-style ``/build`` pattern is treated like ``build``."""
+    m = IgnoreMatcher(["/build/"])
+    assert m.is_ignored("build", is_dir=True)
+    assert m.is_ignored("src/build", is_dir=True)
+
+
+def test_load_gitignore_only(tmp_path: Path) -> None:
+    (tmp_path / ".gitignore").write_text("node_modules/\n*.pyc\n")
+    matcher = load_ignore_file(tmp_path)
+    assert matcher.is_ignored("node_modules", is_dir=True)
+    assert matcher.is_ignored("app.pyc")
+    assert not matcher.is_ignored("app.py")
+
+
+def test_load_combines_gitignore_and_codeatlas_ignore(tmp_path: Path) -> None:
+    (tmp_path / ".gitignore").write_text("*.log\n")
+    (tmp_path / ".codeatlas-ignore").write_text("!important.log\nsecret.env\n")
+    matcher = load_ignore_file(tmp_path)
+    assert matcher.is_ignored("debug.log")
+    assert matcher.is_ignored("secret.env")
+    # codeatlas-ignore negation overrides the gitignore match
+    assert not matcher.is_ignored("important.log")
+
+
+def test_indexer_respects_gitignore(tmp_path: Path) -> None:
+    """Indexer honors .gitignore even when no .codeatlas-ignore exists."""
+    from codeatlas.config import CodeAtlasConfig
+    from codeatlas.graph.store import GraphStore
+    from codeatlas.indexer import RepoIndexer
+
+    (tmp_path / "app.py").write_text("def main(): pass\n")
+    (tmp_path / "secret.py").write_text("TOKEN = '...'\n")
+    (tmp_path / ".gitignore").write_text("secret.py\n")
+
+    config = CodeAtlasConfig(repo_root=tmp_path)
+    store = GraphStore(":memory:")
+    indexer = RepoIndexer(config, store)
+    files = indexer._discover_files()
+    names = {f.name for f in files}
+    assert "app.py" in names
+    assert "secret.py" not in names
+
+
 def test_indexer_respects_codeatlas_ignore(tmp_path: Path) -> None:
     """End-to-end: indexer's _discover_files honors the ignore file."""
     from codeatlas.config import CodeAtlasConfig

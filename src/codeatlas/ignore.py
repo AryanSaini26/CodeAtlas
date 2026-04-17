@@ -1,4 +1,4 @@
-"""Support for `.codeatlas-ignore` files (gitignore-style syntax).
+"""Support for `.codeatlas-ignore` and `.gitignore` files (gitignore-style syntax).
 
 Patterns are matched against repo-relative paths (using forward slashes).
 Supports:
@@ -7,9 +7,14 @@ Supports:
 - Glob patterns: `*`, `**`, `?`
 - Directory-only patterns ending in `/`
 - Negation patterns starting with `!`
+- Leading `/` on a pattern (anchor at repo root) is stripped; the pattern
+  still matches at any depth.
 
-Does NOT implement the full gitignore spec (e.g. anchoring with leading `/`
-or character classes beyond basic glob).
+Patterns from `.gitignore` are loaded first; `.codeatlas-ignore` patterns
+(when present) are appended and may negate/override gitignore rules.
+
+Does NOT implement the full gitignore spec (e.g. character classes beyond
+basic glob, per-directory `.gitignore` files nested in subfolders).
 """
 
 from __future__ import annotations
@@ -30,6 +35,11 @@ class IgnoreMatcher:
                 continue
             negated = pattern.startswith("!")
             if negated:
+                pattern = pattern[1:]
+            # Leading "/" anchors the pattern at the repo root in gitignore;
+            # we strip it and let the matcher treat the remaining glob as
+            # "match at any depth." Close enough for the common cases.
+            if pattern.startswith("/"):
                 pattern = pattern[1:]
             dir_only = pattern.endswith("/")
             if dir_only:
@@ -84,13 +94,22 @@ def _matches(rel_path: str, pattern: str) -> bool:
     return False
 
 
-def load_ignore_file(repo_root: Path) -> IgnoreMatcher:
-    """Load ``.codeatlas-ignore`` from the repo root, or return an empty matcher."""
-    ignore_path = repo_root / ".codeatlas-ignore"
-    if not ignore_path.exists():
-        return IgnoreMatcher([])
+def _read_pattern_file(path: Path) -> list[str]:
+    if not path.exists():
+        return []
     try:
-        lines = ignore_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        return path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
-        return IgnoreMatcher([])
-    return IgnoreMatcher(lines)
+        return []
+
+
+def load_ignore_file(repo_root: Path) -> IgnoreMatcher:
+    """Load ignore patterns from ``.gitignore`` and ``.codeatlas-ignore``.
+
+    Both files are optional. Patterns from ``.gitignore`` are applied first,
+    then ``.codeatlas-ignore`` (so project-specific ignores can add or
+    negate the gitignore defaults).
+    """
+    patterns = _read_pattern_file(repo_root / ".gitignore")
+    patterns.extend(_read_pattern_file(repo_root / ".codeatlas-ignore"))
+    return IgnoreMatcher(patterns)
