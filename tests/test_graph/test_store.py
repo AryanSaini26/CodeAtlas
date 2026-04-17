@@ -800,3 +800,65 @@ def test_get_hub_symbols_excludes_imports_and_variables(graph_store: GraphStore)
     kinds = {r["kind"] for r in results}
     assert "import" not in kinds
     assert "variable" not in kinds
+
+
+# --- PageRank ---
+
+
+def test_pagerank_empty_store(graph_store: GraphStore) -> None:
+    assert graph_store.compute_pagerank() == {}
+
+
+def test_pagerank_no_edges(graph_store: GraphStore) -> None:
+    sym = _make_symbol("lonely", file_path="a.py")
+    graph_store.upsert_parse_result(_make_result("a.py", [sym]))
+    assert graph_store.compute_pagerank() == {}
+
+
+def test_pagerank_sums_to_one(graph_store: GraphStore) -> None:
+    hub = _make_symbol("hub", file_path="h.py")
+    a = _make_symbol("a", file_path="a.py")
+    b = _make_symbol("b", file_path="b.py")
+    rels = [
+        _make_relationship(a.id, hub.id, file_path="a.py"),
+        _make_relationship(b.id, hub.id, file_path="b.py"),
+    ]
+    graph_store.upsert_parse_result(_make_result("h.py", [hub]))
+    graph_store.upsert_parse_result(_make_result("a.py", [a], [rels[0]]))
+    graph_store.upsert_parse_result(_make_result("b.py", [b], [rels[1]]))
+    ranks = graph_store.compute_pagerank()
+    assert abs(sum(ranks.values()) - 1.0) < 1e-3
+
+
+def test_pagerank_hub_outranks_callers(graph_store: GraphStore) -> None:
+    hub = _make_symbol("hub", file_path="h.py")
+    callers = [_make_symbol(f"c{i}", file_path=f"c{i}.py") for i in range(5)]
+    rels = [_make_relationship(c.id, hub.id, file_path=c.file_path) for c in callers]
+    graph_store.upsert_parse_result(_make_result("h.py", [hub]))
+    for c, r in zip(callers, rels):
+        graph_store.upsert_parse_result(_make_result(c.file_path, [c], [r]))
+    ranks = graph_store.compute_pagerank()
+    assert ranks[hub.id] > max(ranks[c.id] for c in callers)
+
+
+def test_pagerank_ranking_orders_desc_and_respects_limit(graph_store: GraphStore) -> None:
+    hub = _make_symbol("hub", file_path="h.py")
+    callers = [_make_symbol(f"c{i}", file_path=f"c{i}.py") for i in range(3)]
+    rels = [_make_relationship(c.id, hub.id, file_path=c.file_path) for c in callers]
+    graph_store.upsert_parse_result(_make_result("h.py", [hub]))
+    for c, r in zip(callers, rels):
+        graph_store.upsert_parse_result(_make_result(c.file_path, [c], [r]))
+    ranking = graph_store.get_pagerank_ranking(limit=2)
+    assert len(ranking) == 2
+    assert ranking[0]["score"] >= ranking[1]["score"]
+    assert ranking[0]["name"] == "hub"
+
+
+def test_pagerank_ranking_kind_filter(graph_store: GraphStore) -> None:
+    cls = _make_symbol("Widget", file_path="w.py", kind=SymbolKind.CLASS)
+    fn = _make_symbol("make", file_path="w.py")
+    rel = _make_relationship(fn.id, cls.id, file_path="w.py")
+    graph_store.upsert_parse_result(_make_result("w.py", [cls, fn], [rel]))
+    ranking = graph_store.get_pagerank_ranking(kind_filter="class")
+    assert all(r["kind"] == "class" for r in ranking)
+    assert any(r["name"] == "Widget" for r in ranking)

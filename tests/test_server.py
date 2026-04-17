@@ -37,6 +37,7 @@ from codeatlas.server import (
     get_hotspots,
     get_impact_analysis,
     get_module_overview,
+    get_pagerank,
     get_symbol_context,
     get_symbol_coverage,
     get_symbol_details,
@@ -480,6 +481,21 @@ def test_get_symbol_coverage_not_found() -> None:
 
 
 # --- get_hotspots ---
+
+
+def test_get_pagerank_returns_ranking() -> None:
+    result = json.loads(get_pagerank(limit=5))
+    assert "ranking" in result
+    assert result["count"] == len(result["ranking"])
+    # Scores should be sorted desc
+    scores = [r["score"] for r in result["ranking"]]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_get_pagerank_kind_filter() -> None:
+    result = json.loads(get_pagerank(limit=5, kind_filter="class"))
+    for r in result["ranking"]:
+        assert r["kind"] == "class"
 
 
 def test_get_hotspots_no_git(tmp_path: Any) -> None:

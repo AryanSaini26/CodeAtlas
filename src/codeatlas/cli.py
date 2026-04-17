@@ -902,6 +902,47 @@ def hubs(db: str, limit: int, as_json: bool) -> None:
 
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--limit", default=20, show_default=True, help="Max symbols to show")
+@click.option(
+    "--kind",
+    default=None,
+    help="Filter to one symbol kind (class, function, method, ...)",
+)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def rank(db: str, limit: int, kind: str | None, as_json: bool) -> None:
+    """Rank symbols by PageRank importance.
+
+    Unlike ``hubs`` (raw degree), PageRank weights a symbol by the importance
+    of the symbols that point at it. Use this to surface quiet but critical
+    code (small APIs that underpin the whole graph).
+    """
+    import json as _json
+
+    store = _get_store(Path(db))
+    results = store.get_pagerank_ranking(limit=limit, kind_filter=kind)
+    store.close()
+
+    if as_json:
+        console.print(_json.dumps({"count": len(results), "ranking": results}, indent=2))
+        return
+
+    if not results:
+        console.print("[dim]No symbols with relationships found.[/dim]")
+        return
+
+    table = Table(title=f"PageRank (top {len(results)})")
+    table.add_column("#", justify="right", style="dim")
+    table.add_column("Symbol", style="cyan", no_wrap=False)
+    table.add_column("Kind", style="magenta")
+    table.add_column("File", style="dim")
+    table.add_column("Score", justify="right", style="bold green")
+    for i, r in enumerate(results, start=1):
+        table.add_row(str(i), r["qualified_name"], r["kind"], r["file"], f"{r['score']:.4f}")
+    console.print(table)
+
+
+@cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--min-size", default=3, show_default=True, help="Minimum community size to report")
 @click.option("--limit", default=20, show_default=True, help="Max communities to show")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")

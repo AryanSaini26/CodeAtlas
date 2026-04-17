@@ -1148,6 +1148,91 @@ class GraphStore:
             if r["total_degree"] > 0
         ]
 
+    def compute_pagerank(
+        self,
+        damping: float = 0.85,
+        max_iterations: int = 50,
+        tolerance: float = 1e-6,
+    ) -> dict[str, float]:
+        """Compute PageRank over the symbol graph.
+
+        Direction: edges flow source -> target, so a symbol that is
+        called/imported/inherited a lot accumulates rank. Runs in pure
+        Python so there is no NumPy/networkx dependency.
+
+        Returns an empty dict when the graph has no edges.
+        """
+        conn = self._conn
+        node_ids: set[str] = {row["id"] for row in conn.execute("SELECT id FROM symbols")}
+        if not node_ids:
+            return {}
+        out_links: dict[str, list[str]] = {}
+        in_links: dict[str, list[str]] = {}
+        for row in conn.execute("SELECT source_id, target_id FROM relationships"):
+            src = row["source_id"]
+            tgt = row["target_id"]
+            if src not in node_ids or tgt not in node_ids:
+                continue
+            if src == tgt:
+                continue
+            out_links.setdefault(src, []).append(tgt)
+            in_links.setdefault(tgt, []).append(src)
+        if not in_links:
+            return {}
+
+        n = len(node_ids)
+        rank = dict.fromkeys(node_ids, 1.0 / n)
+        base = (1.0 - damping) / n
+        for _ in range(max_iterations):
+            dangling_sum = sum(rank[nid] for nid in node_ids if nid not in out_links)
+            dangling_share = damping * dangling_sum / n
+            new_rank: dict[str, float] = {}
+            for node in node_ids:
+                s = 0.0
+                for src in in_links.get(node, []):
+                    s += rank[src] / len(out_links[src])
+                new_rank[node] = base + dangling_share + damping * s
+            delta = sum(abs(new_rank[k] - rank[k]) for k in node_ids)
+            rank = new_rank
+            if delta < tolerance:
+                break
+        return rank
+
+    def get_pagerank_ranking(
+        self, limit: int = 20, kind_filter: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Return the top-N symbols ranked by PageRank (highest first)."""
+        ranks = self.compute_pagerank()
+        if not ranks:
+            return []
+        top_ids = sorted(ranks.items(), key=lambda kv: kv[1], reverse=True)
+        conn = self._conn
+        results: list[dict[str, Any]] = []
+        for sym_id, score in top_ids:
+            if len(results) >= limit:
+                break
+            row = conn.execute(
+                """SELECT id, name, qualified_name, kind, file_path, start_line
+                   FROM symbols WHERE id = ?""",
+                (sym_id,),
+            ).fetchone()
+            if row is None:
+                continue
+            if kind_filter and row["kind"] != kind_filter:
+                continue
+            results.append(
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "qualified_name": row["qualified_name"],
+                    "kind": row["kind"],
+                    "file": row["file_path"],
+                    "line": row["start_line"] + 1,
+                    "score": round(float(score), 6),
+                }
+            )
+        return results
+
     def close(self) -> None:
         self._conn.close()
 

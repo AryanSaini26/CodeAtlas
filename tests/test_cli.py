@@ -968,6 +968,47 @@ def test_hubs_command_respects_limit(tmp_path: Path) -> None:
     assert '"count": 1' in result.output or '"count":1' in result.output
 
 
+# --- rank command ---
+
+
+def test_rank_command_outputs_ranking(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["rank", "--db", db_path])
+    assert result.exit_code == 0
+    assert "greet" in result.output or "run" in result.output
+
+
+def test_rank_command_json(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["rank", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert '"ranking"' in result.output
+
+
+def test_rank_command_empty_store(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "empty.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["rank", "--db", db_path])
+    assert result.exit_code == 0
+
+
+def test_rank_command_kind_filter(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["rank", "--db", db_path, "--kind", "class", "--json"])
+    assert result.exit_code == 0
+    # _make_repo uses only functions; filter yields an empty list without erroring
+    assert '"ranking"' in result.output
+
+
 # --- communities command ---
 
 

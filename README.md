@@ -205,8 +205,10 @@ switches between community-coloring and kind-coloring.
 | `codeatlas coupling` | Show file coupling analysis |
 | `codeatlas hotspots [path]` | Show highest-risk files (git churn × graph in-degree) |
 | `codeatlas hotspots [path] --json` | Output hotspots as JSON |
-| `codeatlas hubs` | Show hub symbols — the most-connected ("god") nodes in the graph |
+| `codeatlas hubs` | Show hub symbols, the most-connected ("god") nodes in the graph |
 | `codeatlas hubs --json` | Output hub symbols as JSON |
+| `codeatlas rank` | Rank symbols by PageRank (weighted by caller importance, not raw degree) |
+| `codeatlas rank --kind class --json` | Rank restricted to a kind, output as JSON |
 | `codeatlas communities` | Detect tightly-connected subsystems via label propagation |
 | `codeatlas communities --json` | Output community groupings as JSON |
 | `codeatlas coverage-gaps` | Show public symbols with zero test coverage |

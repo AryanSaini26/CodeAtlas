@@ -645,6 +645,24 @@ def get_symbol_history(
 
 
 @mcp.tool()
+def get_pagerank(limit: int = 20, kind_filter: str | None = None) -> str:
+    """Rank symbols by PageRank importance.
+
+    Unlike raw degree (``get_hotspots``/hub analysis), PageRank weights a
+    symbol by the importance of the symbols that point at it. Surfaces
+    quiet-but-critical APIs whose incoming edges all come from load-bearing
+    callers.
+
+    Args:
+        limit: Maximum number of symbols to return (default 20)
+        kind_filter: Optional symbol kind filter (e.g. "class", "function")
+    """
+    store = get_store()
+    ranking = store.get_pagerank_ranking(limit=limit, kind_filter=kind_filter)
+    return json.dumps({"count": len(ranking), "ranking": ranking}, indent=2)
+
+
+@mcp.tool()
 def get_hotspots(repo_path: str = ".", limit: int = 20) -> str:
     """Identify the highest-risk files by combining git churn with graph in-degree.
 
