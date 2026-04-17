@@ -843,6 +843,49 @@ def hotspots(repo_path: str, db: str, limit: int, as_json: bool) -> None:
 
 
 @cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--limit", default=20, show_default=True, help="Max hub symbols to show")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def hubs(db: str, limit: int, as_json: bool) -> None:
+    """Show hub symbols: the most-connected ("god") nodes in the graph.
+
+    Ranks by total degree (incoming + outgoing relationships). A high-degree
+    symbol is load-bearing — changes to it have wide blast radius.
+    """
+    import json as _json
+
+    store = _get_store(Path(db))
+    results = store.get_hub_symbols(limit=limit)
+    store.close()
+
+    if as_json:
+        console.print(_json.dumps({"count": len(results), "hubs": results}, indent=2))
+        return
+
+    if not results:
+        console.print("[dim]No symbols with relationships found.[/dim]")
+        return
+
+    table = Table(title=f"Hub Symbols (top {len(results)})")
+    table.add_column("Symbol", style="cyan", no_wrap=False)
+    table.add_column("Kind", style="magenta")
+    table.add_column("File", style="dim")
+    table.add_column("In", justify="right", style="green")
+    table.add_column("Out", justify="right", style="yellow")
+    table.add_column("Total", justify="right", style="bold red")
+    for r in results:
+        table.add_row(
+            r["qualified_name"],
+            r["kind"],
+            r["file"],
+            str(r["in_degree"]),
+            str(r["out_degree"]),
+            str(r["total_degree"]),
+        )
+    console.print(table)
+
+
+@cli.command()
 @click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--ref", default="HEAD", show_default=True, help="Git ref to diff against")
@@ -1025,6 +1068,7 @@ def report(db: str, repo_path: str, as_json: bool, output: str | None) -> None:
     dead = store.find_unused_symbols(include_tests=False)
     hotspots = store.get_hotspots(repo_path=repo_path, limit=10)
     gaps = store.get_coverage_gaps(limit=50)
+    hubs = store.get_hub_symbols(limit=10)
     store.close()
 
     if as_json:
@@ -1033,6 +1077,7 @@ def report(db: str, repo_path: str, as_json: bool, output: str | None) -> None:
             "cycles": len(cycles),
             "dead_code": [{"name": s.qualified_name, "file": s.file_path} for s in dead[:20]],
             "hotspots": hotspots[:10],
+            "hub_symbols": hubs[:10],
             "coverage_gaps": [
                 {"name": s.qualified_name, "kind": s.kind.value, "file": s.file_path}
                 for s in gaps[:20]
@@ -1079,6 +1124,17 @@ def report(db: str, repo_path: str, as_json: bool, output: str | None) -> None:
             for h in hotspots[:10]:
                 lines.append(
                     f"| `{h['file']}` | {h['commits']} | {h['in_degree']} | {h['hotspot_score']} |"
+                )
+            lines.append("")
+
+        if hubs:
+            lines += ["## Hub Symbols (most-connected)", ""]
+            lines.append("| Symbol | Kind | File | In | Out | Total |")
+            lines.append("|--------|------|------|----|----|-------|")
+            for h in hubs[:10]:
+                lines.append(
+                    f"| `{h['qualified_name']}` | {h['kind']} | `{h['file']}` | "
+                    f"{h['in_degree']} | {h['out_degree']} | {h['total_degree']} |"
                 )
             lines.append("")
 

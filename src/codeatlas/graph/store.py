@@ -972,6 +972,53 @@ class GraphStore:
         rows = conn.execute(sql, params).fetchall()
         return [self._row_to_symbol(r) for r in rows]
 
+    def get_hub_symbols(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Return the most-connected symbols ("god nodes") in the graph.
+
+        Combines in-degree (how many symbols depend on this one) and out-degree
+        (how many other symbols it calls). Symbols with unusually high total
+        degree are likely load-bearing — modifying them has wide blast radius.
+        """
+        conn = self._conn
+        sql = """
+            SELECT
+                s.id AS id,
+                s.name AS name,
+                s.qualified_name AS qualified_name,
+                s.kind AS kind,
+                s.file_path AS file_path,
+                s.start_line AS start_line,
+                COALESCE(outgoing.cnt, 0) AS out_degree,
+                COALESCE(incoming.cnt, 0) AS in_degree,
+                COALESCE(outgoing.cnt, 0) + COALESCE(incoming.cnt, 0) AS total_degree
+            FROM symbols s
+            LEFT JOIN (
+                SELECT source_id, COUNT(*) AS cnt FROM relationships GROUP BY source_id
+            ) outgoing ON outgoing.source_id = s.id
+            LEFT JOIN (
+                SELECT target_id, COUNT(*) AS cnt FROM relationships GROUP BY target_id
+            ) incoming ON incoming.target_id = s.id
+            WHERE s.kind NOT IN ('import', 'variable')
+            ORDER BY total_degree DESC, s.name ASC
+            LIMIT ?
+        """
+        rows = conn.execute(sql, (limit,)).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "qualified_name": r["qualified_name"],
+                "kind": r["kind"],
+                "file": r["file_path"],
+                "line": r["start_line"] + 1,
+                "in_degree": r["in_degree"],
+                "out_degree": r["out_degree"],
+                "total_degree": r["total_degree"],
+            }
+            for r in rows
+            if r["total_degree"] > 0
+        ]
+
     def close(self) -> None:
         self._conn.close()
 

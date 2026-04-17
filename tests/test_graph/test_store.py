@@ -609,3 +609,71 @@ def test_find_path_skips_external_nodes(graph_store: GraphStore) -> None:
     # Should find the direct path a→b, external node not in result
     assert path is not None
     assert all("<external>" not in node for node in path)
+
+
+# --- Hub symbols (god nodes) ---
+
+
+def test_get_hub_symbols_empty_store(graph_store: GraphStore) -> None:
+    assert graph_store.get_hub_symbols() == []
+
+
+def test_get_hub_symbols_filters_symbols_with_no_relationships(graph_store: GraphStore) -> None:
+    lonely = _make_symbol("lonely", file_path="a.py")
+    graph_store.upsert_parse_result(_make_result("a.py", [lonely]))
+    assert graph_store.get_hub_symbols() == []
+
+
+def test_get_hub_symbols_ranks_by_total_degree(graph_store: GraphStore) -> None:
+    hub = _make_symbol("hub", file_path="h.py")
+    a = _make_symbol("a", file_path="a.py")
+    b = _make_symbol("b", file_path="b.py")
+    c = _make_symbol("c", file_path="c.py")
+    # hub is called by a, b, c (in_degree=3), calls no one (out_degree=0)
+    # a has out_degree=1 (calls hub), in_degree=0 → total=1
+    rels = [
+        _make_relationship(a.id, hub.id, file_path="a.py"),
+        _make_relationship(b.id, hub.id, file_path="b.py"),
+        _make_relationship(c.id, hub.id, file_path="c.py"),
+    ]
+    graph_store.upsert_parse_result(_make_result("h.py", [hub]))
+    graph_store.upsert_parse_result(_make_result("a.py", [a], rels[:1]))
+    graph_store.upsert_parse_result(_make_result("b.py", [b], rels[1:2]))
+    graph_store.upsert_parse_result(_make_result("c.py", [c], rels[2:]))
+
+    results = graph_store.get_hub_symbols()
+    assert results[0]["name"] == "hub"
+    assert results[0]["in_degree"] == 3
+    assert results[0]["out_degree"] == 0
+    assert results[0]["total_degree"] == 3
+    # Callers follow with total_degree=1 each
+    assert all(r["total_degree"] == 1 for r in results[1:])
+
+
+def test_get_hub_symbols_respects_limit(graph_store: GraphStore) -> None:
+    hub = _make_symbol("hub", file_path="h.py")
+    symbols = [_make_symbol(f"caller_{i}", file_path=f"c{i}.py") for i in range(5)]
+    rels = [_make_relationship(s.id, hub.id, file_path=s.file_path) for s in symbols]
+    graph_store.upsert_parse_result(_make_result("h.py", [hub]))
+    for s, r in zip(symbols, rels):
+        graph_store.upsert_parse_result(_make_result(s.file_path, [s], [r]))
+
+    results = graph_store.get_hub_symbols(limit=2)
+    assert len(results) == 2
+    assert results[0]["name"] == "hub"
+
+
+def test_get_hub_symbols_excludes_imports_and_variables(graph_store: GraphStore) -> None:
+    imp = _make_symbol("requests", file_path="a.py", kind=SymbolKind.IMPORT)
+    var = _make_symbol("CONST", file_path="a.py", kind=SymbolKind.VARIABLE)
+    fn = _make_symbol("main", file_path="a.py")
+    rels = [
+        _make_relationship(fn.id, imp.id, kind=RelationshipKind.IMPORTS, file_path="a.py"),
+        _make_relationship(fn.id, var.id, kind=RelationshipKind.REFERENCES, file_path="a.py"),
+    ]
+    graph_store.upsert_parse_result(_make_result("a.py", [imp, var, fn], rels))
+
+    results = graph_store.get_hub_symbols()
+    kinds = {r["kind"] for r in results}
+    assert "import" not in kinds
+    assert "variable" not in kinds

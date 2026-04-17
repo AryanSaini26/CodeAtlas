@@ -886,6 +886,50 @@ def test_hotspots_json_empty(tmp_path: Path) -> None:
     assert '"hotspots"' in result.output
 
 
+# --- hubs command ---
+
+
+def test_hubs_command_shows_top_hub(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["hubs", "--db", db_path])
+    assert result.exit_code == 0
+    # main.py's run() calls greet — greet has in_degree >= 1
+    assert "greet" in result.output or "run" in result.output
+
+
+def test_hubs_command_json(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["hubs", "--db", db_path, "--json"])
+    assert result.exit_code == 0
+    assert '"count"' in result.output
+    assert '"hubs"' in result.output
+
+
+def test_hubs_command_empty_store(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["hubs", "--db", db_path])
+    assert result.exit_code == 0
+    assert "no symbols" in result.output.lower() or result.output.strip() != ""
+
+
+def test_hubs_command_respects_limit(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["hubs", "--db", db_path, "--limit", "1", "--json"])
+    assert result.exit_code == 0
+    # With limit=1, only one hub entry should appear (count matches)
+    assert '"count": 1' in result.output or '"count":1' in result.output
+
+
 # --- export mermaid ---
 
 
