@@ -12,6 +12,7 @@ class ExportOptions:
     include_externals: bool = False
     max_depth: int = 0
     file_filter: str | None = None
+    include_communities: bool = False
 
 
 def export_dot(store: GraphStore, options: ExportOptions | None = None) -> str:
@@ -35,6 +36,8 @@ def export_dot(store: GraphStore, options: ExportOptions | None = None) -> str:
     symbols = conn.execute(query, params).fetchall()
     symbol_ids = {row["id"] for row in symbols}
 
+    communities = store.detect_communities() if opts.include_communities else {}
+
     # Style map
     kind_styles = {
         "function": 'shape=ellipse, style=filled, fillcolor="#d4edda"',
@@ -54,10 +57,14 @@ def export_dot(store: GraphStore, options: ExportOptions | None = None) -> str:
         node_id = _dot_id(row["id"])
         style = kind_styles.get(row["kind"], "")
         label = row["qualified_name"]
+        if communities:
+            cid = communities.get(row["id"], "")
+            color = _community_color(cid)
+            style = f'style=filled, fillcolor="{color}"'
         lines.append(f'    {node_id} [label="{_dot_escape(label)}", {style}];')
 
     # Collect relationships
-    rel_query = "SELECT source_id, target_id, kind FROM relationships"
+    rel_query = "SELECT source_id, target_id, kind, confidence FROM relationships"
     rel_params: list[str] = []
     if opts.file_filter:
         rel_query += " WHERE file_path LIKE ?"
@@ -86,7 +93,13 @@ def export_dot(store: GraphStore, options: ExportOptions | None = None) -> str:
                 continue
 
         style = edge_styles.get(row["kind"], "")
-        lines.append(f'    {_dot_id(src)} -> {_dot_id(tgt)} [{style}, label="{row["kind"]}"];')
+        confidence = row["confidence"] if "confidence" in row.keys() else "extracted"
+        if confidence == "inferred":
+            style += ", style=dashed"
+        elif confidence == "ambiguous":
+            style += ", style=dotted"
+        label = f"{row['kind']} ({confidence})" if confidence != "extracted" else row["kind"]
+        lines.append(f'    {_dot_id(src)} -> {_dot_id(tgt)} [{style}, label="{label}"];')
 
     lines.append("}")
     return "\n".join(lines)
@@ -106,19 +119,22 @@ def export_json(store: GraphStore, options: ExportOptions | None = None) -> str:
     symbols = conn.execute(query, params).fetchall()
     symbol_ids = {row["id"] for row in symbols}
 
+    communities = store.detect_communities() if opts.include_communities else {}
+
     nodes = []
     for row in symbols:
-        nodes.append(
-            {
-                "id": row["id"],
-                "name": row["name"],
-                "qualified_name": row["qualified_name"],
-                "kind": row["kind"],
-                "file": row["file_path"],
-            }
-        )
+        node: dict[str, str | None] = {
+            "id": row["id"],
+            "name": row["name"],
+            "qualified_name": row["qualified_name"],
+            "kind": row["kind"],
+            "file": row["file_path"],
+        }
+        if communities:
+            node["community_id"] = communities.get(row["id"])
+        nodes.append(node)
 
-    rel_query = "SELECT source_id, target_id, kind FROM relationships"
+    rel_query = "SELECT source_id, target_id, kind, confidence FROM relationships"
     rel_params: list[str] = []
     if opts.file_filter:
         rel_query += " WHERE file_path LIKE ?"
@@ -137,11 +153,13 @@ def export_json(store: GraphStore, options: ExportOptions | None = None) -> str:
             if src not in symbol_ids or tgt not in symbol_ids:
                 continue
 
+        confidence = row["confidence"] if "confidence" in row.keys() else "extracted"
         links.append(
             {
                 "source": src,
                 "target": tgt,
                 "kind": row["kind"],
+                "confidence": confidence,
             }
         )
 
@@ -248,3 +266,25 @@ def _dot_id(symbol_id: str) -> str:
 def _dot_escape(s: str) -> str:
     """Escape special characters for DOT format."""
     return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+_COMMUNITY_PALETTE = [
+    "#a6cee3",
+    "#b2df8a",
+    "#fb9a99",
+    "#fdbf6f",
+    "#cab2d6",
+    "#ffff99",
+    "#8dd3c7",
+    "#fccde5",
+    "#bc80bd",
+    "#ccebc5",
+]
+
+
+def _community_color(community_id: str) -> str:
+    """Deterministic pastel color for a community id."""
+    if not community_id:
+        return "#e0e0e0"
+    idx = abs(hash(community_id)) % len(_COMMUNITY_PALETTE)
+    return _COMMUNITY_PALETTE[idx]

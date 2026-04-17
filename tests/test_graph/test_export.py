@@ -120,6 +120,43 @@ def test_export_json_file_filter(populated_store: GraphStore) -> None:
     assert data["nodes"][0]["name"] == "helper"
 
 
+def test_export_json_links_include_confidence(populated_store: GraphStore) -> None:
+    data = json.loads(export_json(populated_store))
+    assert data["links"][0]["confidence"] == "extracted"
+
+
+def test_export_json_omits_community_id_by_default(populated_store: GraphStore) -> None:
+    data = json.loads(export_json(populated_store))
+    assert "community_id" not in data["nodes"][0]
+
+
+def test_export_json_with_communities(populated_store: GraphStore) -> None:
+    data = json.loads(export_json(populated_store, ExportOptions(include_communities=True)))
+    assert all("community_id" in n for n in data["nodes"])
+    # Both connected symbols should share a community
+    ids = {n["community_id"] for n in data["nodes"]}
+    assert len(ids) == 1
+
+
+def test_export_dot_with_communities(populated_store: GraphStore) -> None:
+    from codeatlas.graph.export import _COMMUNITY_PALETTE
+
+    dot = export_dot(populated_store, ExportOptions(include_communities=True))
+    # Community mode should paint each node with a color from the palette
+    assert any(color in dot for color in _COMMUNITY_PALETTE)
+
+
+def test_export_dot_shows_confidence_label_for_non_extracted(
+    populated_store: GraphStore,
+) -> None:
+    # Force the single relationship into "inferred" confidence
+    populated_store._conn.execute("UPDATE relationships SET confidence = 'inferred'")
+    populated_store._conn.commit()
+    dot = export_dot(populated_store)
+    assert "(inferred)" in dot
+    assert "style=dashed" in dot
+
+
 # --- Mermaid export ---
 
 

@@ -164,7 +164,17 @@ AST-proven facts apart from heuristic guesses:
 | `ambiguous` | Multiple candidate targets existed; a heuristic chose one. Treat with caution. |
 
 `codeatlas report` surfaces the counts; the raw stats are also available via
-`GraphStore.get_confidence_stats()`.
+`GraphStore.get_confidence_stats()`. Exported JSON edges carry the same tag:
+`codeatlas export --format json` emits `{"source", "target", "kind", "confidence"}`,
+and the interactive visualization draws inferred edges dashed and ambiguous ones
+dotted so heuristic guesses are visible at a glance.
+
+### Community view
+
+Pass `--communities` to `codeatlas export` or `codeatlas viz` to run label
+propagation on the graph and include a `community_id` on each node. In the
+interactive visualization, nodes are painted by community and a toolbar toggle
+switches between community-coloring and kind-coloring.
 
 ## CLI Commands
 
@@ -200,7 +210,9 @@ AST-proven facts apart from heuristic guesses:
 | `codeatlas pre-commit` | Add a CodeAtlas incremental-index hook to `.pre-commit-config.yaml` |
 | `codeatlas impact [path]` | Analyze impact of current git changes on the graph |
 | `codeatlas export` | Export graph in DOT or JSON format |
+| `codeatlas export --communities` | Include per-node `community_id` (and color nodes by community in DOT) |
 | `codeatlas viz` | Generate interactive D3.js graph visualization |
+| `codeatlas viz --communities` | Color nodes by detected community; adds a toolbar toggle (community/kind) |
 | `codeatlas watch [path]` | Watch for file changes and update graph in real-time |
 | `codeatlas webhook [path]` | Start a GitHub webhook server for push-triggered updates |
 | `codeatlas trace <symbol>` | Trace call chain from a symbol (depth-limited BFS) |

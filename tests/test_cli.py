@@ -358,6 +358,28 @@ def test_viz_empty_db(tmp_path: Path) -> None:
     assert Path(output).exists()
 
 
+def test_viz_communities_flag_embeds_ids(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    output = str(tmp_path / "graph.html")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["viz", "--db", db_path, "-o", output, "--communities"])
+    assert result.exit_code == 0
+    content = Path(output).read_text()
+    assert '"community_id"' in content
+
+
+def test_export_json_with_communities_cli(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["export", "--db", db_path, "--format", "json", "--communities"])
+    assert result.exit_code == 0
+    assert '"community_id"' in result.output
+
+
 # --- diff command ---
 
 

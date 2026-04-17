@@ -25,6 +25,10 @@ VIZ_HTML_TEMPLATE = """<!DOCTYPE html>
             color: #c9d1d9; padding: 4px 10px; font-size: 13px; width: 220px; }
   #search:focus { outline: none; border-color: #58a6ff; }
   #search::placeholder { color: #484f58; }
+  #color-toggle { background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+                  color: #c9d1d9; padding: 4px 10px; font-size: 12px; cursor: pointer;
+                  display: none; }
+  #color-toggle:hover { border-color: #58a6ff; }
   .legend { display: flex; gap: 10px; margin-left: auto; }
   .legend-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #8b949e; }
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
@@ -49,6 +53,7 @@ VIZ_HTML_TEMPLATE = """<!DOCTYPE html>
 <div id="toolbar">
   <h1>CodeAtlas</h1>
   <input id="search" type="text" placeholder="Search symbols…">
+  <button id="color-toggle" type="button">Color: community</button>
   <span class="stats" id="stats"></span>
   <div class="legend">
     <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>class</div>
@@ -81,6 +86,28 @@ const edgeColor = {
   "implements": "#bc8cff", "decorates": "#d29922", "references": "#39d2e0"
 };
 
+// Community coloring (pastel palette, deterministic hash)
+const communityPalette = [
+  "#8ab4f8", "#81c995", "#f28b82", "#fdd663", "#c58af9",
+  "#fef49c", "#78d9ec", "#f8bbd0", "#d39bcb", "#b2e5b2"
+];
+function hashString(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+function communityColor(cid) {
+  if (cid == null) return defaultColor;
+  return communityPalette[hashString(String(cid)) % communityPalette.length];
+}
+const hasCommunities = graphData.nodes.some(n => n.community_id != null);
+let colorMode = hasCommunities ? "community" : "kind";
+function nodeColor(d) {
+  return colorMode === "community"
+    ? communityColor(d.community_id)
+    : (kindColor[d.kind] || defaultColor);
+}
+
 const svg = d3.select("svg");
 const width = window.innerWidth;
 const height = window.innerHeight;
@@ -107,7 +134,12 @@ const link = g.append("g")
   .join("line")
   .attr("class", "link")
   .attr("stroke", d => edgeColor[d.kind] || "#30363d")
-  .attr("stroke-width", 1);
+  .attr("stroke-width", 1)
+  .attr("stroke-dasharray", d => {
+    if (d.confidence === "inferred") return "4 2";
+    if (d.confidence === "ambiguous") return "1 3";
+    return null;
+  });
 
 const node = g.append("g")
   .selectAll("g")
@@ -125,7 +157,7 @@ node.append("circle")
     const deg = graphData.links.filter(l => l.source.id === d.id || l.target.id === d.id).length;
     return Math.max(4, Math.min(deg * 1.5 + 4, 18));
   })
-  .attr("fill", d => kindColor[d.kind] || defaultColor);
+  .attr("fill", nodeColor);
 
 node.append("text")
   .attr("dx", 12).attr("dy", 4)
@@ -169,6 +201,18 @@ simulation.on("tick", () => {
   node.attr("transform", d => `translate(${d.x},${d.y})`);
 });
 
+// Color-mode toggle (visible only when community data is present)
+const colorToggle = document.getElementById("color-toggle");
+if (hasCommunities) {
+  colorToggle.style.display = "inline-block";
+  colorToggle.textContent = `Color: ${colorMode}`;
+  colorToggle.addEventListener("click", () => {
+    colorMode = colorMode === "community" ? "kind" : "community";
+    colorToggle.textContent = `Color: ${colorMode}`;
+    node.select("circle").attr("fill", nodeColor);
+  });
+}
+
 // Search
 document.getElementById("search").addEventListener("input", (e) => {
   const q = e.target.value.toLowerCase();
@@ -204,10 +248,14 @@ def render_graph_html(graph_json: str) -> str:
     return VIZ_HTML_TEMPLATE.replace("__GRAPH_JSON__", graph_json)
 
 
-def generate_viz(store: GraphStore, file_filter: str | None = None) -> str:
+def generate_viz(
+    store: GraphStore,
+    file_filter: str | None = None,
+    include_communities: bool = False,
+) -> str:
     """Generate a self-contained HTML visualization from a GraphStore."""
     from codeatlas.graph.export import ExportOptions, export_json
 
-    opts = ExportOptions(file_filter=file_filter)
+    opts = ExportOptions(file_filter=file_filter, include_communities=include_communities)
     graph_json = export_json(store, opts)
     return render_graph_html(graph_json)

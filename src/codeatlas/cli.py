@@ -335,14 +335,29 @@ def query(
 )
 @click.option("--include-externals", is_flag=True, help="Include unresolved/external references")
 @click.option(
+    "--communities",
+    "include_communities",
+    is_flag=True,
+    help="Include community_id on each node (and color by community in DOT)",
+)
+@click.option(
     "-o", "--output", default=None, type=click.Path(), help="Output file (default: stdout)"
 )
 def export(
-    db: str, fmt: str, file_filter: str | None, include_externals: bool, output: str | None
+    db: str,
+    fmt: str,
+    file_filter: str | None,
+    include_externals: bool,
+    include_communities: bool,
+    output: str | None,
 ) -> None:
     """Export the knowledge graph to DOT, JSON, or Mermaid format."""
     store = _get_store(Path(db))
-    opts = ExportOptions(include_externals=include_externals, file_filter=file_filter)
+    opts = ExportOptions(
+        include_externals=include_externals,
+        file_filter=file_filter,
+        include_communities=include_communities,
+    )
 
     if fmt == "dot":
         result = export_dot(store, opts)
@@ -991,12 +1006,24 @@ def impact(repo_path: str, db: str, ref: str, depth: int) -> None:
 )
 @click.option("-o", "--output", default=None, type=click.Path(), help="Output HTML file path")
 @click.option("--open", "open_browser", is_flag=True, help="Open in default browser")
-def viz(db: str, file_filter: str | None, output: str | None, open_browser: bool) -> None:
+@click.option(
+    "--communities",
+    "include_communities",
+    is_flag=True,
+    help="Color nodes by community (label-propagation)",
+)
+def viz(
+    db: str,
+    file_filter: str | None,
+    output: str | None,
+    open_browser: bool,
+    include_communities: bool,
+) -> None:
     """Generate an interactive D3.js graph visualization."""
     from codeatlas.viz import generate_viz
 
     store = _get_store(Path(db))
-    html = generate_viz(store, file_filter=file_filter)
+    html = generate_viz(store, file_filter=file_filter, include_communities=include_communities)
     store.close()
 
     out_path = Path(output) if output else Path(".codeatlas/graph.html")
