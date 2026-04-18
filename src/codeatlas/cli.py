@@ -1243,6 +1243,80 @@ def server(
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 
+def _find_frontend_dist() -> Path | None:
+    """Locate a built frontend bundle. Searches common install layouts."""
+    import codeatlas as _pkg
+
+    pkg_dir = Path(_pkg.__file__).resolve().parent
+    candidates = [
+        pkg_dir / "_ui",
+        pkg_dir.parent / "_ui",
+        pkg_dir.parent.parent / "frontend" / "dist",
+        Path.cwd() / "frontend" / "dist",
+    ]
+    for candidate in candidates:
+        if candidate.is_dir() and (candidate / "index.html").is_file():
+            return candidate
+    return None
+
+
+@cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", default=8080, show_default=True, type=int)
+@click.option(
+    "--dist",
+    default=None,
+    type=click.Path(exists=True, file_okay=False),
+    help="Path to a built frontend bundle (default: auto-detect frontend/dist)",
+)
+@click.option("--no-browser", is_flag=True, help="Don't open the browser")
+@click.option("--api-key", default=None, help="Require X-API-Key for every request")
+def ui(
+    db: str,
+    host: str,
+    port: int,
+    dist: str | None,
+    no_browser: bool,
+    api_key: str | None,
+) -> None:
+    """Start the web UI: HTTP API + built frontend served from one process."""
+    try:
+        import uvicorn
+    except ImportError as exc:
+        raise click.ClickException(
+            "FastAPI/Uvicorn not installed. Run: pip install 'codeatlas[api]'"
+        ) from exc
+
+    from codeatlas.api import create_app
+
+    static_dir = Path(dist) if dist else _find_frontend_dist()
+    if static_dir is None:
+        raise click.ClickException(
+            "No built frontend bundle found.\n"
+            "Build it once: cd frontend && npm install && npm run build\n"
+            "Or pass --dist /path/to/frontend/dist"
+        )
+
+    app = create_app(db_path=db, api_key=api_key, static_dir=static_dir)
+
+    url = f"http://{host}:{port}"
+    console.print(f"[green]CodeAtlas UI[/green] on {url} (db: {db}, dist: {static_dir})")
+
+    if not no_browser:
+        import threading
+        import time
+        import webbrowser
+
+        def _open() -> None:
+            time.sleep(1.0)
+            webbrowser.open(url)
+
+        threading.Thread(target=_open, daemon=True).start()
+
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
 @cli.command(name="coverage-gaps")
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option(

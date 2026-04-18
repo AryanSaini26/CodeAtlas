@@ -287,3 +287,34 @@ def test_schemas_roundtrip() -> None:
     node = GraphNode(id="a", name="a", qualified_name="a", kind="function", file="x.py")
     data: dict[str, Any] = _json.loads(node.model_dump_json())
     assert data["name"] == "a"
+
+
+def test_create_app_with_static_dir(db_path: Path, tmp_path: Path) -> None:
+    """Passing static_dir should mount the SPA at /."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<!doctype html><title>CodeAtlas</title>")
+    (dist / "assets").mkdir()
+    (dist / "assets" / "app.js").write_text("console.log('hi')")
+
+    app = create_app(db_path=db_path, static_dir=dist)
+    c = TestClient(app)
+
+    resp = c.get("/")
+    assert resp.status_code == 200
+    assert "CodeAtlas" in resp.text
+
+    asset = c.get("/assets/app.js")
+    assert asset.status_code == 200
+    assert "hi" in asset.text
+
+    api_resp = c.get("/api/v1/stats")
+    assert api_resp.status_code == 200
+
+
+def test_create_app_with_missing_static_dir(db_path: Path, tmp_path: Path) -> None:
+    """create_app should refuse an absent static_dir with a clear error."""
+    import pytest as _pytest
+
+    with _pytest.raises(FileNotFoundError):
+        create_app(db_path=db_path, static_dir=tmp_path / "does-not-exist")
