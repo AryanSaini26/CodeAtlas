@@ -164,3 +164,27 @@ def test_symbol_count_matches_symbols(
 
 def test_supported_extensions(svelte_parser: SvelteParser) -> None:
     assert ".svelte" in svelte_parser.supported_extensions
+
+
+# --- arrow function / lexical declarations ---
+
+
+def test_arrow_function_in_script(svelte_parser: SvelteParser) -> None:
+    src = (
+        "<script>\nconst double = (x) => x * 2;\nfunction run() { return double(3); }\n</script>\n"
+    )
+    result = svelte_parser.parse_source(src, "Arrow.svelte")
+    funcs = [s for s in result.symbols if s.kind == SymbolKind.FUNCTION]
+    names = {f.name for f in funcs}
+    assert "double" in names
+    assert "run" in names
+    sig = next(f.signature for f in funcs if f.name == "double")
+    assert sig is not None
+    assert "=>" in sig
+
+
+def test_arrow_function_call_relationship(svelte_parser: SvelteParser) -> None:
+    src = "<script>\nconst greet = (name) => { say(name); };\nfunction say(msg) {}\n</script>\n"
+    result = svelte_parser.parse_source(src, "Greet.svelte")
+    calls = [r for r in result.relationships if r.kind == RelationshipKind.CALLS]
+    assert any(r.source_id.endswith("Greet.greet") for r in calls)

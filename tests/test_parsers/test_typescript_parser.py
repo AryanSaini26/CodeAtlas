@@ -194,3 +194,18 @@ def test_tsx_extension(typescript_parser: TypeScriptParser) -> None:
     source = "const App = () => <div>Hello</div>;\nexport default App;"
     result = typescript_parser.parse_source(source, "app.tsx")
     assert result.file_info.language == "typescript"
+
+
+def test_type_alias_detected(typescript_parser: TypeScriptParser) -> None:
+    source = "export type UserId = string;\nexport type Maybe<T> = T | null;\n"
+    result = typescript_parser.parse_source(source, "types.ts")
+    type_aliases = [s.name for s in result.symbols if s.kind == SymbolKind.TYPE_ALIAS]
+    assert "UserId" in type_aliases
+    assert "Maybe" in type_aliases
+
+
+def test_interface_inheritance(typescript_parser: TypeScriptParser) -> None:
+    source = "interface Animal { name: string; }\ninterface Dog extends Animal { bark(): void; }\n"
+    result = typescript_parser.parse_source(source, "animals.ts")
+    inherit_rels = [r for r in result.relationships if r.kind == RelationshipKind.INHERITS]
+    assert any(r.target_id.endswith("Animal") for r in inherit_rels)
