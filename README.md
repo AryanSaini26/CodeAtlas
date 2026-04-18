@@ -6,25 +6,35 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An open-source MCP server that constructs real-time code knowledge graphs of any repository and exposes them to AI coding agents like Claude Code and Cursor.
+An open-source MCP server that constructs real-time code knowledge graphs of any repository and exposes them to AI coding agents like Claude Code and Cursor — plus a CLI, HTTP API, and React web UI over the same graph.
 
 ## The Problem
 
 AI coding agents waste 60-80% of their context window orienting themselves in a codebase before doing real work. CodeAtlas gives them pre-built structural and semantic knowledge so they can navigate intelligently from the first token.
 
+## Why CodeAtlas
+
+- **Persistent SQLite + FTS5 graph** — scales past 1M symbols, incrementally updated; not a flat `graph.json` re-serialized every run.
+- **True embedding-based semantic search** — FAISS + sentence-transformers, not just keyword matching. Hybrid mode blends FTS5 + vectors via reciprocal rank fusion.
+- **PageRank centrality** — caller-weighted importance, not degree-based "god node" heuristics. Plus label-propagation communities, git-churn hotspots, and coverage gaps.
+- **29 MCP tools, 27 CLI subcommands, 6 export formats** — the widest agent and terminal surface in the category.
+- **Full React web UI** — interactive force graph, search, symbol details, analysis tabs — all backed by a FastAPI layer. Launch with one command: `codeatlas ui`.
+- **26 languages via tree-sitter** — Python, TypeScript/TSX, Go, Rust, Java, C, C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
+
 ## Features
 
-- **Multi-language parsing** - Tree-sitter AST parsing for 24 languages: Python, TypeScript/TSX, Go, Rust, Java, C, C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, and Svelte
-- **Knowledge graph** - SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure)
-- **Semantic search** - FAISS vector search with sentence-transformers for natural language code queries
-- **Hybrid search** - Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results
-- **Graph analysis** - Cycle detection, dead code finder, symbol centrality, shortest path, file coupling
-- **Interactive visualization** - D3.js force-directed graph with search, zoom, and hover inspection
-- **Real-time sync** - Watchdog file watcher and GitHub webhook handler for incremental updates
-- **Change impact analysis** - Git-aware diff analysis showing which symbols and files are affected
-- **MCP server** - 18 tools exposed via the Model Context Protocol for AI agent consumption
-- **Graph export** - DOT (Graphviz) and JSON (D3.js) visualization formats
-- **Config files** - Optional `codeatlas.toml` for per-repo settings
+- **Multi-language parsing** — Tree-sitter AST parsing for 26 languages (list above).
+- **Knowledge graph** — SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure).
+- **Semantic search** — FAISS vector search with sentence-transformers for natural language code queries.
+- **Hybrid search** — Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results.
+- **Graph analysis** — PageRank, community detection, cycle detection, dead code, hotspots, coverage gaps, shortest path, file coupling.
+- **Interactive visualization** — React + react-force-graph web UI, plus a standalone D3.js HTML export.
+- **HTTP/JSON API** — FastAPI layer over the graph for custom frontends and tooling.
+- **Real-time sync** — Watchdog file watcher and GitHub webhook handler for incremental updates.
+- **Change impact analysis** — Git-aware diff analysis showing which symbols and files are affected.
+- **MCP server** — 29 tools exposed via the Model Context Protocol for AI agent consumption.
+- **Graph export** — DOT (Graphviz), JSON (D3.js), Mermaid, GraphML, CSV, and Cypher formats.
+- **Config files** — Optional `codeatlas.toml` for per-repo settings.
 
 ## Quick Start
 
@@ -62,7 +72,28 @@ codeatlas watch /path/to/repo
 codeatlas export --format dot -o graph.dot
 codeatlas export --format json -o graph.json
 codeatlas export --format mermaid -o diagram.md
+
+# Launch the web UI (API + React frontend, one command)
+codeatlas ui
 ```
+
+## Web UI
+
+CodeAtlas ships with a React + TypeScript frontend built on Vite, Tailwind, and react-force-graph. It talks to a FastAPI layer over the same graph store — so the CLI, MCP server, and web UI all see identical data.
+
+```bash
+# Build the frontend once
+cd frontend && npm install && npm run build && cd ..
+
+# Serve API + UI on localhost:8080
+codeatlas ui
+
+# Or run them separately during development
+codeatlas server --port 8080              # API only
+cd frontend && npm run dev                # Vite dev server with /api proxy
+```
+
+The UI surfaces an overview dashboard (top PageRank, hotspots), an interactive force graph, FTS + semantic search, per-symbol detail pages, and an analysis tab for cycles, dead code, communities, and coverage gaps.
 
 ## Installation
 
@@ -228,6 +259,8 @@ switches between community-coloring and kind-coloring.
 | `codeatlas languages` | List all supported languages and file extensions |
 | `codeatlas clean` | Remove the `.codeatlas` directory |
 | `codeatlas serve` | Start the MCP server |
+| `codeatlas server` | Start the HTTP/JSON API (FastAPI + Uvicorn) |
+| `codeatlas ui` | Start the API and serve the built web UI in one command |
 | `codeatlas install-completion [shell]` | Print the shell completion activation line (bash/zsh/fish) |
 
 ## MCP Server
@@ -253,7 +286,7 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools (27)
+### Available MCP Tools (29)
 
 | Tool | Description |
 |------|-------------|
