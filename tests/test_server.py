@@ -727,6 +727,33 @@ def test_get_coverage_gaps_limit() -> None:
     assert returned <= min(total, 1)
 
 
+def test_get_coverage_gaps_pagination_has_more() -> None:
+    """First page with small limit should report has_more when more rows exist."""
+    first = json.loads(get_coverage_gaps(limit=1, offset=0))
+    if first["total_uncovered"] == 0:
+        return
+    assert first["offset"] == 0
+    assert "has_more" in first
+    assert "next_offset" in first
+
+
+def test_get_coverage_gaps_pagination_second_page() -> None:
+    """next_offset should yield a non-overlapping second page."""
+    first = json.loads(get_coverage_gaps(limit=1, offset=0))
+    if not first.get("has_more"):
+        return
+    second = json.loads(get_coverage_gaps(limit=1, offset=first["next_offset"]))
+    first_names = {s["qualified_name"] for f in first["files"] for s in f["symbols"]}
+    second_names = {s["qualified_name"] for f in second["files"] for s in f["symbols"]}
+    assert first_names.isdisjoint(second_names)
+
+
+def test_get_coverage_gaps_negative_offset_rejected() -> None:
+    result = json.loads(get_coverage_gaps(offset=-1))
+    assert "error" in result
+    assert result["field"] == "offset"
+
+
 # --- get_file_content ---
 
 

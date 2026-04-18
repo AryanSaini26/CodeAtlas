@@ -903,18 +903,36 @@ def get_file_content(
 
 
 @mcp.tool()
-def get_coverage_gaps(file_filter: str | None = None, limit: int = 100) -> str:
+def get_coverage_gaps(
+    file_filter: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> str:
     """Find public symbols with zero test coverage — no test function calls or imports them.
 
     Returns the highest-priority symbols to write tests for, ordered by file and line.
     Excludes private symbols (leading underscore), imports, variables, and test-file symbols.
+    Supports cursor-style pagination via ``offset`` + ``has_more``.
 
     Args:
         file_filter: Only include symbols from files matching this path prefix
-        limit: Maximum number of symbols to return (default 100)
+        limit: Maximum number of symbols to return (default 100, max 500)
+        offset: Number of symbols to skip before returning (default 0)
     """
+    validated_limit = _validate_limit(limit)
+    if isinstance(validated_limit, str):
+        return validated_limit
+    if offset < 0:
+        return _validation_error("offset", "offset must be >= 0", value=offset)
+
     store = get_store()
-    gaps = store.get_coverage_gaps(file_filter=file_filter, limit=limit)
+    probe = store.get_coverage_gaps(
+        file_filter=file_filter,
+        limit=validated_limit + 1,
+        offset=offset,
+    )
+    has_more = len(probe) > validated_limit
+    gaps = probe[:validated_limit]
     by_file: dict[str, list[dict[str, Any]]] = {}
     for s in gaps:
         by_file.setdefault(s.file_path, []).append(
@@ -930,6 +948,9 @@ def get_coverage_gaps(file_filter: str | None = None, limit: int = 100) -> str:
         {
             "total_uncovered": len(gaps),
             "file_filter": file_filter,
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(gaps) if has_more else None,
             "files": [
                 {"file": fp, "count": len(syms), "symbols": syms}
                 for fp, syms in sorted(by_file.items())

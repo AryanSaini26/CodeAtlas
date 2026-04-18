@@ -964,6 +964,7 @@ class GraphStore:
         self,
         file_filter: str | None = None,
         limit: int = 200,
+        offset: int = 0,
     ) -> list[Symbol]:
         """Return public non-test symbols that have zero test-file references.
 
@@ -986,8 +987,9 @@ class GraphStore:
         if file_filter:
             sql += " AND s.file_path LIKE ?"
             params.append(f"{file_filter}%")
-        sql += " ORDER BY s.file_path, s.start_line LIMIT ?"
+        sql += " ORDER BY s.file_path, s.start_line LIMIT ? OFFSET ?"
         params.append(limit)
+        params.append(max(0, offset))
         rows = conn.execute(sql, params).fetchall()
         return [self._row_to_symbol(r) for r in rows]
 
