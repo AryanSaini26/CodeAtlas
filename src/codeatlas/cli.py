@@ -1198,6 +1198,51 @@ def serve(db: str, transport: str) -> None:
     mcp.run(transport=cast(Literal["stdio", "sse", "streamable-http"], transport))
 
 
+@cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", default=8080, show_default=True, type=int)
+@click.option(
+    "--api-key",
+    default=None,
+    help="Require this value in the X-API-Key header on every request",
+)
+@click.option(
+    "--allow-origin",
+    "allow_origins",
+    multiple=True,
+    help="CORS allow-origin (repeat for multiple). Defaults to * if unset.",
+)
+def server(
+    db: str,
+    host: str,
+    port: int,
+    api_key: str | None,
+    allow_origins: tuple[str, ...],
+) -> None:
+    """Start the HTTP API server (FastAPI + Uvicorn).
+
+    Distinct from ``codeatlas serve`` (MCP/stdio). The HTTP API is what the
+    bundled web UI and third-party integrations talk to.
+    """
+    try:
+        import uvicorn
+    except ImportError as exc:
+        raise click.ClickException(
+            "FastAPI/Uvicorn not installed. Run: pip install 'codeatlas[api]'"
+        ) from exc
+
+    from codeatlas.api import create_app
+
+    app = create_app(
+        db_path=db,
+        allow_origins=list(allow_origins) if allow_origins else None,
+        api_key=api_key,
+    )
+    console.print(f"[green]Starting CodeAtlas HTTP API[/green] on http://{host}:{port} (db: {db})")
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
 @cli.command(name="coverage-gaps")
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option(
