@@ -1,0 +1,63 @@
+{
+  "name": "codeatlas-vscode",
+  "displayName": "CodeAtlas",
+  "description": "Query your CodeAtlas knowledge graph from VS Code.",
+  "version": "0.1.0",
+  "publisher": "aryansaini26",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AryanSaini26/CodeAtlas.git",
+    "directory": "vscode-extension"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeatlas.openUi",
+        "title": "CodeAtlas: Open Web UI"
+      },
+      {
+        "command": "codeatlas.searchSymbols",
+        "title": "CodeAtlas: Search Symbols"
+      },
+      {
+        "command": "codeatlas.showSymbolDetails",
+        "title": "CodeAtlas: Show Symbol at Cursor"
+      }
+    ],
+    "configuration": {
+      "title": "CodeAtlas",
+      "properties": {
+        "codeatlas.apiBase": {
+          "type": "string",
+          "default": "http://127.0.0.1:8080",
+          "description": "Base URL of the CodeAtlas HTTP API."
+        },
+        "codeatlas.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Optional X-API-Key header value if the server requires auth."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}
