@@ -36,6 +36,47 @@ def cli() -> None:
     """CodeAtlas - real-time code knowledge graphs for AI coding agents."""
 
 
+_COMPLETION_SCRIPTS = {
+    "bash": {
+        "script": 'eval "$(_CODEATLAS_COMPLETE=bash_source codeatlas)"',
+        "rc": "~/.bashrc",
+    },
+    "zsh": {
+        "script": 'eval "$(_CODEATLAS_COMPLETE=zsh_source codeatlas)"',
+        "rc": "~/.zshrc",
+    },
+    "fish": {
+        "script": "_CODEATLAS_COMPLETE=fish_source codeatlas | source",
+        "rc": "~/.config/fish/completions/codeatlas.fish",
+    },
+}
+
+
+@cli.command("install-completion")
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]), required=False)
+def install_completion(shell: str | None) -> None:
+    """Print the shell completion activation line for your shell.
+
+    Example: `codeatlas install-completion zsh >> ~/.zshrc`
+    """
+    import os
+
+    if shell is None:
+        shell_env = os.environ.get("SHELL", "")
+        if "zsh" in shell_env:
+            shell = "zsh"
+        elif "fish" in shell_env:
+            shell = "fish"
+        else:
+            shell = "bash"
+    info = _COMPLETION_SCRIPTS[shell]
+    click.echo(info["script"])
+    click.echo(
+        f"# Add the line above to {info['rc']} to enable completion.",
+        err=True,
+    )
+
+
 @cli.command()
 @click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 def init(repo_path: str) -> None:

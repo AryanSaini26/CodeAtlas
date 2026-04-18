@@ -3,6 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 from codeatlas import __version__
@@ -855,6 +856,43 @@ def test_languages_command() -> None:
     assert "python" in result.output.lower()
     assert "go" in result.output.lower()
     assert "rust" in result.output.lower()
+
+
+def test_install_completion_bash() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["install-completion", "bash"])
+    assert result.exit_code == 0
+    assert "_CODEATLAS_COMPLETE=bash_source" in result.output
+
+
+def test_install_completion_zsh() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["install-completion", "zsh"])
+    assert result.exit_code == 0
+    assert "_CODEATLAS_COMPLETE=zsh_source" in result.output
+
+
+def test_install_completion_fish() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["install-completion", "fish"])
+    assert result.exit_code == 0
+    assert "_CODEATLAS_COMPLETE=fish_source" in result.output
+
+
+def test_install_completion_auto_detects_shell(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SHELL", "/usr/local/bin/zsh")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["install-completion"])
+    assert result.exit_code == 0
+    assert "zsh_source" in result.output
+
+
+def test_install_completion_unknown_shell_defaults_bash(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SHELL", "/usr/bin/tcsh")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["install-completion"])
+    assert result.exit_code == 0
+    assert "bash_source" in result.output
 
 
 def test_languages_shows_21_entries() -> None:

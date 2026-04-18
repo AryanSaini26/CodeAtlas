@@ -228,6 +228,7 @@ switches between community-coloring and kind-coloring.
 | `codeatlas languages` | List all supported languages and file extensions |
 | `codeatlas clean` | Remove the `.codeatlas` directory |
 | `codeatlas serve` | Start the MCP server |
+| `codeatlas install-completion [shell]` | Print the shell completion activation line (bash/zsh/fish) |
 
 ## MCP Server
 
