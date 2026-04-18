@@ -1,0 +1,22 @@
+services:
+  codeatlas:
+    build: .
+    image: codeatlas:latest
+    container_name: codeatlas
+    volumes:
+      - ${REPO_PATH:-./}:/repo:ro
+      - codeatlas-data:/data
+    working_dir: /repo
+    command: ["index", "--db", "/data/codeatlas.db", "/repo"]
+
+  codeatlas-query:
+    build: .
+    image: codeatlas:latest
+    profiles: ["query"]
+    volumes:
+      - codeatlas-data:/data
+    entrypoint: ["codeatlas"]
+    command: ["stats", "--db", "/data/codeatlas.db"]
+
+volumes:
+  codeatlas-data:
