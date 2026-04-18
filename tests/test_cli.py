@@ -136,6 +136,37 @@ def test_export_stdout(tmp_path: Path) -> None:
     assert "nodes" in result.output
 
 
+def test_export_graphml_cli(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["export", "--db", db_path, "--format", "graphml"])
+    assert result.exit_code == 0
+    assert "<graphml" in result.output
+
+
+def test_export_csv_cli(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["export", "--db", db_path, "--format", "csv"])
+    assert result.exit_code == 0
+    assert "# nodes" in result.output
+    assert "# edges" in result.output
+
+
+def test_export_cypher_cli(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["export", "--db", db_path, "--format", "cypher"])
+    assert result.exit_code == 0
+    assert "CREATE (" in result.output
+
+
 # --- show command ---
 
 

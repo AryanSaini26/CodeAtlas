@@ -9,7 +9,15 @@ from rich.table import Table
 
 from codeatlas import __version__
 from codeatlas.config import CodeAtlasConfig
-from codeatlas.graph.export import ExportOptions, export_dot, export_json, export_mermaid
+from codeatlas.graph.export import (
+    ExportOptions,
+    export_csv,
+    export_cypher,
+    export_dot,
+    export_graphml,
+    export_json,
+    export_mermaid,
+)
 from codeatlas.graph.store import GraphStore
 from codeatlas.indexer import RepoIndexer
 from codeatlas.sync.watcher import FileWatcher
@@ -369,7 +377,7 @@ def query(
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["dot", "json", "mermaid"]),
+    type=click.Choice(["dot", "json", "mermaid", "graphml", "csv", "cypher"]),
     default="dot",
     show_default=True,
 )
@@ -394,7 +402,7 @@ def export(
     include_communities: bool,
     output: str | None,
 ) -> None:
-    """Export the knowledge graph to DOT, JSON, or Mermaid format."""
+    """Export the knowledge graph to DOT, JSON, Mermaid, GraphML, CSV, or Cypher format."""
     store = _get_store(Path(db))
     opts = ExportOptions(
         include_externals=include_externals,
@@ -406,6 +414,12 @@ def export(
         result = export_dot(store, opts)
     elif fmt == "mermaid":
         result = export_mermaid(store, opts)
+    elif fmt == "graphml":
+        result = export_graphml(store, opts)
+    elif fmt == "csv":
+        result = export_csv(store, opts)
+    elif fmt == "cypher":
+        result = export_cypher(store, opts)
     else:
         result = export_json(store, opts)
 

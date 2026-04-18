@@ -4,7 +4,15 @@ import json
 
 import pytest
 
-from codeatlas.graph.export import ExportOptions, export_dot, export_json, export_mermaid
+from codeatlas.graph.export import (
+    ExportOptions,
+    export_csv,
+    export_cypher,
+    export_dot,
+    export_graphml,
+    export_json,
+    export_mermaid,
+)
 from codeatlas.graph.store import GraphStore
 from codeatlas.models import (
     FileInfo,
@@ -309,3 +317,82 @@ def test_export_mermaid_truncates_long_signatures() -> None:
     store.upsert_parse_result(_result("app.py", [cls, method]))
     out = export_mermaid(store)
     assert "..." in out  # truncated
+
+
+def test_export_graphml_is_well_formed(populated_store: GraphStore) -> None:
+    import xml.etree.ElementTree as ET
+
+    output = export_graphml(populated_store)
+    root = ET.fromstring(output)
+    ns = {"g": "http://graphml.graphdrawing.org/xmlns"}
+    graph = root.find("g:graph", ns)
+    assert graph is not None
+    nodes = graph.findall("g:node", ns)
+    edges = graph.findall("g:edge", ns)
+    assert len(nodes) == 2
+    assert len(edges) == 1
+    assert edges[0].attrib["source"].endswith("main")
+    assert edges[0].attrib["target"].endswith("helper")
+
+
+def test_export_graphml_excludes_externals_by_default(graph_store: GraphStore) -> None:
+    sym = _sym("foo")
+    rel = _rel("app.py::foo", "<unresolved>::bar")
+    graph_store.upsert_parse_result(_result("app.py", [sym], [rel]))
+    out = export_graphml(graph_store)
+    assert "<unresolved>" not in out
+
+
+def test_export_graphml_with_communities(populated_store: GraphStore) -> None:
+    out = export_graphml(populated_store, ExportOptions(include_communities=True))
+    assert 'key="community_id"' in out
+
+
+def test_export_csv_has_nodes_and_edges_sections(populated_store: GraphStore) -> None:
+    out = export_csv(populated_store)
+    assert "# nodes" in out
+    assert "# edges" in out
+    assert "id,name,qualified_name,kind,file" in out
+    assert "source,target,kind,confidence" in out
+    assert "main" in out
+    assert "helper" in out
+    assert "calls" in out
+
+
+def test_export_csv_file_filter(populated_store: GraphStore) -> None:
+    out = export_csv(populated_store, ExportOptions(file_filter="utils"))
+    assert "helper" in out
+    # app.py::main should be filtered out
+    assert "app.py::main" not in out
+
+
+def test_export_csv_with_communities(populated_store: GraphStore) -> None:
+    out = export_csv(populated_store, ExportOptions(include_communities=True))
+    assert "community_id" in out.splitlines()[1]  # header row of nodes section
+
+
+def test_export_cypher_creates_nodes_and_edges(populated_store: GraphStore) -> None:
+    out = export_cypher(populated_store)
+    assert "CREATE (n0:Function" in out
+    assert "CREATE (n1:Function" in out
+    assert "-[:CALLS" in out
+    assert "confidence: 'extracted'" in out
+
+
+def test_export_cypher_escapes_quotes(graph_store: GraphStore) -> None:
+    tricky = Symbol(
+        id="app.py::it's",
+        name="it's",
+        qualified_name="it's",
+        kind=SymbolKind.FUNCTION,
+        file_path="app.py",
+        span=Span(start=Position(line=0, column=0), end=Position(line=1, column=0)),
+        language="python",
+    )
+    graph_store.upsert_parse_result(_result("app.py", [tricky]))
+    out = export_cypher(graph_store)
+    assert "it\\'s" in out
+
+
+def test_export_cypher_empty_store(graph_store: GraphStore) -> None:
+    assert export_cypher(graph_store) == ""

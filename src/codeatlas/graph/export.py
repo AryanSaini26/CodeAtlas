@@ -1,8 +1,11 @@
-"""Graph export to DOT (Graphviz), JSON (D3.js), and Mermaid formats."""
+"""Graph export to DOT, JSON, Mermaid, GraphML, CSV, and Cypher formats."""
 
+import csv
+import io
 import json
 import re
 from dataclasses import dataclass
+from xml.sax.saxutils import escape as xml_escape
 
 from codeatlas.graph.store import GraphStore
 
@@ -246,6 +249,207 @@ def export_mermaid(store: GraphStore, options: ExportOptions | None = None) -> s
         lines.append(f"    {_mermaid_id(tgt_name)} {arrow} {_mermaid_id(src_name)}")
 
     return "\n".join(lines)
+
+
+def export_graphml(store: GraphStore, options: ExportOptions | None = None) -> str:
+    """Export the knowledge graph to GraphML (Gephi/yEd/Cytoscape)."""
+    opts = options or ExportOptions()
+    conn = store._conn
+
+    sym_query = "SELECT id, name, qualified_name, kind, file_path FROM symbols"
+    sym_params: list[str] = []
+    if opts.file_filter:
+        sym_query += " WHERE file_path LIKE ?"
+        sym_params.append(f"{opts.file_filter}%")
+    symbols = conn.execute(sym_query, sym_params).fetchall()
+    symbol_ids = {row["id"] for row in symbols}
+
+    communities = store.detect_communities() if opts.include_communities else {}
+
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<graphml xmlns="http://graphml.graphdrawing.org/xmlns">',
+        '  <key id="name" for="node" attr.name="name" attr.type="string"/>',
+        '  <key id="qualified_name" for="node" attr.name="qualified_name" attr.type="string"/>',
+        '  <key id="kind" for="node" attr.name="kind" attr.type="string"/>',
+        '  <key id="file" for="node" attr.name="file" attr.type="string"/>',
+        '  <key id="community_id" for="node" attr.name="community_id" attr.type="string"/>',
+        '  <key id="rel_kind" for="edge" attr.name="kind" attr.type="string"/>',
+        '  <key id="confidence" for="edge" attr.name="confidence" attr.type="string"/>',
+        '  <graph id="codeatlas" edgedefault="directed">',
+    ]
+
+    for row in symbols:
+        node_id = xml_escape(row["id"], {'"': "&quot;"})
+        lines.append(f'    <node id="{node_id}">')
+        lines.append(f'      <data key="name">{xml_escape(row["name"])}</data>')
+        lines.append(f'      <data key="qualified_name">{xml_escape(row["qualified_name"])}</data>')
+        lines.append(f'      <data key="kind">{xml_escape(row["kind"])}</data>')
+        lines.append(f'      <data key="file">{xml_escape(row["file_path"])}</data>')
+        if communities:
+            cid = communities.get(row["id"]) or ""
+            lines.append(f'      <data key="community_id">{xml_escape(cid)}</data>')
+        lines.append("    </node>")
+
+    rel_query = "SELECT source_id, target_id, kind, confidence FROM relationships"
+    rel_params: list[str] = []
+    if opts.file_filter:
+        rel_query += " WHERE file_path LIKE ?"
+        rel_params.append(f"{opts.file_filter}%")
+    relationships = conn.execute(rel_query, rel_params).fetchall()
+
+    for idx, row in enumerate(relationships):
+        src = row["source_id"]
+        tgt = row["target_id"]
+        if not opts.include_externals:
+            if tgt.startswith("<external>::") or tgt.startswith("<unresolved>::"):
+                continue
+            if src not in symbol_ids or tgt not in symbol_ids:
+                continue
+        confidence = row["confidence"] if "confidence" in row.keys() else "extracted"
+        esc_src = xml_escape(src, {'"': "&quot;"})
+        esc_tgt = xml_escape(tgt, {'"': "&quot;"})
+        lines.append(f'    <edge id="e{idx}" source="{esc_src}" target="{esc_tgt}">')
+        lines.append(f'      <data key="rel_kind">{xml_escape(row["kind"])}</data>')
+        lines.append(f'      <data key="confidence">{xml_escape(confidence)}</data>')
+        lines.append("    </edge>")
+
+    lines.append("  </graph>")
+    lines.append("</graphml>")
+    return "\n".join(lines)
+
+
+def export_csv(store: GraphStore, options: ExportOptions | None = None) -> str:
+    """Export the knowledge graph to CSV (Gephi-style nodes + edges sections)."""
+    opts = options or ExportOptions()
+    conn = store._conn
+
+    sym_query = "SELECT id, name, qualified_name, kind, file_path FROM symbols"
+    sym_params: list[str] = []
+    if opts.file_filter:
+        sym_query += " WHERE file_path LIKE ?"
+        sym_params.append(f"{opts.file_filter}%")
+    symbols = conn.execute(sym_query, sym_params).fetchall()
+    symbol_ids = {row["id"] for row in symbols}
+
+    communities = store.detect_communities() if opts.include_communities else {}
+
+    buf = io.StringIO()
+    buf.write("# nodes\n")
+    node_fields = ["id", "name", "qualified_name", "kind", "file"]
+    if communities:
+        node_fields.append("community_id")
+    writer = csv.DictWriter(buf, fieldnames=node_fields)
+    writer.writeheader()
+    for row in symbols:
+        record = {
+            "id": row["id"],
+            "name": row["name"],
+            "qualified_name": row["qualified_name"],
+            "kind": row["kind"],
+            "file": row["file_path"],
+        }
+        if communities:
+            record["community_id"] = communities.get(row["id"]) or ""
+        writer.writerow(record)
+
+    rel_query = "SELECT source_id, target_id, kind, confidence FROM relationships"
+    rel_params: list[str] = []
+    if opts.file_filter:
+        rel_query += " WHERE file_path LIKE ?"
+        rel_params.append(f"{opts.file_filter}%")
+    relationships = conn.execute(rel_query, rel_params).fetchall()
+
+    buf.write("# edges\n")
+    edge_writer = csv.DictWriter(buf, fieldnames=["source", "target", "kind", "confidence"])
+    edge_writer.writeheader()
+    for row in relationships:
+        src = row["source_id"]
+        tgt = row["target_id"]
+        if not opts.include_externals:
+            if tgt.startswith("<external>::") or tgt.startswith("<unresolved>::"):
+                continue
+            if src not in symbol_ids or tgt not in symbol_ids:
+                continue
+        confidence = row["confidence"] if "confidence" in row.keys() else "extracted"
+        edge_writer.writerow(
+            {"source": src, "target": tgt, "kind": row["kind"], "confidence": confidence}
+        )
+
+    return buf.getvalue()
+
+
+def export_cypher(store: GraphStore, options: ExportOptions | None = None) -> str:
+    """Export the knowledge graph as Neo4j Cypher CREATE statements."""
+    opts = options or ExportOptions()
+    conn = store._conn
+
+    sym_query = "SELECT id, name, qualified_name, kind, file_path FROM symbols"
+    sym_params: list[str] = []
+    if opts.file_filter:
+        sym_query += " WHERE file_path LIKE ?"
+        sym_params.append(f"{opts.file_filter}%")
+    symbols = conn.execute(sym_query, sym_params).fetchall()
+    symbol_ids = {row["id"] for row in symbols}
+
+    communities = store.detect_communities() if opts.include_communities else {}
+
+    lines = []
+    id_to_var: dict[str, str] = {}
+    for idx, row in enumerate(symbols):
+        var = f"n{idx}"
+        id_to_var[row["id"]] = var
+        label = _cypher_label(row["kind"])
+        props = {
+            "id": row["id"],
+            "name": row["name"],
+            "qualified_name": row["qualified_name"],
+            "kind": row["kind"],
+            "file": row["file_path"],
+        }
+        if communities:
+            props["community_id"] = communities.get(row["id"]) or ""
+        props_str = ", ".join(f"{k}: {_cypher_literal(v)}" for k, v in props.items())
+        lines.append(f"CREATE ({var}:{label} {{{props_str}}})")
+
+    rel_query = "SELECT source_id, target_id, kind, confidence FROM relationships"
+    rel_params: list[str] = []
+    if opts.file_filter:
+        rel_query += " WHERE file_path LIKE ?"
+        rel_params.append(f"{opts.file_filter}%")
+    relationships = conn.execute(rel_query, rel_params).fetchall()
+
+    for row in relationships:
+        src = row["source_id"]
+        tgt = row["target_id"]
+        if not opts.include_externals:
+            if tgt.startswith("<external>::") or tgt.startswith("<unresolved>::"):
+                continue
+            if src not in symbol_ids or tgt not in symbol_ids:
+                continue
+        src_var = id_to_var.get(src)
+        tgt_var = id_to_var.get(tgt)
+        if src_var is None or tgt_var is None:
+            continue
+        confidence = row["confidence"] if "confidence" in row.keys() else "extracted"
+        rel_type = row["kind"].upper()
+        lines.append(
+            f"CREATE ({src_var})-[:{rel_type} "
+            f"{{confidence: {_cypher_literal(confidence)}}}]->({tgt_var})"
+        )
+
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
+def _cypher_label(kind: str) -> str:
+    """Convert a symbol kind to a Cypher node label (PascalCase)."""
+    return "".join(part.capitalize() for part in kind.split("_")) or "Symbol"
+
+
+def _cypher_literal(value: str) -> str:
+    """Escape a string for safe inclusion as a Cypher literal."""
+    escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+    return f"'{escaped}'"
 
 
 def _mermaid_id(name: str) -> str:
