@@ -34,6 +34,55 @@ def set_store(store: GraphStore) -> None:
     _store = store
 
 
+_VALID_SYMBOL_KINDS = frozenset(
+    {
+        "function",
+        "method",
+        "class",
+        "interface",
+        "constant",
+        "variable",
+        "import",
+        "module",
+        "type_alias",
+        "enum",
+        "namespace",
+        "struct",
+        "trait",
+    }
+)
+_MAX_LIMIT = 500
+
+
+def _validation_error(field: str, message: str, value: Any = None) -> str:
+    """Build a structured JSON error response for a bad MCP tool input."""
+    payload: dict[str, Any] = {"error": message, "field": field}
+    if value is not None:
+        payload["value"] = value
+    return json.dumps(payload)
+
+
+def _validate_limit(limit: int, field: str = "limit") -> int | str:
+    """Clamp a limit to [1, 500]. Returns the int, or a JSON error string."""
+    if not isinstance(limit, int) or limit < 1:
+        return _validation_error(field, f"{field} must be a positive integer", limit)
+    return min(limit, _MAX_LIMIT)
+
+
+def _validate_kind(kind: str, field: str = "kind") -> str:
+    """Lowercase + check against the known symbol kinds. Returns the kind or a JSON error."""
+    if not isinstance(kind, str) or not kind.strip():
+        return _validation_error(field, f"{field} must be a non-empty string", kind)
+    normalized = kind.strip().lower()
+    if normalized not in _VALID_SYMBOL_KINDS:
+        return _validation_error(
+            field,
+            f"{field} must be one of {sorted(_VALID_SYMBOL_KINDS)}",
+            kind,
+        )
+    return normalized
+
+
 def get_semantic_index() -> "SemanticIndex":
     global _semantic
     if _semantic is None:
@@ -169,13 +218,26 @@ def search_symbols(
                      class, interface, constant, variable, import, module, type_alias, enum,
                      namespace
     """
+    if not isinstance(query, str) or not query.strip():
+        return _validation_error("query", "query must be a non-empty string", query)
+    clamped = _validate_limit(limit)
+    if isinstance(clamped, str):
+        return clamped
     store = get_store()
     # Parse comma-separated kind list (e.g. "class,interface" → ["class", "interface"])
     parsed_kind: str | list[str] | None = None
     if kind_filter:
-        parts = [k.strip() for k in kind_filter.split(",") if k.strip()]
+        parts = [k.strip().lower() for k in kind_filter.split(",") if k.strip()]
+        for p in parts:
+            if p not in _VALID_SYMBOL_KINDS:
+                return _validation_error(
+                    "kind_filter",
+                    f"kind_filter contains unknown kind '{p}'; "
+                    f"valid: {sorted(_VALID_SYMBOL_KINDS)}",
+                    kind_filter,
+                )
         parsed_kind = parts[0] if len(parts) == 1 else parts
-    results = store.search(query, limit=limit, file_filter=file_filter, kind_filter=parsed_kind)
+    results = store.search(query, limit=clamped, file_filter=file_filter, kind_filter=parsed_kind)
     return json.dumps(
         {
             "query": query,
@@ -257,11 +319,17 @@ def list_symbols_by_kind(
         file_filter: Optional path substring to restrict results (e.g. 'src/api/')
         limit: Maximum number of results (default 100)
     """
+    validated = _validate_kind(kind)
+    if validated.startswith("{"):
+        return validated
+    clamped = _validate_limit(limit)
+    if isinstance(clamped, str):
+        return clamped
     store = get_store()
-    results = store.get_symbols_by_kind(kind, file_filter=file_filter, limit=limit)
+    results = store.get_symbols_by_kind(validated, file_filter=file_filter, limit=clamped)
     return json.dumps(
         {
-            "kind": kind,
+            "kind": validated,
             "file_filter": file_filter,
             "count": len(results),
             "symbols": [
@@ -686,8 +754,16 @@ def get_pagerank(limit: int = 20, kind_filter: str | None = None) -> str:
         limit: Maximum number of symbols to return (default 20)
         kind_filter: Optional symbol kind filter (e.g. "class", "function")
     """
+    clamped = _validate_limit(limit)
+    if isinstance(clamped, str):
+        return clamped
+    if kind_filter is not None:
+        validated = _validate_kind(kind_filter, field="kind_filter")
+        if validated.startswith("{"):
+            return validated
+        kind_filter = validated
     store = get_store()
-    ranking = store.get_pagerank_ranking(limit=limit, kind_filter=kind_filter)
+    ranking = store.get_pagerank_ranking(limit=clamped, kind_filter=kind_filter)
     return json.dumps({"count": len(ranking), "ranking": ranking}, indent=2)
 
 

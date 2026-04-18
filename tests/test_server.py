@@ -301,6 +301,24 @@ def test_search_symbols_multi_kind_filter() -> None:
         assert r["kind"] in ("function", "class")
 
 
+def test_search_symbols_rejects_empty_query() -> None:
+    result = json.loads(search_symbols(""))
+    assert "error" in result
+    assert result["field"] == "query"
+
+
+def test_search_symbols_rejects_bad_kind_filter() -> None:
+    result = json.loads(search_symbols("main", kind_filter="bogus"))
+    assert "error" in result
+    assert result["field"] == "kind_filter"
+
+
+def test_search_symbols_rejects_negative_limit() -> None:
+    result = json.loads(search_symbols("main", limit=-1))
+    assert "error" in result
+    assert result["field"] == "limit"
+
+
 # --- get_symbol_details ---
 
 
@@ -346,9 +364,11 @@ def test_list_symbols_by_kind_function() -> None:
 
 
 def test_list_symbols_by_kind_invalid() -> None:
+    """Unknown kind now returns a structured validation error."""
     result = json.loads(list_symbols_by_kind("nonexistentkind"))
-    assert result["count"] == 0
-    assert result["symbols"] == []
+    assert "error" in result
+    assert result["field"] == "kind"
+    assert result["value"] == "nonexistentkind"
 
 
 def test_list_symbols_by_kind_with_filter() -> None:
@@ -356,6 +376,26 @@ def test_list_symbols_by_kind_with_filter() -> None:
     assert result["count"] >= 1
     for s in result["symbols"]:
         assert "app" in s["file"]
+
+
+def test_list_symbols_by_kind_normalizes_case() -> None:
+    """Mixed-case kinds should normalize to lowercase rather than erroring."""
+    upper = json.loads(list_symbols_by_kind("CLASS"))
+    lower = json.loads(list_symbols_by_kind("class"))
+    assert upper["kind"] == "class"
+    assert upper["count"] == lower["count"]
+
+
+def test_list_symbols_by_kind_rejects_bad_limit() -> None:
+    result = json.loads(list_symbols_by_kind("function", limit=0))
+    assert "error" in result
+    assert result["field"] == "limit"
+
+
+def test_list_symbols_by_kind_clamps_large_limit() -> None:
+    """Limits above 500 are silently clamped rather than rejected."""
+    result = json.loads(list_symbols_by_kind("function", limit=10_000))
+    assert "error" not in result
 
 
 # --- get_api_surface ---
@@ -497,6 +537,18 @@ def test_get_pagerank_kind_filter() -> None:
     result = json.loads(get_pagerank(limit=5, kind_filter="class"))
     for r in result["ranking"]:
         assert r["kind"] == "class"
+
+
+def test_get_pagerank_rejects_bad_kind_filter() -> None:
+    result = json.loads(get_pagerank(limit=5, kind_filter="bogus"))
+    assert "error" in result
+    assert result["field"] == "kind_filter"
+
+
+def test_get_pagerank_rejects_bad_limit() -> None:
+    result = json.loads(get_pagerank(limit=0))
+    assert "error" in result
+    assert result["field"] == "limit"
 
 
 def test_get_symbol_diff_handles_non_git_dir(tmp_path: Any) -> None:
