@@ -292,3 +292,58 @@ def test_index_files_batch_flush(
     stats = indexer._index_files(files, "Batch test", batch_size=2)
     assert stats["parsed"] == len(files)
     assert stats["errors"] == 0
+
+
+# --- Parallel parsing ---
+
+
+def test_parse_one_helper_returns_result(sample_repo: Path) -> None:
+    """The module-level worker function parses a file into a ParseResult."""
+    from codeatlas.indexer import _parse_one
+
+    path_str, result, err = _parse_one(str(sample_repo / "app.py"))
+    assert err is None
+    assert result is not None
+    assert any(s.name == "greet" for s in result.symbols)
+
+
+def test_parse_one_helper_handles_bad_path(tmp_path: Path) -> None:
+    """Errors surface through the (path, None, err) return tuple."""
+    from codeatlas.indexer import _parse_one
+
+    missing = tmp_path / "does_not_exist.py"
+    _, result, err = _parse_one(str(missing))
+    # Missing file → registry.parse_file raises; the worker catches it.
+    assert result is None
+    assert err is not None
+
+
+def test_workers_param_defaults_to_one(sample_repo: Path) -> None:
+    store = GraphStore(":memory:")
+    config = CodeAtlasConfig(repo_root=sample_repo)
+    indexer = RepoIndexer(config, store)
+    assert indexer._workers == 1
+
+
+def test_workers_param_clamps_below_one(sample_repo: Path) -> None:
+    store = GraphStore(":memory:")
+    config = CodeAtlasConfig(repo_root=sample_repo)
+    indexer = RepoIndexer(config, store, workers=0)
+    assert indexer._workers == 1
+
+
+def test_index_full_with_workers_parallel(sample_repo: Path) -> None:
+    """End-to-end: index with workers=2 should produce the same graph as serial."""
+    store = GraphStore(":memory:")
+    config = CodeAtlasConfig(
+        repo_root=sample_repo,
+        graph=GraphConfig(db_path=Path(":memory:")),
+    )
+    indexer = RepoIndexer(config, store, workers=2)
+    stats = indexer.index_full(resolve=False)
+    assert stats["parsed"] >= 3
+    assert stats["errors"] == 0
+    # Symbols from all three files should have landed in the store
+    rows = store._conn.execute("SELECT name FROM symbols").fetchall()
+    names = {r["name"] for r in rows}
+    assert {"greet", "clamp", "load"}.issubset(names)

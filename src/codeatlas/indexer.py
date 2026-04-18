@@ -2,6 +2,7 @@
 
 import hashlib
 import time
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 from rich.console import Console
@@ -15,14 +16,31 @@ from codeatlas.parsers import ParserRegistry
 
 console = Console()
 
+_WORKER_REGISTRY: ParserRegistry | None = None
+
+
+def _parse_one(path_str: str) -> tuple[str, ParseResult | None, str | None]:
+    """Worker-local parse. Instantiates a per-process ParserRegistry once.
+
+    Must be module-level so `ProcessPoolExecutor` (spawn context) can pickle it.
+    """
+    global _WORKER_REGISTRY
+    if _WORKER_REGISTRY is None:
+        _WORKER_REGISTRY = ParserRegistry()
+    try:
+        return (path_str, _WORKER_REGISTRY.parse_file(Path(path_str)), None)
+    except Exception as exc:
+        return (path_str, None, str(exc))
+
 
 class RepoIndexer:
     """Indexes an entire repository into the GraphStore."""
 
-    def __init__(self, config: CodeAtlasConfig, store: GraphStore) -> None:
+    def __init__(self, config: CodeAtlasConfig, store: GraphStore, workers: int = 1) -> None:
         self._config = config
         self._store = store
         self._registry = ParserRegistry()
+        self._workers = max(1, workers)
 
     def index_full(self, resolve: bool = True) -> dict[str, int]:
         """Full index: parse all supported files and upsert into the graph."""
@@ -85,28 +103,46 @@ class RepoIndexer:
         start = time.monotonic()
         batch: list[ParseResult] = []
 
+        def _handle(path: str, result: ParseResult | None, err: str | None) -> None:
+            if err is not None:
+                console.print(f"[red]Error parsing {path}: {err}[/red]")
+                stats["errors"] += 1
+            elif result is not None:
+                batch.append(result)
+                stats["parsed"] += 1
+            else:
+                stats["skipped"] += 1
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
             task = progress.add_task(f"{label}...", total=len(files))
-            for path in files:
-                progress.update(task, description=f"{label}: {path.name}")
-                try:
-                    result = self._registry.parse_file(path)
-                    if result is not None:
-                        batch.append(result)
-                        stats["parsed"] += 1
+
+            if self._workers > 1 and len(files) > 1:
+                path_strs = [str(p) for p in files]
+                chunk = max(1, min(16, len(files) // (self._workers * 4) or 1))
+                with ProcessPoolExecutor(max_workers=self._workers) as pool:
+                    for path_str, result, err in pool.map(_parse_one, path_strs, chunksize=chunk):
+                        progress.update(task, description=f"{label}: {Path(path_str).name}")
+                        _handle(path_str, result, err)
                         if len(batch) >= batch_size:
                             self._store.upsert_batch(batch)
                             batch.clear()
-                    else:
-                        stats["skipped"] += 1
-                except Exception as exc:
-                    console.print(f"[red]Error parsing {path}: {exc}[/red]")
-                    stats["errors"] += 1
-                progress.advance(task)
+                        progress.advance(task)
+            else:
+                for path in files:
+                    progress.update(task, description=f"{label}: {path.name}")
+                    try:
+                        result = self._registry.parse_file(path)
+                        _handle(str(path), result, None)
+                    except Exception as exc:
+                        _handle(str(path), None, str(exc))
+                    if len(batch) >= batch_size:
+                        self._store.upsert_batch(batch)
+                        batch.clear()
+                    progress.advance(task)
 
             if batch:
                 self._store.upsert_batch(batch)

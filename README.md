@@ -189,6 +189,7 @@ switches between community-coloring and kind-coloring.
 | `codeatlas index [path]` | Index a repository into the knowledge graph |
 | `codeatlas index [path] --incremental` | Only re-index files that changed |
 | `codeatlas index [path] --watch` | Index then keep watching for file changes |
+| `codeatlas index [path] --workers N` | Parse files in parallel across N processes |
 | `codeatlas diff [path]` | Show files that changed since the last index |
 | `codeatlas stats` | Show graph statistics (files, symbols, relationships) |
 | `codeatlas list-files` | List all indexed files with language and symbol counts |

@@ -69,12 +69,19 @@ def init(repo_path: str) -> None:
 @click.option("--db", default=".codeatlas/graph.db", show_default=True, help="Database path")
 @click.option("--incremental", is_flag=True, help="Only re-index changed files")
 @click.option("--watch", is_flag=True, help="Keep watching for changes after indexing")
-def index(repo_path: str, db: str, incremental: bool, watch: bool) -> None:
+@click.option(
+    "--workers",
+    default=1,
+    show_default=True,
+    type=int,
+    help="Parse files in parallel processes (1 = serial)",
+)
+def index(repo_path: str, db: str, incremental: bool, watch: bool, workers: int) -> None:
     """Index a repository into the knowledge graph."""
     config = CodeAtlasConfig.find_and_load(Path(repo_path))
     config.graph.db_path = Path(db)
     store = _get_store(Path(db))
-    indexer = RepoIndexer(config, store)
+    indexer = RepoIndexer(config, store, workers=workers)
 
     if incremental:
         indexer.index_incremental()
