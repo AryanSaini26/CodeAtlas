@@ -398,6 +398,41 @@ def test_list_symbols_by_kind_clamps_large_limit() -> None:
     assert "error" not in result
 
 
+def test_list_symbols_by_kind_pagination_first_page() -> None:
+    """Small limit with more data → has_more=True and a next_offset."""
+    # fixture has several functions; use limit=1 to force pagination
+    page = json.loads(list_symbols_by_kind("function", limit=1))
+    assert page["count"] == 1
+    assert page["offset"] == 0
+    # fixture should have at least two functions (main + helper)
+    assert page["has_more"] is True
+    assert page["next_offset"] == 1
+
+
+def test_list_symbols_by_kind_pagination_second_page() -> None:
+    """Using next_offset returns the next slice, skipping the first."""
+    first = json.loads(list_symbols_by_kind("function", limit=1))
+    second = json.loads(list_symbols_by_kind("function", limit=1, offset=first["next_offset"]))
+    assert second["offset"] == 1
+    first_names = {s["name"] for s in first["symbols"]}
+    second_names = {s["name"] for s in second["symbols"]}
+    assert first_names.isdisjoint(second_names)
+
+
+def test_list_symbols_by_kind_pagination_exhausted() -> None:
+    """Past the last page → empty list, has_more=False, next_offset=None."""
+    page = json.loads(list_symbols_by_kind("function", limit=500, offset=100_000))
+    assert page["count"] == 0
+    assert page["has_more"] is False
+    assert page["next_offset"] is None
+
+
+def test_list_symbols_by_kind_rejects_negative_offset() -> None:
+    result = json.loads(list_symbols_by_kind("function", offset=-1))
+    assert "error" in result
+    assert result["field"] == "offset"
+
+
 # --- get_api_surface ---
 
 

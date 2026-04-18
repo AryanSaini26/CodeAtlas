@@ -307,6 +307,7 @@ def list_symbols_by_kind(
     kind: str,
     file_filter: str | None = None,
     limit: int = 100,
+    offset: int = 0,
 ) -> str:
     """List all symbols of a specific kind across the codebase.
 
@@ -317,7 +318,8 @@ def list_symbols_by_kind(
         kind: One of: function, method, class, interface, constant, variable,
               import, module, type_alias, enum, namespace
         file_filter: Optional path substring to restrict results (e.g. 'src/api/')
-        limit: Maximum number of results (default 100)
+        limit: Maximum number of results per page (default 100, max 500)
+        offset: Number of results to skip for pagination (default 0)
     """
     validated = _validate_kind(kind)
     if validated.startswith("{"):
@@ -325,13 +327,23 @@ def list_symbols_by_kind(
     clamped = _validate_limit(limit)
     if isinstance(clamped, str):
         return clamped
+    if not isinstance(offset, int) or offset < 0:
+        return _validation_error("offset", "offset must be a non-negative integer", offset)
     store = get_store()
-    results = store.get_symbols_by_kind(validated, file_filter=file_filter, limit=clamped)
+    # Fetch one extra row to detect whether another page exists.
+    probe = store.get_symbols_by_kind(
+        validated, file_filter=file_filter, limit=clamped + 1, offset=offset
+    )
+    has_more = len(probe) > clamped
+    results = probe[:clamped]
     return json.dumps(
         {
             "kind": validated,
             "file_filter": file_filter,
             "count": len(results),
+            "offset": offset,
+            "has_more": has_more,
+            "next_offset": offset + len(results) if has_more else None,
             "symbols": [
                 {
                     "name": s.qualified_name,

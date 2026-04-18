@@ -375,6 +375,7 @@ class GraphStore:
         kind: str,
         file_filter: str | None = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[Symbol]:
         """Return all symbols of a given kind, optionally filtered by file path."""
         sql = "SELECT * FROM symbols WHERE kind = ?"
@@ -382,8 +383,9 @@ class GraphStore:
         if file_filter:
             sql += " AND file_path LIKE ?"
             params.append(f"%{file_filter}%")
-        sql += " ORDER BY file_path, start_line LIMIT ?"
+        sql += " ORDER BY file_path, start_line LIMIT ? OFFSET ?"
         params.append(limit)
+        params.append(max(0, offset))
         rows = self._conn.execute(sql, params).fetchall()
         return [self._row_to_symbol(r) for r in rows]
 
