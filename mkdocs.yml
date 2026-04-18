@@ -1,0 +1,67 @@
+site_name: CodeAtlas
+site_description: An MCP server that constructs real-time code knowledge graphs for AI coding agents
+site_url: https://aryansaini26.github.io/CodeAtlas/
+repo_url: https://github.com/AryanSaini26/CodeAtlas
+repo_name: AryanSaini26/CodeAtlas
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 Aryan Saini
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - CLI reference: cli.md
+  - MCP tools: mcp-tools.md
+  - Architecture: architecture.md
+  - Languages: languages.md
+  - Changelog: changelog.md
+
+plugins:
+  - search
