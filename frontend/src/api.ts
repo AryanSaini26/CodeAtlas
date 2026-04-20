@@ -119,6 +119,30 @@ export type CoverageGapEntry = {
   line: number;
 };
 
+export type DiffSymbolEntry = {
+  name: string;
+  kind: string;
+  file: string;
+  old_line?: number | null;
+  new_line?: number | null;
+};
+
+export type DiffResponse = {
+  since: string;
+  until: string;
+  added: DiffSymbolEntry[];
+  removed: DiffSymbolEntry[];
+  modified: DiffSymbolEntry[];
+};
+
+export type ReindexResponse = {
+  mode: string;
+  parsed: number;
+  skipped: number;
+  errors: number;
+  duration_ms: number;
+};
+
 export const api = {
   stats: () => req<StatsResponse>("/stats"),
   graph: (params?: {
@@ -151,4 +175,27 @@ export const api = {
       next_offset: number | null;
       gaps: CoverageGapEntry[];
     }>("/coverage-gaps", params),
+  diff: (params: { since: string; until?: string; repo_path?: string }) =>
+    req<DiffResponse>("/diff", params),
+  reindex: async (params?: { repo_path?: string; incremental?: boolean }) => {
+    const qs = params
+      ? "?" +
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined && v !== null && v !== "")
+          .map(
+            ([k, v]) =>
+              encodeURIComponent(k) + "=" + encodeURIComponent(String(v))
+          )
+          .join("&")
+      : "";
+    const headers: Record<string, string> = {};
+    if (API_KEY) headers["X-API-Key"] = API_KEY;
+    const resp = await fetch(API_BASE + "/reindex" + qs, {
+      method: "POST",
+      headers,
+    });
+    if (!resp.ok) throw new Error(`API ${resp.status}: ${await resp.text()}`);
+    return (await resp.json()) as ReindexResponse;
+  },
+  streamUrl: () => API_BASE + "/stream",
 };

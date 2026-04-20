@@ -4,6 +4,8 @@ import GraphPage from "./pages/GraphPage";
 import SearchPage from "./pages/SearchPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import SymbolPage from "./pages/SymbolPage";
+import DiffPage from "./pages/DiffPage";
+import SettingsPage from "./pages/SettingsPage";
 
 function NavItem({ to, label }: { to: string; label: string }) {
   return (
@@ -37,6 +39,8 @@ export default function App() {
             <NavItem to="/graph" label="Graph" />
             <NavItem to="/search" label="Search" />
             <NavItem to="/analysis" label="Analysis" />
+            <NavItem to="/diff" label="Diff" />
+            <NavItem to="/settings" label="Settings" />
           </nav>
           <div className="ml-auto text-xs text-slate-500">
             <a
@@ -55,6 +59,8 @@ export default function App() {
           <Route path="/graph" element={<GraphPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/analysis" element={<AnalysisPage />} />
+          <Route path="/diff" element={<DiffPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/symbol/:id" element={<SymbolPage />} />
         </Routes>
       </main>
