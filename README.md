@@ -8,6 +8,13 @@
 
 An open-source MCP server that constructs real-time code knowledge graphs of any repository and exposes them to AI coding agents like Claude Code and Cursor — plus a CLI, HTTP API, and React web UI over the same graph.
 
+<!-- DEMO GIF: docs/assets/hero.gif — 30s screencast of `codeatlas index`
+     on a 100k-LOC repo, then an agent walking the graph with MCP tools,
+     then the web UI rendering the force graph. Drop the file here. -->
+<p align="center">
+  <img src="docs/assets/hero.gif" alt="CodeAtlas demo" width="720" />
+</p>
+
 ## The Problem
 
 AI coding agents waste 60-80% of their context window orienting themselves in a codebase before doing real work. CodeAtlas gives them pre-built structural and semantic knowledge so they can navigate intelligently from the first token.
@@ -93,7 +100,13 @@ codeatlas server --port 8080              # API only
 cd frontend && npm run dev                # Vite dev server with /api proxy
 ```
 
-The UI surfaces an overview dashboard (top PageRank, hotspots), an interactive force graph, FTS + semantic search, per-symbol detail pages, and an analysis tab for cycles, dead code, communities, and coverage gaps.
+The UI surfaces an overview dashboard (top PageRank, hotspots), an interactive force graph, FTS + semantic search, per-symbol detail pages, an analysis tab for cycles/dead code/communities/coverage gaps, a diff view over two git refs, and a settings page for API credentials and manual reindex.
+
+<!-- DEMO GIF: docs/assets/web-ui.gif — walkthrough of the force graph,
+     search, symbol details, and the diff view. -->
+<p align="center">
+  <img src="docs/assets/web-ui.gif" alt="CodeAtlas web UI walkthrough" width="720" />
+</p>
 
 ## Installation
 
