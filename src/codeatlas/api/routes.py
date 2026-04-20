@@ -6,10 +6,14 @@ the schemas from ``codeatlas.api.schemas``; store helpers do the real work.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import time
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 from codeatlas.api import schemas
 from codeatlas.graph.export import ExportOptions, export_json
@@ -194,6 +198,93 @@ def build_router(store: GraphStore, api_key: str | None = None) -> APIRouter:
                 )
             )
         return schemas.CommunitiesResponse(count=len(summaries), communities=summaries)
+
+    @router.get("/diff", response_model=schemas.DiffResponse)
+    async def diff(
+        since: str = Query(..., min_length=1),
+        until: str = Query(default="HEAD"),
+        repo_path: str = Query(default="."),
+    ) -> schemas.DiffResponse:
+        from codeatlas.git_integration import compute_symbol_diff
+
+        try:
+            result = compute_symbol_diff(Path(repo_path), since_ref=since, until_ref=until)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": f"failed to compute diff: {exc}", "field": "since"},
+            ) from exc
+        return schemas.DiffResponse(
+            since=since,
+            until=until,
+            added=[schemas.DiffSymbolEntry(**e) for e in result["added"]],
+            removed=[schemas.DiffSymbolEntry(**e) for e in result["removed"]],
+            modified=[schemas.DiffSymbolEntry(**e) for e in result["modified"]],
+        )
+
+    @router.post("/reindex", response_model=schemas.ReindexResponse)
+    async def reindex(
+        repo_path: str = Query(default="."),
+        incremental: bool = Query(default=True),
+    ) -> schemas.ReindexResponse:
+        from codeatlas.config import CodeAtlasConfig
+        from codeatlas.indexer import RepoIndexer
+
+        root = Path(repo_path).resolve()
+        if not root.is_dir():
+            raise HTTPException(
+                status_code=400,
+                detail={"error": f"repo_path {root} is not a directory", "field": "repo_path"},
+            )
+        config = CodeAtlasConfig.find_and_load(root)
+        indexer = RepoIndexer(config, store)
+        start = time.monotonic()
+        stats = (
+            indexer.index_incremental(resolve=True)
+            if incremental
+            else indexer.index_full(resolve=True)
+        )
+        return schemas.ReindexResponse(
+            mode="incremental" if incremental else "full",
+            parsed=stats.get("parsed", 0),
+            skipped=stats.get("skipped", 0),
+            errors=stats.get("errors", 0),
+            duration_ms=int((time.monotonic() - start) * 1000),
+        )
+
+    @router.get("/stream")
+    async def stream(
+        interval: float = Query(default=3.0, ge=0.05, le=30.0),
+        max_events: int = Query(default=0, ge=0, le=10000),
+    ) -> StreamingResponse:
+        """Server-sent events: stat updates when the graph changes, heartbeats otherwise.
+
+        The web UI uses this to refresh the overview panel after
+        ``codeatlas index --watch`` runs. Each event is a JSON object so the
+        frontend can dispatch on ``type``. Pass ``max_events`` > 0 to cap the
+        stream — mostly useful for tests and bounded polling clients.
+        """
+
+        async def event_source() -> Any:
+            last_symbols = -1
+            emitted = 0
+            while True:
+                try:
+                    stats = store.get_stats()
+                except Exception:
+                    stats = {"files": 0, "symbols": 0, "relationships": 0}
+                if stats["symbols"] != last_symbols:
+                    last_symbols = stats["symbols"]
+                    payload = json.dumps({"type": "stats", **stats})
+                    yield f"event: stats\ndata: {payload}\n\n"
+                else:
+                    yield "event: ping\ndata: {}\n\n"
+                emitted += 1
+                if max_events and emitted >= max_events:
+                    return
+                await asyncio.sleep(interval)
+
+        return StreamingResponse(event_source(), media_type="text/event-stream")
 
     @router.get("/coverage-gaps", response_model=schemas.CoverageGapsResponse)
     async def coverage_gaps(

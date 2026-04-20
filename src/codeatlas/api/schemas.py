@@ -139,3 +139,27 @@ class ErrorResponse(BaseModel):
     error: str
     field: str | None = None
     value: str | None = None
+
+
+class DiffSymbolEntry(BaseModel):
+    name: str
+    kind: str
+    file: str
+    old_line: int | None = None
+    new_line: int | None = None
+
+
+class DiffResponse(BaseModel):
+    since: str
+    until: str
+    added: list[DiffSymbolEntry]
+    removed: list[DiffSymbolEntry]
+    modified: list[DiffSymbolEntry]
+
+
+class ReindexResponse(BaseModel):
+    mode: str
+    parsed: int
+    skipped: int
+    errors: int
+    duration_ms: int

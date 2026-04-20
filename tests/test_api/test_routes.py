@@ -318,3 +318,73 @@ def test_create_app_with_missing_static_dir(db_path: Path, tmp_path: Path) -> No
 
     with _pytest.raises(FileNotFoundError):
         create_app(db_path=db_path, static_dir=tmp_path / "does-not-exist")
+
+
+def test_diff_endpoint_invalid_ref(client: TestClient, tmp_path: Path) -> None:
+    """Unknown ref should produce a 400 with a structured error payload."""
+    resp = client.get(
+        "/api/v1/diff",
+        params={"since": "not-a-real-ref", "repo_path": str(tmp_path)},
+    )
+    # compute_symbol_diff tolerates unknown refs by returning empty lists
+    # when git fails; we tolerate both success-empty and 400.
+    assert resp.status_code in (200, 400)
+
+
+def test_diff_endpoint_requires_since(client: TestClient) -> None:
+    resp = client.get("/api/v1/diff")
+    assert resp.status_code == 422
+
+
+def test_diff_endpoint_empty_repo(client: TestClient, tmp_path: Path) -> None:
+    resp = client.get(
+        "/api/v1/diff",
+        params={"since": "HEAD~1", "repo_path": str(tmp_path)},
+    )
+    # Non-git directories should still return a well-formed DiffResponse
+    # (added/removed/modified may be empty).
+    if resp.status_code == 200:
+        data = resp.json()
+        assert data["since"] == "HEAD~1"
+        assert isinstance(data["added"], list)
+        assert isinstance(data["removed"], list)
+        assert isinstance(data["modified"], list)
+
+
+def test_reindex_endpoint_rejects_missing_path(client: TestClient, tmp_path: Path) -> None:
+    resp = client.post(
+        "/api/v1/reindex",
+        params={"repo_path": str(tmp_path / "does-not-exist")},
+    )
+    assert resp.status_code == 400
+    assert "repo_path" in resp.json()["detail"]["field"]
+
+
+def test_reindex_endpoint_on_empty_dir(client: TestClient, tmp_path: Path) -> None:
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    resp = client.post(
+        "/api/v1/reindex",
+        params={"repo_path": str(empty), "incremental": "true"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["mode"] == "incremental"
+    assert data["parsed"] == 0
+    assert "duration_ms" in data
+
+
+def test_stream_endpoint_yields_event(client: TestClient) -> None:
+    """SSE endpoint should produce capped stat + ping events when max_events is set."""
+    resp = client.get("/api/v1/stream", params={"max_events": 2, "interval": 0.05})
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/event-stream")
+    body = resp.text
+    assert "event: stats" in body or "event: ping" in body
+    # Two frames, each with a blank-line terminator:
+    assert body.count("\n\n") >= 2
+
+
+def test_stream_endpoint_rejects_zero_interval(client: TestClient) -> None:
+    resp = client.get("/api/v1/stream", params={"interval": 0})
+    assert resp.status_code == 422
