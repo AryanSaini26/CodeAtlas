@@ -1463,3 +1463,44 @@ def test_bench_does_not_touch_primary_db(tmp_path: Path) -> None:
     result = runner.invoke(cli, ["bench", str(repo), "--json"])
     assert result.exit_code == 0
     assert not (repo / ".codeatlas").exists()
+
+
+# --- doctor command ---
+
+
+def test_doctor_command_text() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["doctor"])
+    assert result.exit_code == 0, result.output
+    assert "Python" in result.output
+    assert "SQLite" in result.output
+    assert "Tree-sitter" in result.output
+
+
+def test_doctor_command_json() -> None:
+    import json
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["doctor", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert isinstance(payload, list)
+    names = {row["name"] for row in payload}
+    assert "Python" in names
+    assert "SQLite + FTS5" in names
+    for row in payload:
+        assert row["status"] in {"ok", "warn", "error"}
+
+
+def test_doctor_errors_exit_nonzero() -> None:
+    """When any check returns 'error', doctor should exit 1."""
+    from unittest.mock import patch
+
+    fake_checks = [
+        ("Python", "error", "3.9.0 (need ≥3.11)"),
+        ("SQLite + FTS5", "ok", "3.51.2"),
+    ]
+    runner = CliRunner()
+    with patch("codeatlas.cli._run_doctor_checks", return_value=fake_checks):
+        result = runner.invoke(cli, ["doctor"])
+    assert result.exit_code == 1

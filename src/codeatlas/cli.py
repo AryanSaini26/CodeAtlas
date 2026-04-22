@@ -234,6 +234,88 @@ def _count_loc(files: list[Path]) -> int:
 
 
 @cli.command()
+@click.option("--json", "as_json", is_flag=True, help="Emit results as JSON")
+def doctor(as_json: bool) -> None:
+    """Diagnose install health: Python, SQLite/FTS5, parsers, and optional deps."""
+    checks = _run_doctor_checks()
+    if as_json:
+        click.echo(
+            _json.dumps(
+                [{"name": c[0], "status": c[1], "detail": c[2]} for c in checks],
+                indent=2,
+            )
+        )
+        return
+
+    table = Table(title="CodeAtlas doctor", title_style="bold cyan")
+    table.add_column("check", style="bold")
+    table.add_column("status", justify="center")
+    table.add_column("detail", style="dim")
+    for name, status, detail in checks:
+        color = {"ok": "green", "warn": "yellow", "error": "red"}.get(status, "white")
+        mark = {"ok": "✓", "warn": "!", "error": "✗"}.get(status, "?")
+        table.add_row(name, f"[{color}]{mark} {status}[/{color}]", detail)
+    console.print(table)
+
+    if any(c[1] == "error" for c in checks):
+        raise click.exceptions.Exit(1)
+
+
+def _run_doctor_checks() -> list[tuple[str, str, str]]:
+    import sqlite3
+    import sys
+
+    results: list[tuple[str, str, str]] = []
+
+    py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    py_status = "ok" if sys.version_info >= (3, 11) else "error"
+    py_detail = py_version if py_status == "ok" else f"{py_version} (need ≥3.11)"
+    results.append(("Python", py_status, py_detail))
+
+    sqlite_version = sqlite3.sqlite_version
+    try:
+        conn = sqlite3.connect(":memory:")
+        conn.execute("CREATE VIRTUAL TABLE t USING fts5(x)")
+        conn.close()
+        results.append(("SQLite + FTS5", "ok", sqlite_version))
+    except sqlite3.OperationalError:
+        results.append(
+            ("SQLite + FTS5", "error", f"{sqlite_version} (FTS5 not compiled in)")
+        )
+
+    try:
+        from codeatlas.parsers import ParserRegistry
+
+        reg = ParserRegistry()
+        unique_parsers = {type(p).__name__ for p in reg._parsers.values()}
+        extensions = len(reg._parsers)
+        results.append(
+            (
+                "Tree-sitter parsers",
+                "ok",
+                f"{len(unique_parsers)} languages, {extensions} file extensions",
+            )
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        results.append(("Tree-sitter parsers", "error", str(exc)))
+
+    for mod, label in (
+        ("faiss", "FAISS (semantic search)"),
+        ("sentence_transformers", "sentence-transformers (embeddings)"),
+        ("watchdog", "watchdog (file watcher)"),
+        ("fastapi", "FastAPI (HTTP server)"),
+        ("uvicorn", "Uvicorn (ASGI server)"),
+    ):
+        try:
+            __import__(mod)
+            results.append((label, "ok", "installed"))
+        except ImportError:
+            results.append((label, "warn", f"optional — pip install {mod}"))
+
+    return results
+
+
+@cli.command()
 @click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option(

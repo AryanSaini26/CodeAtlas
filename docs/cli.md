@@ -17,6 +17,7 @@ Every CodeAtlas CLI subcommand. Run `codeatlas <cmd> --help` for option details.
 |---|---|
 | `codeatlas index [PATH] [--workers N] [--watch] [--semantic]` | Parse + ingest into graph |
 | `codeatlas bench [PATH] [--workers N] [--json]` | Benchmark indexing throughput (temp DB, doesn't clobber the main graph) |
+| `codeatlas doctor [--json]` | Diagnose install: Python, SQLite/FTS5, parsers, optional deps |
 | `codeatlas list-files` | Enumerate files that would be indexed |
 
 ## Querying
