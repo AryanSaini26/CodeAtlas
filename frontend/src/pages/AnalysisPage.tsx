@@ -15,11 +15,12 @@ import {
 } from "../components/ui";
 import { Icon } from "../components/Icon";
 
-type Tab = "pagerank" | "hotspots" | "coverage";
+type Tab = "pagerank" | "hotspots" | "communities" | "coverage";
 
 const TABS: { value: Tab; label: string; icon: string }[] = [
   { value: "pagerank", label: "PageRank", icon: "analysis" },
   { value: "hotspots", label: "Hotspots", icon: "graph" },
+  { value: "communities", label: "Communities", icon: "graph" },
   { value: "coverage", label: "Coverage gaps", icon: "info" },
 ];
 
@@ -51,6 +52,7 @@ export default function AnalysisPage() {
 
       {tab === "pagerank" && <PageRankTab />}
       {tab === "hotspots" && <HotspotsTab />}
+      {tab === "communities" && <CommunitiesTab />}
       {tab === "coverage" && <CoverageTab />}
     </div>
   );
@@ -180,6 +182,102 @@ function HotspotsTab() {
             </tbody>
           </table>
         )}
+      </CardBody>
+    </Card>
+  );
+}
+
+const COMMUNITY_COLORS = [
+  "#00f0ff",
+  "#bd00ff",
+  "#f59e0b",
+  "#22c55e",
+  "#f87171",
+  "#a78bfa",
+  "#38bdf8",
+  "#fb923c",
+];
+
+function hashColor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return COMMUNITY_COLORS[h % COMMUNITY_COLORS.length];
+}
+
+function CommunitiesTab() {
+  const { data, isFetching } = useQuery({
+    queryKey: ["communities"],
+    queryFn: () => api.communities(),
+  });
+  const maxSize = data?.communities[0]?.size ?? 1;
+  return (
+    <Card>
+      <CardHeader
+        title="Detected communities"
+        subtitle="Strongly-connected clusters via Louvain modularity — cohesive subsystems in the codebase"
+      />
+      <CardBody className="!p-0">
+        {!data && isFetching && (
+          <div className="p-4 space-y-2">
+            <Skeleton /> <Skeleton /> <Skeleton />
+          </div>
+        )}
+        {data && data.communities.length === 0 && (
+          <EmptyState
+            icon={<Icon name="info" size={20} />}
+            title="No communities detected"
+            hint="Run codeatlas index first, then detect communities from the graph."
+          />
+        )}
+        {data?.communities.map((c, i) => {
+          const color = hashColor(c.community_id);
+          return (
+            <div
+              key={c.community_id}
+              className="px-4 py-3 border-b border-border last:border-b-0 hover:bg-white/[0.02]"
+            >
+              <div className="flex items-center gap-2.5 mb-2">
+                <span className="font-mono text-[10px] text-text-4 w-7 text-right shrink-0">
+                  {i + 1}
+                </span>
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="font-mono text-[12px] text-text-2 flex-1 truncate">
+                  {c.community_id}
+                </span>
+                <span
+                  className="font-mono text-[11px] rounded px-1.5 py-[1px] border"
+                  style={{
+                    color,
+                    borderColor: `${color}40`,
+                    backgroundColor: `${color}14`,
+                  }}
+                >
+                  {c.size} members
+                </span>
+                <div className="w-32">
+                  <ScoreBar score={c.size} max={maxSize} color={color} />
+                </div>
+              </div>
+              {c.sample_symbols.length > 0 && (
+                <div className="ml-11 flex flex-wrap gap-1.5">
+                  {c.sample_symbols.map((s) => (
+                    <span
+                      key={s}
+                      className="font-mono text-[10px] text-text-3 bg-surface border border-border rounded px-1.5 py-[1px] truncate max-w-[280px]"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </CardBody>
     </Card>
   );

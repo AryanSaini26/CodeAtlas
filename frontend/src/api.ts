@@ -119,6 +119,12 @@ export type CoverageGapEntry = {
   line: number;
 };
 
+export type CommunitySummary = {
+  community_id: string;
+  size: number;
+  sample_symbols: string[];
+};
+
 export type DiffSymbolEntry = {
   name: string;
   kind: string;
@@ -175,6 +181,8 @@ export const api = {
       next_offset: number | null;
       gaps: CoverageGapEntry[];
     }>("/coverage-gaps", params),
+  communities: () =>
+    req<{ count: number; communities: CommunitySummary[] }>("/communities"),
   diff: (params: { since: string; until?: string; repo_path?: string }) =>
     req<DiffResponse>("/diff", params),
   reindex: async (params?: { repo_path?: string; incremental?: boolean }) => {
