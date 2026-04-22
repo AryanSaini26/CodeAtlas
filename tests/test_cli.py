@@ -1425,3 +1425,41 @@ def test_main_module_invocable() -> None:
 
     # The import executes cli() at module level; mock ensures it doesn't block
     mock_cli.assert_called_once()
+
+
+# --- bench command ---
+
+
+def test_bench_command_text(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["bench", str(repo)])
+    assert result.exit_code == 0, result.output
+    assert "Files" in result.output
+    assert "Symbols" in result.output
+    assert "LOC/sec" in result.output
+
+
+def test_bench_command_json(tmp_path: Path) -> None:
+    import json
+
+    repo = _make_repo(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["bench", str(repo), "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["files"] >= 2
+    assert payload["symbols"] >= 1
+    assert payload["loc"] >= 1
+    assert payload["elapsed_seconds"] >= 0
+    for key in ("files_per_sec", "symbols_per_sec", "loc_per_sec", "workers", "repo"):
+        assert key in payload
+
+
+def test_bench_does_not_touch_primary_db(tmp_path: Path) -> None:
+    """Bench must use a temp DB so the user's .codeatlas/graph.db is safe."""
+    repo = _make_repo(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["bench", str(repo), "--json"])
+    assert result.exit_code == 0
+    assert not (repo / ".codeatlas").exists()

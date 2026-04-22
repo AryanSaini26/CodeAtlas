@@ -1,5 +1,10 @@
 """Click CLI for CodeAtlas."""
 
+import contextlib
+import io
+import json as _json
+import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -138,6 +143,94 @@ def index(repo_path: str, db: str, incremental: bool, watch: bool, workers: int)
             store.close()
     else:
         store.close()
+
+
+@cli.command()
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--workers",
+    default=1,
+    show_default=True,
+    type=int,
+    help="Parse files in parallel processes (1 = serial)",
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit results as JSON only")
+def bench(repo_path: str, workers: int, as_json: bool) -> None:
+    """Benchmark indexing throughput on this repo.
+
+    Uses a throwaway temp database so the primary .codeatlas/graph.db is
+    untouched. Reports wall-clock time plus files/sec, symbols/sec, and
+    LOC/sec — useful for profiling parser changes or quoting numbers in
+    a launch post.
+    """
+    root = Path(repo_path)
+    config = CodeAtlasConfig.find_and_load(root)
+    with tempfile.TemporaryDirectory(prefix="codeatlas-bench-") as tmp:
+        db_path = Path(tmp) / "bench.db"
+        config.graph.db_path = db_path
+        store = _get_store(db_path)
+        try:
+            indexer = RepoIndexer(config, store, workers=workers)
+            files = indexer._discover_files()
+            loc = _count_loc(files)
+            start = time.monotonic()
+            if as_json:
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(
+                    io.StringIO()
+                ):
+                    indexer.index_full(resolve=False)
+            else:
+                indexer.index_full(resolve=False)
+            elapsed = time.monotonic() - start
+            stats = store.get_stats()
+        finally:
+            store.close()
+
+    files_n = stats["files"]
+    symbols_n = stats["symbols"]
+    relationships_n = stats["relationships"]
+    payload = {
+        "repo": str(root.resolve()),
+        "workers": workers,
+        "files": files_n,
+        "symbols": symbols_n,
+        "relationships": relationships_n,
+        "loc": loc,
+        "elapsed_seconds": round(elapsed, 3),
+        "files_per_sec": round(files_n / elapsed, 1) if elapsed > 0 else 0.0,
+        "symbols_per_sec": round(symbols_n / elapsed, 1) if elapsed > 0 else 0.0,
+        "loc_per_sec": round(loc / elapsed, 1) if elapsed > 0 else 0.0,
+    }
+
+    if as_json:
+        click.echo(_json.dumps(payload, indent=2))
+        return
+
+    table = Table(title="CodeAtlas bench", show_header=False, title_style="bold cyan")
+    table.add_column("metric", style="dim")
+    table.add_column("value", justify="right")
+    table.add_row("Repo", payload["repo"])
+    table.add_row("Workers", str(workers))
+    table.add_row("Files", f"{files_n:,}")
+    table.add_row("Symbols", f"{symbols_n:,}")
+    table.add_row("Relationships", f"{relationships_n:,}")
+    table.add_row("LOC", f"{loc:,}")
+    table.add_row("Elapsed", f"{elapsed:.2f}s")
+    table.add_row("Files/sec", f"{payload['files_per_sec']:,.1f}")
+    table.add_row("Symbols/sec", f"{payload['symbols_per_sec']:,.1f}")
+    table.add_row("LOC/sec", f"{payload['loc_per_sec']:,.0f}")
+    console.print(table)
+
+
+def _count_loc(files: list[Path]) -> int:
+    total = 0
+    for path in files:
+        try:
+            with path.open("rb") as fh:
+                total += sum(1 for _ in fh)
+        except OSError:
+            continue
+    return total
 
 
 @cli.command()
