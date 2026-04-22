@@ -175,8 +175,9 @@ def bench(repo_path: str, workers: int, as_json: bool) -> None:
             loc = _count_loc(files)
             start = time.monotonic()
             if as_json:
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(
-                    io.StringIO()
+                with (
+                    contextlib.redirect_stdout(io.StringIO()),
+                    contextlib.redirect_stderr(io.StringIO()),
                 ):
                     indexer.index_full(resolve=False)
             else:
@@ -279,9 +280,7 @@ def _run_doctor_checks() -> list[tuple[str, str, str]]:
         conn.close()
         results.append(("SQLite + FTS5", "ok", sqlite_version))
     except sqlite3.OperationalError:
-        results.append(
-            ("SQLite + FTS5", "error", f"{sqlite_version} (FTS5 not compiled in)")
-        )
+        results.append(("SQLite + FTS5", "error", f"{sqlite_version} (FTS5 not compiled in)"))
 
     try:
         from codeatlas.parsers import ParserRegistry
