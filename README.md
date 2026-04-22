@@ -100,7 +100,14 @@ codeatlas server --port 8080              # API only
 cd frontend && npm run dev                # Vite dev server with /api proxy
 ```
 
-The UI surfaces an overview dashboard (top PageRank, hotspots), an interactive force graph, FTS + semantic search, per-symbol detail pages, an analysis tab for cycles/dead code/communities/coverage gaps, a diff view over two git refs, and a settings page for API credentials and manual reindex.
+The UI surfaces:
+- **Dashboard** — top symbols by PageRank, file hotspots, language & symbol breakdown, statistics
+- **Search** — full-text + semantic search with result detail pane showing signature, docstring, incoming/outgoing references
+- **Analysis** — tabbed interface with PageRank ranking, hotspot identification, community detection, coverage gap analysis
+- **Graph** — interactive force-directed visualization with kind/community coloring, legend, and file filtering
+- **Symbols** — detailed symbol pages with signature, docs, file location, incoming/outgoing reference cards
+- **Diff** — compare symbols between two git refs (added/removed/modified columns)
+- **Settings** — configure API credentials, trigger incremental/full reindex, view version info
 
 <!-- DEMO GIF: docs/assets/web-ui.gif — walkthrough of the force graph,
      search, symbol details, and the diff view. -->
@@ -393,7 +400,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests with coverage (819 tests, ~92%)
+# Run tests with coverage (1038 tests, 92.2%)
 .venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
 # Lint / format
