@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api";
@@ -9,10 +10,12 @@ import {
   FilePath,
   KindBadge,
   KindDot,
+  PulseDot,
   Skeleton,
   StatTile,
 } from "../components/ui";
 import { Icon } from "../components/Icon";
+import { useLiveStats } from "../hooks/useLiveStats";
 
 const LANG_COLORS = [
   "#00f0ff",
@@ -150,6 +153,44 @@ function ApiError({ message }: { message: string }) {
   );
 }
 
+function LivePill({
+  status,
+  lastEventAt,
+}: {
+  status: "idle" | "connecting" | "open" | "closed";
+  lastEventAt: number | null;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const color =
+    status === "open" ? "#22c55e" : status === "closed" ? "#ef4444" : "#71717a";
+  const label =
+    status === "open"
+      ? lastEventAt
+        ? `Live · updated ${Math.max(0, Math.round((now - lastEventAt) / 1000))}s ago`
+        : "Live"
+      : status === "closed"
+        ? "Live stream offline"
+        : "Connecting…";
+  return (
+    <div
+      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-[3px] text-[11px] font-mono"
+      style={{
+        backgroundColor: `${color}14`,
+        borderColor: `${color}40`,
+        color,
+      }}
+      title="Live updates via /api/v1/stream (SSE)"
+    >
+      <PulseDot color={color} size={6} />
+      {label}
+    </div>
+  );
+}
+
 export default function Overview() {
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => api.stats() });
   const pagerank = useQuery({
@@ -160,6 +201,7 @@ export default function Overview() {
     queryKey: ["hotspots", "overview"],
     queryFn: () => api.hotspots({ limit: 10 }),
   });
+  const live = useLiveStats();
 
   if (stats.isError) {
     return <ApiError message="API unreachable" />;
@@ -172,6 +214,14 @@ export default function Overview() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Live header */}
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] text-text-4 font-mono">
+          Overview of the indexed knowledge graph
+        </div>
+        <LivePill status={live.status} lastEventAt={live.lastEventAt} />
+      </div>
+
       {/* Hero tiles */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {s ? (
