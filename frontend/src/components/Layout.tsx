@@ -103,9 +103,23 @@ function Sidebar({
 }
 
 function TopBar({ title }: { title: string }) {
-  const connected = true;
-  const statusColor = connected ? "#22c55e" : "#ef4444";
-  const statusLabel = connected ? "Connected" : "Disconnected";
+  const stats = useQuery({
+    queryKey: ["stats"],
+    queryFn: () => api.stats(),
+    refetchInterval: 15000,
+    retry: false,
+  });
+  const connected = !stats.isError && !!stats.data;
+  const statusColor = stats.isLoading
+    ? "#71717a"
+    : connected
+      ? "#22c55e"
+      : "#ef4444";
+  const statusLabel = stats.isLoading
+    ? "Connecting…"
+    : connected
+      ? "Connected"
+      : "Disconnected";
 
   return (
     <header
@@ -163,7 +177,10 @@ function StatusFooter() {
       )}
       <div className="flex-1" />
       <span className="text-[10px] text-text-4 font-mono">
-        http://127.0.0.1:8080
+        {(typeof window !== "undefined" &&
+          localStorage.getItem("codeatlas.apiBase")) ||
+          (import.meta.env.VITE_API_BASE as string | undefined) ||
+          "/api/v1"}
       </span>
     </footer>
   );
