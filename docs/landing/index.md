@@ -2,8 +2,8 @@
 
 > Tree-sitter parsers, a persistent SQLite + FTS5 graph, FAISS semantic search, PageRank centrality, and a 29-tool MCP surface. Installs in one `pip install`. Ships with a React web UI.
 
-<!-- hero screencast -->
-![hero](../assets/hero.gif)
+<!-- hero screencast (recorded before launch; see docs/assets/README.md) -->
+<!-- ![hero](../assets/hero.gif) -->
 
 ## Why it exists
 
@@ -41,10 +41,8 @@ Point Claude Code at `codeatlas serve` to hand agents 29 MCP tools over the same
 
 ## Screens
 
-<!-- screenshot placeholders — replace with real PNGs post-launch -->
-| Overview | Graph | Diff |
-|:---:|:---:|:---:|
-| ![overview](../assets/ui-overview.png) | ![graph](../assets/ui-graph.png) | ![diff](../assets/ui-diff.png) |
+<!-- screenshot placeholders — PNGs captured before launch; see docs/assets/README.md -->
+*Overview, force-graph, and diff views — screenshots recorded before launch.*
 
 ## What's in the box
 
