@@ -77,6 +77,18 @@ def test_stats_empty_db(tmp_path: Path) -> None:
     assert result.exit_code == 0
 
 
+def test_stats_shows_language_and_kind_breakdown(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(cli, ["stats", "--db", db_path])
+    assert result.exit_code == 0
+    assert "Languages" in result.output
+    assert "Symbol Kinds" in result.output
+    assert "python" in result.output.lower()
+
+
 # --- query command ---
 
 

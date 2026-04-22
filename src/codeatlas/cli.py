@@ -478,6 +478,22 @@ def stats(db: str, as_json: bool) -> None:
         console.print(table)
 
         if lang_breakdown:
+            lang_table = Table(title="Languages")
+            lang_table.add_column("Language", style="cyan")
+            lang_table.add_column("Files", justify="right", style="green")
+            for lang, count in sorted(lang_breakdown.items(), key=lambda kv: -kv[1]):
+                lang_table.add_row(lang, str(count))
+            console.print(lang_table)
+
+        if kind_breakdown:
+            kind_table = Table(title="Symbol Kinds")
+            kind_table.add_column("Kind", style="cyan")
+            kind_table.add_column("Count", justify="right", style="green")
+            for kind, count in sorted(kind_breakdown.items(), key=lambda kv: -kv[1]):
+                kind_table.add_row(kind, str(count))
+            console.print(kind_table)
+
+        if lang_breakdown:
             lang_table = Table(title="By Language")
             lang_table.add_column("Language", style="cyan")
             lang_table.add_column("Symbols", justify="right", style="green")
