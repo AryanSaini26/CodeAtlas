@@ -210,7 +210,7 @@ def bench(repo_path: str, workers: int, as_json: bool) -> None:
     table = Table(title="CodeAtlas bench", show_header=False, title_style="bold cyan")
     table.add_column("metric", style="dim")
     table.add_column("value", justify="right")
-    table.add_row("Repo", payload["repo"])
+    table.add_row("Repo", str(payload["repo"]))
     table.add_row("Workers", str(workers))
     table.add_row("Files", f"{files_n:,}")
     table.add_row("Symbols", f"{symbols_n:,}")
