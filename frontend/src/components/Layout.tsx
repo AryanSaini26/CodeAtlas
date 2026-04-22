@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./Icon";
 import { PulseDot } from "./ui";
 import { api } from "../api";
+import { CommandPalette } from "./CommandPalette";
 
 type NavItem = { to: string; label: string; icon: string; end?: boolean };
 
@@ -102,7 +103,13 @@ function Sidebar({
   );
 }
 
-function TopBar({ title }: { title: string }) {
+function TopBar({
+  title,
+  onOpenPalette,
+}: {
+  title: string;
+  onOpenPalette: () => void;
+}) {
   const stats = useQuery({
     queryKey: ["stats"],
     queryFn: () => api.stats(),
@@ -121,6 +128,9 @@ function TopBar({ title }: { title: string }) {
       ? "Connected"
       : "Disconnected";
 
+  const isMac =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+
   return (
     <header
       className="h-[46px] shrink-0 flex items-center gap-3 px-5 border-b border-border"
@@ -133,6 +143,17 @@ function TopBar({ title }: { title: string }) {
         {title}
       </span>
       <div className="flex-1" />
+      <button
+        type="button"
+        onClick={onOpenPalette}
+        className="flex items-center gap-2 rounded-md border border-border bg-white/[0.02] hover:bg-white/[0.05] hover:border-cyan/40 px-2.5 py-[3px] text-[11px] text-text-3 hover:text-text-1 transition-colors"
+        title="Open command palette"
+      >
+        <Icon name="search" size={11} />
+        <span>Quick search</span>
+        <kbd className="kbd">{isMac ? "⌘" : "Ctrl"}</kbd>
+        <kbd className="kbd">K</kbd>
+      </button>
       <div
         className="flex items-center gap-1.5 rounded-full border px-2.5 py-[3px] text-[11px]"
         style={{
@@ -201,14 +222,30 @@ function Sep() {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const location = useLocation();
   const active = NAV.find(
     (n) => (n.end ? location.pathname === n.to : location.pathname.startsWith(n.to)),
   );
   const isGraph = location.pathname.startsWith("/graph");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="flex flex-col h-screen">
-      <TopBar title={active?.label ?? "CodeAtlas"} />
+      <TopBar
+        title={active?.label ?? "CodeAtlas"}
+        onOpenPalette={() => setPaletteOpen(true)}
+      />
       <div className="flex-1 flex min-h-0">
         <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
         <main
@@ -220,6 +257,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <StatusFooter />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+      />
     </div>
   );
 }
