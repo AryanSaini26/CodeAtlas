@@ -16,6 +16,7 @@ import {
 } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { useLiveStats } from "../hooks/useLiveStats";
+import { useRecentSymbols } from "../hooks/useRecentSymbols";
 
 const LANG_COLORS = [
   "#00f0ff",
@@ -202,6 +203,7 @@ export default function Overview() {
     queryFn: () => api.hotspots({ limit: 10 }),
   });
   const live = useLiveStats();
+  const { recent, clear: clearRecent } = useRecentSymbols();
 
   if (stats.isError) {
     return <ApiError message="API unreachable" />;
@@ -343,6 +345,42 @@ export default function Overview() {
           )}
         </CardBody>
       </Card>
+
+      {recent.length > 0 && (
+        <Card>
+          <CardHeader
+            title="Recently visited"
+            subtitle="Your last viewed symbols on this browser"
+            action={
+              <button
+                type="button"
+                onClick={clearRecent}
+                className="text-[11px] text-text-4 hover:text-text-2 font-mono"
+              >
+                Clear
+              </button>
+            }
+          />
+          <CardBody className="!px-4 !py-2">
+            {recent.slice(0, 8).map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center gap-2 py-1.5 border-b border-border last:border-b-0"
+              >
+                <KindDot kind={r.kind} />
+                <Link
+                  to={`/symbol/${encodeURIComponent(r.id)}`}
+                  className="font-mono text-[11px] text-text-1 hover:text-cyan flex-1 truncate no-underline hover:no-underline"
+                >
+                  {r.qualified_name}
+                </Link>
+                <KindBadge kind={r.kind} />
+                <FilePath path={r.file} />
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+      )}
 
       {/* Hotspots */}
       <Card>

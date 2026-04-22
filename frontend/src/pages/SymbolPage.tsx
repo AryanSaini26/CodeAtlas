@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api, type SymbolDetails, type SymbolRef } from "../api";
+import { useRecentSymbols } from "../hooks/useRecentSymbols";
 import {
   Card,
   CardBody,
@@ -42,11 +43,50 @@ function buildSymbolMarkdown(d: SymbolDetails): string {
     .join("\n");
 }
 
-function CopyContextButton({ data }: { data: SymbolDetails }) {
+function buildSymbolJson(d: SymbolDetails): string {
+  const ref = (r: SymbolRef) => ({
+    id: r.id,
+    name: r.name,
+    kind: r.kind,
+    file: r.file,
+    line: r.line ?? null,
+  });
+  const payload = {
+    source: "codeatlas",
+    symbol: {
+      id: d.id,
+      name: d.name,
+      qualified_name: d.qualified_name,
+      kind: d.kind,
+      file: d.file,
+      start_line: d.start_line,
+      end_line: d.end_line,
+      signature: d.signature ?? null,
+      docstring: d.docstring ?? null,
+    },
+    outgoing: d.outgoing.slice(0, 50).map(ref),
+    incoming: d.incoming.slice(0, 50).map(ref),
+    outgoing_total: d.outgoing.length,
+    incoming_total: d.incoming.length,
+  };
+  return JSON.stringify(payload, null, 2);
+}
+
+function CopyContextButton({
+  data,
+  format,
+  label,
+}: {
+  data: SymbolDetails;
+  format: "markdown" | "json";
+  label: string;
+}) {
   const [state, setState] = useState<"idle" | "ok" | "err">("idle");
   const onClick = async () => {
     try {
-      await navigator.clipboard.writeText(buildSymbolMarkdown(data));
+      const text =
+        format === "markdown" ? buildSymbolMarkdown(data) : buildSymbolJson(data);
+      await navigator.clipboard.writeText(text);
       setState("ok");
       setTimeout(() => setState("idle"), 1800);
     } catch {
@@ -66,10 +106,14 @@ function CopyContextButton({ data }: { data: SymbolDetails }) {
             ? "border-bad/50 bg-bad/[0.08] text-bad"
             : "border-border bg-white/[0.02] hover:bg-white/[0.05] text-text-2 hover:text-text-1")
       }
-      title="Copy Markdown summary for pasting into an AI chat"
+      title={
+        format === "markdown"
+          ? "Copy Markdown summary for pasting into an AI chat"
+          : "Copy structured JSON for programmatic agents"
+      }
     >
       <Icon name={state === "ok" ? "check" : "copy"} size={11} />
-      {state === "ok" ? "Copied" : state === "err" ? "Copy failed" : "Copy context"}
+      {state === "ok" ? "Copied" : state === "err" ? "Copy failed" : label}
     </button>
   );
 }
@@ -81,6 +125,18 @@ export default function SymbolPage() {
     queryKey: ["symbol", id],
     queryFn: () => api.symbol(id!),
   });
+  const { record } = useRecentSymbols();
+
+  useEffect(() => {
+    if (!data) return;
+    record({
+      id: data.id,
+      name: data.name,
+      qualified_name: data.qualified_name,
+      kind: data.kind,
+      file: data.file,
+    });
+  }, [data, record]);
 
   if (isLoading)
     return (
@@ -149,7 +205,8 @@ export default function SymbolPage() {
                 <Icon name="externalLink" size={11} /> Open in VS Code
               </a>
               <span className="flex-1" />
-              <CopyContextButton data={data} />
+              <CopyContextButton data={data} format="markdown" label="Copy MD" />
+              <CopyContextButton data={data} format="json" label="Copy JSON" />
             </div>
           </div>
           <CardBody className="space-y-4">

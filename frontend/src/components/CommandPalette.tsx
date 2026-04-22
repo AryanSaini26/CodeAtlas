@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type SearchHit } from "../api";
 import { Icon } from "./Icon";
 import { FilePath, KindBadge, KindDot, Skeleton } from "./ui";
+import { useRecentSymbols, type RecentSymbol } from "../hooks/useRecentSymbols";
 
 type NavItem = {
   kind: "nav";
@@ -39,6 +40,7 @@ export function CommandPalette({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
+  const { recent } = useRecentSymbols();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,12 +70,19 @@ export function CommandPalette({
   }, [query]);
 
   const hits = data?.hits ?? [];
-  const items: Array<NavItem | { kind: "hit"; hit: SearchHit }> = useMemo(
+  const showRecent = !dq && recent.length > 0;
+  const recentSlice = showRecent ? recent.slice(0, 8) : [];
+  const items: Array<
+    | NavItem
+    | { kind: "hit"; hit: SearchHit }
+    | { kind: "recent"; entry: RecentSymbol }
+  > = useMemo(
     () => [
       ...filteredNav,
+      ...recentSlice.map((r) => ({ kind: "recent" as const, entry: r })),
       ...hits.map((h) => ({ kind: "hit" as const, hit: h })),
     ],
-    [filteredNav, hits],
+    [filteredNav, recentSlice, hits],
   );
 
   useEffect(() => {
@@ -98,6 +107,8 @@ export function CommandPalette({
         if (!item) return;
         if (item.kind === "nav") {
           navigate(item.to);
+        } else if (item.kind === "recent") {
+          navigate(`/symbol/${encodeURIComponent(item.entry.id)}`);
         } else {
           navigate(`/symbol/${encodeURIComponent(item.hit.id)}`);
         }
@@ -168,6 +179,34 @@ export function CommandPalette({
             </Section>
           )}
 
+          {showRecent && (
+            <Section title="Recent symbols">
+              {recentSlice.map((entry, i) => {
+                const idx = filteredNav.length + i;
+                const active = cursor === idx;
+                return (
+                  <Row
+                    key={entry.id}
+                    active={active}
+                    onMouseEnter={() => setCursor(idx)}
+                    onClick={() => {
+                      navigate(`/symbol/${encodeURIComponent(entry.id)}`);
+                      onClose();
+                    }}
+                  >
+                    <KindDot kind={entry.kind} />
+                    <span className="font-mono text-[12px] text-text-1 font-medium truncate">
+                      {entry.name}
+                    </span>
+                    <KindBadge kind={entry.kind} />
+                    <span className="flex-1" />
+                    <FilePath path={entry.file} />
+                  </Row>
+                );
+              })}
+            </Section>
+          )}
+
           {dq.length > 0 && (
             <Section
               title={
@@ -212,7 +251,7 @@ export function CommandPalette({
             </Section>
           )}
 
-          {!dq && filteredNav.length === NAV_ITEMS.length && (
+          {!dq && !showRecent && filteredNav.length === NAV_ITEMS.length && (
             <div className="px-4 py-3 text-[11px] text-text-4 border-t border-border">
               <span className="font-mono">
                 Start typing to search symbols. Use <kbd className="kbd">↑</kbd>{" "}

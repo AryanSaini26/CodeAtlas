@@ -5,6 +5,7 @@ import { Icon } from "./Icon";
 import { PulseDot } from "./ui";
 import { api } from "../api";
 import { CommandPalette } from "./CommandPalette";
+import { ShortcutsModal } from "./ShortcutsModal";
 
 type NavItem = { to: string; label: string; icon: string; end?: boolean };
 
@@ -223,6 +224,7 @@ function Sep() {
 export function Layout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const location = useLocation();
   const active = NAV.find(
     (n) => (n.end ? location.pathname === n.to : location.pathname.startsWith(n.to)),
@@ -230,10 +232,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isGraph = location.pathname.startsWith("/graph");
 
   useEffect(() => {
+    const isEditable = (el: EventTarget | null) => {
+      if (!(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        el.isContentEditable
+      );
+    };
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((v) => !v);
+        return;
+      }
+      if (e.key === "?" && !e.metaKey && !e.ctrlKey && !isEditable(e.target)) {
+        e.preventDefault();
+        setShortcutsOpen((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -260,6 +277,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
+      />
+      <ShortcutsModal
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
       />
     </div>
   );
