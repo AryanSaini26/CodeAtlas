@@ -1,0 +1,421 @@
+{
+  "name": "codeatlas-oss-agent-eval-suite",
+  "description": "Pinned real-repo retrieval tasks for CodeAtlas. Tasks are deterministic and require no LLM API.",
+  "tasks": [
+    {
+      "id": "requests-symbol-001",
+      "repo": "requests",
+      "task_type": "symbol_lookup",
+      "query": "Session",
+      "expected_symbols": ["Session"],
+      "expected_files": ["src/requests/sessions.py"],
+      "k": 5
+    },
+    {
+      "id": "requests-symbol-002",
+      "repo": "requests",
+      "task_type": "symbol_lookup",
+      "query": "PreparedRequest",
+      "expected_symbols": ["PreparedRequest"],
+      "expected_files": ["src/requests/models.py"],
+      "k": 5
+    },
+    {
+      "id": "requests-symbol-003",
+      "repo": "requests",
+      "task_type": "symbol_lookup",
+      "query": "HTTPAdapter",
+      "expected_symbols": ["HTTPAdapter"],
+      "expected_files": ["src/requests/adapters.py"],
+      "k": 5
+    },
+    {
+      "id": "requests-symbol-004",
+      "repo": "requests",
+      "task_type": "symbol_lookup",
+      "query": "CaseInsensitiveDict",
+      "expected_symbols": ["CaseInsensitiveDict"],
+      "expected_files": ["src/requests/structures.py"],
+      "k": 5
+    },
+    {
+      "id": "requests-impact-005",
+      "repo": "requests",
+      "task_type": "impact_analysis",
+      "query": "Session request send prepare_request",
+      "seed_symbol": "Session.request",
+      "expected_symbols": ["Session.request", "Session.send", "Session.prepare_request"],
+      "expected_files": ["src/requests/sessions.py"],
+      "k": 10
+    },
+    {
+      "id": "requests-deps-006",
+      "repo": "requests",
+      "task_type": "dependency_trace",
+      "query": "resolve proxies environment no_proxy",
+      "seed_symbol": "resolve_proxies",
+      "expected_symbols": ["resolve_proxies", "should_bypass_proxies", "get_environ_proxies"],
+      "expected_files": ["src/requests/utils.py"],
+      "k": 10
+    },
+    {
+      "id": "requests-arch-007",
+      "repo": "requests",
+      "task_type": "architecture_context",
+      "query": "request preparation response model encoding",
+      "expected_symbols": ["Request", "PreparedRequest", "Response"],
+      "expected_files": ["src/requests/models.py"],
+      "k": 10
+    },
+    {
+      "id": "requests-arch-008",
+      "repo": "requests",
+      "task_type": "architecture_context",
+      "query": "transport adapter certificate verification proxy manager",
+      "expected_symbols": ["HTTPAdapter", "HTTPAdapter.cert_verify", "HTTPAdapter.proxy_manager_for"],
+      "expected_files": ["src/requests/adapters.py"],
+      "k": 10
+    },
+    {
+      "id": "requests-test-009",
+      "repo": "requests",
+      "task_type": "test_location",
+      "query": "digest auth redirect low level tests",
+      "expected_symbols": ["test_digestauth_401_count_reset_on_redirect"],
+      "expected_files": ["tests/test_lowlevel.py"],
+      "k": 10
+    },
+    {
+      "id": "requests-test-010",
+      "repo": "requests",
+      "task_type": "test_location",
+      "query": "chunked upload tests",
+      "expected_symbols": ["test_chunked_upload"],
+      "expected_files": ["tests/test_lowlevel.py"],
+      "k": 10
+    },
+    {
+      "id": "requests-symbol-011",
+      "repo": "requests",
+      "task_type": "symbol_lookup",
+      "query": "RequestsCookieJar",
+      "expected_symbols": ["RequestsCookieJar"],
+      "expected_files": ["src/requests/cookies.py"],
+      "k": 5
+    },
+    {
+      "id": "requests-deps-012",
+      "repo": "requests",
+      "task_type": "dependency_trace",
+      "query": "cookie extraction jar response",
+      "seed_symbol": "extract_cookies_to_jar",
+      "expected_symbols": ["extract_cookies_to_jar", "RequestsCookieJar"],
+      "expected_files": ["src/requests/cookies.py"],
+      "k": 10
+    },
+    {
+      "id": "requests-symbol-013",
+      "repo": "requests",
+      "task_type": "symbol_lookup",
+      "query": "HTTPBasicAuth",
+      "expected_symbols": ["HTTPBasicAuth"],
+      "expected_files": ["src/requests/auth.py"],
+      "k": 5
+    },
+    {
+      "id": "requests-impact-014",
+      "repo": "requests",
+      "task_type": "impact_analysis",
+      "query": "redirect authentication rebuild auth",
+      "seed_symbol": "SessionRedirectMixin.rebuild_auth",
+      "expected_symbols": ["SessionRedirectMixin.rebuild_auth", "SessionRedirectMixin.resolve_redirects"],
+      "expected_files": ["src/requests/sessions.py"],
+      "k": 10
+    },
+    {
+      "id": "requests-arch-015",
+      "repo": "requests",
+      "task_type": "architecture_context",
+      "query": "public request api creates session",
+      "expected_symbols": ["request", "session", "Session"],
+      "expected_files": ["src/requests/api.py", "src/requests/sessions.py"],
+      "k": 10
+    },
+    {
+      "id": "click-symbol-001",
+      "repo": "click",
+      "task_type": "symbol_lookup",
+      "query": "Command",
+      "expected_symbols": ["Command"],
+      "expected_files": ["src/click/core.py"],
+      "k": 5
+    },
+    {
+      "id": "click-symbol-002",
+      "repo": "click",
+      "task_type": "symbol_lookup",
+      "query": "Group",
+      "expected_symbols": ["Group"],
+      "expected_files": ["src/click/core.py"],
+      "k": 5
+    },
+    {
+      "id": "click-symbol-003",
+      "repo": "click",
+      "task_type": "symbol_lookup",
+      "query": "Context",
+      "expected_symbols": ["Context"],
+      "expected_files": ["src/click/core.py"],
+      "k": 5
+    },
+    {
+      "id": "click-symbol-004",
+      "repo": "click",
+      "task_type": "symbol_lookup",
+      "query": "CliRunner",
+      "expected_symbols": ["CliRunner"],
+      "expected_files": ["src/click/testing.py"],
+      "k": 5
+    },
+    {
+      "id": "click-impact-005",
+      "repo": "click",
+      "task_type": "impact_analysis",
+      "query": "command main make context parse args invoke",
+      "seed_symbol": "Command.main",
+      "expected_symbols": ["Command.main", "Command.make_context", "Command.invoke"],
+      "expected_files": ["src/click/core.py"],
+      "k": 10
+    },
+    {
+      "id": "click-deps-006",
+      "repo": "click",
+      "task_type": "dependency_trace",
+      "query": "group resolve command get command add command",
+      "seed_symbol": "Group.resolve_command",
+      "expected_symbols": ["Group.resolve_command", "Group.get_command", "Group.add_command"],
+      "expected_files": ["src/click/core.py"],
+      "k": 10
+    },
+    {
+      "id": "click-arch-007",
+      "repo": "click",
+      "task_type": "architecture_context",
+      "query": "decorators command group pass context",
+      "expected_symbols": ["command", "group", "pass_context", "make_pass_decorator"],
+      "expected_files": ["src/click/decorators.py"],
+      "k": 10
+    },
+    {
+      "id": "click-arch-008",
+      "repo": "click",
+      "task_type": "architecture_context",
+      "query": "parameter types choice path shell completion",
+      "expected_symbols": ["ParamType", "Choice", "Path"],
+      "expected_files": ["src/click/types.py"],
+      "k": 10
+    },
+    {
+      "id": "click-test-009",
+      "repo": "click",
+      "task_type": "test_location",
+      "query": "default map parameter source tests",
+      "expected_symbols": ["test_default_map_source"],
+      "expected_files": ["tests/test_defaults.py"],
+      "k": 10
+    },
+    {
+      "id": "click-test-010",
+      "repo": "click",
+      "task_type": "test_location",
+      "query": "stream lifecycle invoke logging tests",
+      "expected_symbols": ["test_invoke_with_logger_warning"],
+      "expected_files": ["tests/test_stream_lifecycle.py"],
+      "k": 10
+    },
+    {
+      "id": "click-symbol-011",
+      "repo": "click",
+      "task_type": "symbol_lookup",
+      "query": "Option",
+      "expected_symbols": ["Option"],
+      "expected_files": ["src/click/core.py"],
+      "k": 5
+    },
+    {
+      "id": "click-symbol-012",
+      "repo": "click",
+      "task_type": "symbol_lookup",
+      "query": "Argument",
+      "expected_symbols": ["Argument"],
+      "expected_files": ["src/click/core.py"],
+      "k": 5
+    },
+    {
+      "id": "click-deps-013",
+      "repo": "click",
+      "task_type": "dependency_trace",
+      "query": "option handle parse result shell complete",
+      "seed_symbol": "Option.handle_parse_result",
+      "expected_symbols": ["Option.handle_parse_result", "Option.shell_complete"],
+      "expected_files": ["src/click/core.py"],
+      "k": 10
+    },
+    {
+      "id": "click-arch-014",
+      "repo": "click",
+      "task_type": "architecture_context",
+      "query": "terminal ui prompt style secho",
+      "expected_symbols": ["prompt", "style", "secho"],
+      "expected_files": ["src/click/termui.py"],
+      "k": 10
+    },
+    {
+      "id": "click-test-015",
+      "repo": "click",
+      "task_type": "test_location",
+      "query": "chain group command tests",
+      "expected_symbols": ["test_basic_chaining", "test_group_chaining"],
+      "expected_files": ["tests/test_chain.py"],
+      "k": 10
+    },
+    {
+      "id": "rich-symbol-001",
+      "repo": "rich",
+      "task_type": "symbol_lookup",
+      "query": "Console",
+      "expected_symbols": ["Console"],
+      "expected_files": ["rich/console.py"],
+      "k": 5
+    },
+    {
+      "id": "rich-symbol-002",
+      "repo": "rich",
+      "task_type": "symbol_lookup",
+      "query": "Text",
+      "expected_symbols": ["Text"],
+      "expected_files": ["rich/text.py"],
+      "k": 5
+    },
+    {
+      "id": "rich-symbol-003",
+      "repo": "rich",
+      "task_type": "symbol_lookup",
+      "query": "Table",
+      "expected_symbols": ["Table"],
+      "expected_files": ["rich/table.py"],
+      "k": 5
+    },
+    {
+      "id": "rich-symbol-004",
+      "repo": "rich",
+      "task_type": "symbol_lookup",
+      "query": "Progress",
+      "expected_symbols": ["Progress"],
+      "expected_files": ["rich/progress.py"],
+      "k": 5
+    },
+    {
+      "id": "rich-impact-005",
+      "repo": "rich",
+      "task_type": "impact_analysis",
+      "query": "console render lines measure print",
+      "seed_symbol": "Console.render_lines",
+      "expected_symbols": ["Console.render", "Console.render_lines", "Console.print"],
+      "expected_files": ["rich/console.py"],
+      "k": 10
+    },
+    {
+      "id": "rich-deps-006",
+      "repo": "rich",
+      "task_type": "dependency_trace",
+      "query": "table add column add row console render",
+      "seed_symbol": "Table.add_row",
+      "expected_symbols": ["Table.add_column", "Table.add_row", "Table.__rich_console__"],
+      "expected_files": ["rich/table.py"],
+      "k": 10
+    },
+    {
+      "id": "rich-arch-007",
+      "repo": "rich",
+      "task_type": "architecture_context",
+      "query": "live rendering update start stop",
+      "expected_symbols": ["Live", "Live.start", "Live.stop", "Live.update"],
+      "expected_files": ["rich/live.py"],
+      "k": 10
+    },
+    {
+      "id": "rich-arch-008",
+      "repo": "rich",
+      "task_type": "architecture_context",
+      "query": "syntax highlighting console render",
+      "expected_symbols": ["Syntax", "Syntax.__rich_console__", "Syntax.__rich_measure__"],
+      "expected_files": ["rich/syntax.py"],
+      "k": 10
+    },
+    {
+      "id": "rich-test-009",
+      "repo": "rich",
+      "task_type": "test_location",
+      "query": "markup render escape tests",
+      "expected_symbols": ["test_render", "test_escape"],
+      "expected_files": ["tests/test_markup.py"],
+      "k": 10
+    },
+    {
+      "id": "rich-test-010",
+      "repo": "rich",
+      "task_type": "test_location",
+      "query": "pretty dataclass namedtuple tests",
+      "expected_symbols": ["test_pretty_dataclass", "test_pretty_namedtuple"],
+      "expected_files": ["tests/test_pretty.py"],
+      "k": 10
+    },
+    {
+      "id": "rich-symbol-011",
+      "repo": "rich",
+      "task_type": "symbol_lookup",
+      "query": "Panel",
+      "expected_symbols": ["Panel"],
+      "expected_files": ["rich/panel.py"],
+      "k": 5
+    },
+    {
+      "id": "rich-symbol-012",
+      "repo": "rich",
+      "task_type": "symbol_lookup",
+      "query": "Markdown",
+      "expected_symbols": ["Markdown"],
+      "expected_files": ["rich/markdown.py"],
+      "k": 5
+    },
+    {
+      "id": "rich-deps-013",
+      "repo": "rich",
+      "task_type": "dependency_trace",
+      "query": "style render theme color",
+      "seed_symbol": "Style.render",
+      "expected_symbols": ["Style", "Style.render", "Theme"],
+      "expected_files": ["rich/style.py", "rich/theme.py"],
+      "k": 10
+    },
+    {
+      "id": "rich-arch-014",
+      "repo": "rich",
+      "task_type": "architecture_context",
+      "query": "progress columns render task update",
+      "expected_symbols": ["Progress", "Progress.update"],
+      "expected_files": ["rich/progress.py"],
+      "k": 10
+    },
+    {
+      "id": "rich-test-015",
+      "repo": "rich",
+      "task_type": "test_location",
+      "query": "align measure render tests",
+      "expected_symbols": ["test_measure", "test_align_center"],
+      "expected_files": ["tests/test_align.py"],
+      "k": 10
+    }
+  ]
+}

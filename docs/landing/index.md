@@ -1,6 +1,6 @@
 # CodeAtlas — code knowledge graphs for AI agents
 
-> Tree-sitter parsers, a persistent SQLite + FTS5 graph, FAISS semantic search, PageRank centrality, and a 29-tool MCP surface. Installs in one `pip install`. Ships with a React web UI.
+> Tree-sitter parsers, a persistent SQLite + FTS5 graph, FAISS semantic search, PageRank centrality, and a 30-tool MCP surface. Installs in one `pip install`. Ships with a React web UI.
 
 <!-- hero screencast (recorded before launch; see docs/assets/README.md) -->
 ![hero](../assets/hero.svg)
@@ -16,8 +16,8 @@ AI coding agents waste most of their context window orienting themselves in a co
 | Storage | Persistent SQLite + FTS5 (1M+ symbols) | Flat `graph.json` re-serialized every run |
 | Semantic search | FAISS + MiniLM embeddings | Keyword grep only |
 | Centrality | PageRank (caller-weighted) | Degree-based "god nodes" |
-| MCP surface | 29 tools | 3–5 tools |
-| CLI surface | 27 subcommands | <10 |
+| MCP surface | 30 tools | 3–5 tools |
+| CLI surface | 35 subcommands | <10 |
 | Interactive UI | React SPA + FastAPI | Static HTML export |
 | Incremental sync | watchdog + webhook + pre-commit | Full reindex each run |
 

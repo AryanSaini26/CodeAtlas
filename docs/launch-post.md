@@ -10,7 +10,7 @@ CodeAtlas 1.0 — tree-sitter → SQLite + FAISS graph + 30 MCP tools + web UI. 
 
 ## Pitch (≤280 chars)
 
-Open-sourced **CodeAtlas 1.0** — a persistent code knowledge graph for AI agents. Tree-sitter for 24 languages, PageRank + FAISS embeddings in SQLite, 30 MCP tools, 34 CLI commands, React web UI. One install. MIT licensed.
+Open-sourced **CodeAtlas 1.0** — a persistent code knowledge graph for AI agents. Tree-sitter for 24 languages, PageRank + FAISS embeddings in SQLite, 30 MCP tools, 35 CLI commands, React web UI. One install. MIT licensed.
 
 ## HN title
 
@@ -52,7 +52,7 @@ MIT licensed. Would love feedback, especially on the MCP tool surface and what's
 - SQLite + FTS5 graph (1M+ symbols)
 - FAISS embeddings, hybrid search
 - PageRank, communities, hotspots, dead code, coverage gaps
-- 34 CLI commands, 30 MCP tools, 6 export formats
+- 35 CLI commands, 30 MCP tools, 6 export formats
 - React UI backed by FastAPI
 
 **4/** Drop this in your Claude Code config:

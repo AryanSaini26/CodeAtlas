@@ -1,0 +1,5216 @@
+[
+  {
+    "mode": "fts",
+    "id": "requests-impact-005",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "Session request send prepare_request",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Session.request",
+      "Session.send",
+      "Session.prepare_request"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "PreparedRequest"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "requests-deps-006",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "resolve proxies environment no_proxy",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "resolve_proxies",
+      "should_bypass_proxies",
+      "get_environ_proxies"
+    ],
+    "expected_files": [
+      "src/requests/utils.py"
+    ],
+    "hits": [
+      "resolve_proxies"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "fts",
+    "id": "requests-arch-007",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "request preparation response model encoding",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Request",
+      "PreparedRequest",
+      "Response"
+    ],
+    "expected_files": [
+      "src/requests/models.py"
+    ],
+    "hits": [
+      "import.requests.exceptions.RequestException",
+      "import.requests.cookies.RequestsCookieJar",
+      "RequestEncodingMixin",
+      "RequestHooksMixin",
+      "RequestsWarning",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/tests/test_utils.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/exceptions.py",
+      ".codeatlas/bench-repos/requests/docs/conf.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_packages.py",
+      ".codeatlas/bench-repos/requests/tests/test_testserver.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "requests-arch-008",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "transport adapter certificate verification proxy manager",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "HTTPAdapter",
+      "HTTPAdapter.cert_verify",
+      "HTTPAdapter.proxy_manager_for"
+    ],
+    "expected_files": [
+      "src/requests/adapters.py"
+    ],
+    "hits": [
+      "TestRequests.test_transport_adapter_ordering",
+      "BaseAdapter",
+      "HTTPAdapter"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "fts",
+    "id": "requests-test-009",
+    "repo": "requests",
+    "task_type": "test_location",
+    "query": "digest auth redirect low level tests",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "test_digestauth_401_count_reset_on_redirect"
+    ],
+    "expected_files": [
+      "tests/test_lowlevel.py"
+    ],
+    "hits": [
+      "test_digestauth_only_on_4xx.digest_response_handler",
+      "test_digestauth_401_count_reset_on_redirect.digest_response_handler",
+      "TestRequests.test_DIGEST_STREAM",
+      "test_digestauth_401_only_sent_once.digest_failed_response_handler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_requests.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "requests-deps-012",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "cookie extraction jar response",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "extract_cookies_to_jar",
+      "RequestsCookieJar"
+    ],
+    "expected_files": [
+      "src/requests/cookies.py"
+    ],
+    "hits": [
+      "merge_cookies",
+      "import.http.cookiejar as cookielib",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.Cookie",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookiePolicy",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/cookies.py",
+      ".codeatlas/bench-repos/requests/src/requests/compat.py",
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "requests-impact-014",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "redirect authentication rebuild auth",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "SessionRedirectMixin.rebuild_auth",
+      "SessionRedirectMixin.resolve_redirects"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "RedirectSession",
+      "REDIRECT_STATI",
+      "DEFAULT_REDIRECT_LIMIT",
+      "import..models.REDIRECT_STATI",
+      "test_redirect_rfc1808_to_non_ascii_location.redirect_resp_handler",
+      "TestRequests.test_custom_redirect_mixin.CustomRedirectSession.get_redirect_target",
+      "HTTPDigestAuth.handle_redirect",
+      "import..models.DEFAULT_REDIRECT_LIMIT",
+      "RedirectSession.__init__",
+      "Response.is_redirect"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "requests-arch-015",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "public request api creates session",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "request",
+      "session",
+      "Session"
+    ],
+    "expected_files": [
+      "src/requests/api.py",
+      "src/requests/sessions.py"
+    ],
+    "hits": [],
+    "hit_files": [],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "requests-impact-005",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "Session request send prepare_request",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Session.request",
+      "Session.send",
+      "Session.prepare_request"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "PreparedRequest"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "requests-deps-006",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "resolve proxies environment no_proxy",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "resolve_proxies",
+      "should_bypass_proxies",
+      "get_environ_proxies"
+    ],
+    "expected_files": [
+      "src/requests/utils.py"
+    ],
+    "hits": [
+      "resolve_proxies"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "pagerank",
+    "id": "requests-arch-007",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "request preparation response model encoding",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Request",
+      "PreparedRequest",
+      "Response"
+    ],
+    "expected_files": [
+      "src/requests/models.py"
+    ],
+    "hits": [
+      "import.requests.exceptions.RequestException",
+      "import.requests.cookies.RequestsCookieJar",
+      "RequestEncodingMixin",
+      "RequestHooksMixin",
+      "RequestsWarning",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/tests/test_utils.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/exceptions.py",
+      ".codeatlas/bench-repos/requests/docs/conf.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_packages.py",
+      ".codeatlas/bench-repos/requests/tests/test_testserver.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "requests-arch-008",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "transport adapter certificate verification proxy manager",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "HTTPAdapter",
+      "HTTPAdapter.cert_verify",
+      "HTTPAdapter.proxy_manager_for"
+    ],
+    "expected_files": [
+      "src/requests/adapters.py"
+    ],
+    "hits": [
+      "TestRequests.test_transport_adapter_ordering",
+      "BaseAdapter",
+      "HTTPAdapter"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "pagerank",
+    "id": "requests-test-009",
+    "repo": "requests",
+    "task_type": "test_location",
+    "query": "digest auth redirect low level tests",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "test_digestauth_401_count_reset_on_redirect"
+    ],
+    "expected_files": [
+      "tests/test_lowlevel.py"
+    ],
+    "hits": [
+      "test_digestauth_only_on_4xx.digest_response_handler",
+      "test_digestauth_401_count_reset_on_redirect.digest_response_handler",
+      "TestRequests.test_DIGEST_STREAM",
+      "test_digestauth_401_only_sent_once.digest_failed_response_handler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_requests.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "requests-deps-012",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "cookie extraction jar response",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "extract_cookies_to_jar",
+      "RequestsCookieJar"
+    ],
+    "expected_files": [
+      "src/requests/cookies.py"
+    ],
+    "hits": [
+      "merge_cookies",
+      "import.http.cookiejar as cookielib",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.Cookie",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookiePolicy",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/cookies.py",
+      ".codeatlas/bench-repos/requests/src/requests/compat.py",
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "requests-impact-014",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "redirect authentication rebuild auth",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "SessionRedirectMixin.rebuild_auth",
+      "SessionRedirectMixin.resolve_redirects"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "RedirectSession",
+      "REDIRECT_STATI",
+      "DEFAULT_REDIRECT_LIMIT",
+      "import..models.REDIRECT_STATI",
+      "test_redirect_rfc1808_to_non_ascii_location.redirect_resp_handler",
+      "TestRequests.test_custom_redirect_mixin.CustomRedirectSession.get_redirect_target",
+      "HTTPDigestAuth.handle_redirect",
+      "import..models.DEFAULT_REDIRECT_LIMIT",
+      "RedirectSession.__init__",
+      "Response.is_redirect"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "requests-arch-015",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "public request api creates session",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "request",
+      "session",
+      "Session"
+    ],
+    "expected_files": [
+      "src/requests/api.py",
+      "src/requests/sessions.py"
+    ],
+    "hits": [],
+    "hit_files": [],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-symbol-001",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "Session",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Session"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "session",
+      "Session",
+      "import..sessions.Session",
+      "import..sessions.session",
+      "Session.close"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/src/requests/__init__.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-symbol-002",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "PreparedRequest",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "PreparedRequest"
+    ],
+    "expected_files": [
+      "src/requests/models.py"
+    ],
+    "hits": [
+      "PreparedRequest",
+      "import..models.PreparedRequest",
+      "import..models.PreparedRequest",
+      "import..models.PreparedRequest",
+      "import..models.PreparedRequest"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/__init__.py",
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-symbol-003",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "HTTPAdapter",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "HTTPAdapter"
+    ],
+    "expected_files": [
+      "src/requests/adapters.py"
+    ],
+    "hits": [
+      "HTTPAdapter",
+      "import..adapters.HTTPAdapter",
+      "import..adapters.HTTPAdapter",
+      "import.requests.adapters.HTTPAdapter",
+      "HTTPAdapter.add_headers"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_requests.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-symbol-004",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "CaseInsensitiveDict",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "CaseInsensitiveDict"
+    ],
+    "expected_files": [
+      "src/requests/structures.py"
+    ],
+    "hits": [
+      "CaseInsensitiveDict",
+      "import..structures.CaseInsensitiveDict",
+      "import..structures.CaseInsensitiveDict",
+      "import..structures.CaseInsensitiveDict",
+      "import..structures.CaseInsensitiveDict"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/structures.py",
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-impact-005",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "Session request send prepare_request",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Session.request",
+      "Session.send",
+      "Session.prepare_request"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "PreparedRequest"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-deps-006",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "resolve proxies environment no_proxy",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "resolve_proxies",
+      "should_bypass_proxies",
+      "get_environ_proxies"
+    ],
+    "expected_files": [
+      "src/requests/utils.py"
+    ],
+    "hits": [
+      "resolve_proxies"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-arch-007",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "request preparation response model encoding",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Request",
+      "PreparedRequest",
+      "Response"
+    ],
+    "expected_files": [
+      "src/requests/models.py"
+    ],
+    "hits": [
+      "import.requests.exceptions.RequestException",
+      "import.requests.cookies.RequestsCookieJar",
+      "RequestEncodingMixin",
+      "RequestHooksMixin",
+      "RequestsWarning",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/tests/test_utils.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/exceptions.py",
+      ".codeatlas/bench-repos/requests/docs/conf.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_packages.py",
+      ".codeatlas/bench-repos/requests/tests/test_testserver.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-arch-008",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "transport adapter certificate verification proxy manager",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "HTTPAdapter",
+      "HTTPAdapter.cert_verify",
+      "HTTPAdapter.proxy_manager_for"
+    ],
+    "expected_files": [
+      "src/requests/adapters.py"
+    ],
+    "hits": [
+      "TestRequests.test_transport_adapter_ordering",
+      "BaseAdapter",
+      "HTTPAdapter"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-test-009",
+    "repo": "requests",
+    "task_type": "test_location",
+    "query": "digest auth redirect low level tests",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "test_digestauth_401_count_reset_on_redirect"
+    ],
+    "expected_files": [
+      "tests/test_lowlevel.py"
+    ],
+    "hits": [
+      "test_digestauth_only_on_4xx.digest_response_handler",
+      "test_digestauth_401_count_reset_on_redirect.digest_response_handler",
+      "TestRequests.test_DIGEST_STREAM",
+      "test_digestauth_401_only_sent_once.digest_failed_response_handler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_requests.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-test-010",
+    "repo": "requests",
+    "task_type": "test_location",
+    "query": "chunked upload tests",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "test_chunked_upload"
+    ],
+    "expected_files": [
+      "tests/test_lowlevel.py"
+    ],
+    "hits": [
+      "import..exceptions.ChunkedEncodingError",
+      "import..exceptions.ChunkedEncodingError",
+      "import.requests.exceptions.ChunkedEncodingError",
+      "ChunkedEncodingError",
+      "test_chunked_encoding_error.incomplete_chunked_response_handler",
+      "test_chunked_upload",
+      "test_chunked_encoding_error"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/exceptions.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-symbol-011",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "RequestsCookieJar",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "RequestsCookieJar"
+    ],
+    "expected_files": [
+      "src/requests/cookies.py"
+    ],
+    "hits": [
+      "import..cookies.RequestsCookieJar",
+      "import..cookies.RequestsCookieJar",
+      "import..cookies.RequestsCookieJar",
+      "import.requests.cookies.RequestsCookieJar",
+      "RequestsCookieJar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_utils.py",
+      ".codeatlas/bench-repos/requests/src/requests/cookies.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-deps-012",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "cookie extraction jar response",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "extract_cookies_to_jar",
+      "RequestsCookieJar"
+    ],
+    "expected_files": [
+      "src/requests/cookies.py"
+    ],
+    "hits": [
+      "merge_cookies",
+      "import.http.cookiejar as cookielib",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.Cookie",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookiePolicy",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/cookies.py",
+      ".codeatlas/bench-repos/requests/src/requests/compat.py",
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-symbol-013",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "HTTPBasicAuth",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "HTTPBasicAuth"
+    ],
+    "expected_files": [
+      "src/requests/auth.py"
+    ],
+    "hits": [
+      "import..auth.HTTPBasicAuth",
+      "HTTPBasicAuth",
+      "HTTPBasicAuth.__eq__",
+      "HTTPBasicAuth.__ne__",
+      "HTTPBasicAuth.__call__"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-impact-014",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "redirect authentication rebuild auth",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "SessionRedirectMixin.rebuild_auth",
+      "SessionRedirectMixin.resolve_redirects"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "RedirectSession",
+      "REDIRECT_STATI",
+      "DEFAULT_REDIRECT_LIMIT",
+      "import..models.REDIRECT_STATI",
+      "test_redirect_rfc1808_to_non_ascii_location.redirect_resp_handler",
+      "TestRequests.test_custom_redirect_mixin.CustomRedirectSession.get_redirect_target",
+      "HTTPDigestAuth.handle_redirect",
+      "import..models.DEFAULT_REDIRECT_LIMIT",
+      "RedirectSession.__init__",
+      "Response.is_redirect"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "requests-arch-015",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "public request api creates session",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "request",
+      "session",
+      "Session"
+    ],
+    "expected_files": [
+      "src/requests/api.py",
+      "src/requests/sessions.py"
+    ],
+    "hits": [],
+    "hit_files": [],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-symbol-001",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "Session",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Session"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "session",
+      "Session",
+      "import..sessions.Session",
+      "import..sessions.session",
+      "Session.close"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/src/requests/__init__.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-symbol-002",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "PreparedRequest",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "PreparedRequest"
+    ],
+    "expected_files": [
+      "src/requests/models.py"
+    ],
+    "hits": [
+      "PreparedRequest",
+      "import..models.PreparedRequest",
+      "import..models.PreparedRequest",
+      "import..models.PreparedRequest",
+      "import..models.PreparedRequest"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/__init__.py",
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-symbol-003",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "HTTPAdapter",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "HTTPAdapter"
+    ],
+    "expected_files": [
+      "src/requests/adapters.py"
+    ],
+    "hits": [
+      "HTTPAdapter",
+      "import..adapters.HTTPAdapter",
+      "import..adapters.HTTPAdapter",
+      "import.requests.adapters.HTTPAdapter",
+      "HTTPAdapter.add_headers"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_requests.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-symbol-004",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "CaseInsensitiveDict",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "CaseInsensitiveDict"
+    ],
+    "expected_files": [
+      "src/requests/structures.py"
+    ],
+    "hits": [
+      "CaseInsensitiveDict",
+      "import..structures.CaseInsensitiveDict",
+      "import..structures.CaseInsensitiveDict",
+      "import..structures.CaseInsensitiveDict",
+      "import..structures.CaseInsensitiveDict"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/structures.py",
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-impact-005",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "Session request send prepare_request",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Session.request",
+      "Session.send",
+      "Session.prepare_request"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "PreparedRequest"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-deps-006",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "resolve proxies environment no_proxy",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "resolve_proxies",
+      "should_bypass_proxies",
+      "get_environ_proxies"
+    ],
+    "expected_files": [
+      "src/requests/utils.py"
+    ],
+    "hits": [
+      "resolve_proxies"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-arch-007",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "request preparation response model encoding",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Request",
+      "PreparedRequest",
+      "Response"
+    ],
+    "expected_files": [
+      "src/requests/models.py"
+    ],
+    "hits": [
+      "import.requests.exceptions.RequestException",
+      "import.requests.cookies.RequestsCookieJar",
+      "RequestEncodingMixin",
+      "RequestHooksMixin",
+      "RequestsWarning",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/tests/test_utils.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/exceptions.py",
+      ".codeatlas/bench-repos/requests/docs/conf.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_packages.py",
+      ".codeatlas/bench-repos/requests/tests/test_testserver.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-arch-008",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "transport adapter certificate verification proxy manager",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "HTTPAdapter",
+      "HTTPAdapter.cert_verify",
+      "HTTPAdapter.proxy_manager_for"
+    ],
+    "expected_files": [
+      "src/requests/adapters.py"
+    ],
+    "hits": [
+      "TestRequests.test_transport_adapter_ordering",
+      "BaseAdapter",
+      "HTTPAdapter"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-test-009",
+    "repo": "requests",
+    "task_type": "test_location",
+    "query": "digest auth redirect low level tests",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "test_digestauth_401_count_reset_on_redirect"
+    ],
+    "expected_files": [
+      "tests/test_lowlevel.py"
+    ],
+    "hits": [
+      "test_digestauth_only_on_4xx.digest_response_handler",
+      "test_digestauth_401_count_reset_on_redirect.digest_response_handler",
+      "TestRequests.test_DIGEST_STREAM",
+      "test_digestauth_401_only_sent_once.digest_failed_response_handler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_requests.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-test-010",
+    "repo": "requests",
+    "task_type": "test_location",
+    "query": "chunked upload tests",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "test_chunked_upload"
+    ],
+    "expected_files": [
+      "tests/test_lowlevel.py"
+    ],
+    "hits": [
+      "import..exceptions.ChunkedEncodingError",
+      "import..exceptions.ChunkedEncodingError",
+      "import.requests.exceptions.ChunkedEncodingError",
+      "ChunkedEncodingError",
+      "test_chunked_encoding_error.incomplete_chunked_response_handler",
+      "test_chunked_upload",
+      "test_chunked_encoding_error"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/exceptions.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-symbol-011",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "RequestsCookieJar",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "RequestsCookieJar"
+    ],
+    "expected_files": [
+      "src/requests/cookies.py"
+    ],
+    "hits": [
+      "import..cookies.RequestsCookieJar",
+      "import..cookies.RequestsCookieJar",
+      "import..cookies.RequestsCookieJar",
+      "import.requests.cookies.RequestsCookieJar",
+      "RequestsCookieJar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_utils.py",
+      ".codeatlas/bench-repos/requests/src/requests/cookies.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-deps-012",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "cookie extraction jar response",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "extract_cookies_to_jar",
+      "RequestsCookieJar"
+    ],
+    "expected_files": [
+      "src/requests/cookies.py"
+    ],
+    "hits": [
+      "merge_cookies",
+      "import.http.cookiejar as cookielib",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.Cookie",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookiePolicy",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/cookies.py",
+      ".codeatlas/bench-repos/requests/src/requests/compat.py",
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-symbol-013",
+    "repo": "requests",
+    "task_type": "symbol_lookup",
+    "query": "HTTPBasicAuth",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "HTTPBasicAuth"
+    ],
+    "expected_files": [
+      "src/requests/auth.py"
+    ],
+    "hits": [
+      "import..auth.HTTPBasicAuth",
+      "HTTPBasicAuth",
+      "HTTPBasicAuth.__eq__",
+      "HTTPBasicAuth.__ne__",
+      "HTTPBasicAuth.__call__"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-impact-014",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "redirect authentication rebuild auth",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "SessionRedirectMixin.rebuild_auth",
+      "SessionRedirectMixin.resolve_redirects"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "RedirectSession",
+      "REDIRECT_STATI",
+      "DEFAULT_REDIRECT_LIMIT",
+      "import..models.REDIRECT_STATI",
+      "test_redirect_rfc1808_to_non_ascii_location.redirect_resp_handler",
+      "TestRequests.test_custom_redirect_mixin.CustomRedirectSession.get_redirect_target",
+      "HTTPDigestAuth.handle_redirect",
+      "import..models.DEFAULT_REDIRECT_LIMIT",
+      "RedirectSession.__init__",
+      "Response.is_redirect"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "requests-arch-015",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "public request api creates session",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "request",
+      "session",
+      "Session"
+    ],
+    "expected_files": [
+      "src/requests/api.py",
+      "src/requests/sessions.py"
+    ],
+    "hits": [],
+    "hit_files": [],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "context-pack",
+    "id": "requests-impact-005",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "Session request send prepare_request",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Session.request",
+      "Session.send",
+      "Session.prepare_request"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "PreparedRequest"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/models.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "requests-deps-006",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "resolve proxies environment no_proxy",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "resolve_proxies",
+      "should_bypass_proxies",
+      "get_environ_proxies"
+    ],
+    "expected_files": [
+      "src/requests/utils.py"
+    ],
+    "hits": [
+      "resolve_proxies"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "context-pack",
+    "id": "requests-arch-007",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "request preparation response model encoding",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Request",
+      "PreparedRequest",
+      "Response"
+    ],
+    "expected_files": [
+      "src/requests/models.py"
+    ],
+    "hits": [
+      "import.requests.exceptions.RequestException",
+      "import.requests.cookies.RequestsCookieJar",
+      "RequestEncodingMixin",
+      "RequestHooksMixin",
+      "RequestsWarning",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests",
+      "import.requests"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/tests/test_utils.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/exceptions.py",
+      ".codeatlas/bench-repos/requests/docs/conf.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_packages.py",
+      ".codeatlas/bench-repos/requests/tests/test_testserver.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "requests-arch-008",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "transport adapter certificate verification proxy manager",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "HTTPAdapter",
+      "HTTPAdapter.cert_verify",
+      "HTTPAdapter.proxy_manager_for"
+    ],
+    "expected_files": [
+      "src/requests/adapters.py"
+    ],
+    "hits": [
+      "TestRequests.test_transport_adapter_ordering",
+      "BaseAdapter",
+      "HTTPAdapter"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/adapters.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "context-pack",
+    "id": "requests-test-009",
+    "repo": "requests",
+    "task_type": "test_location",
+    "query": "digest auth redirect low level tests",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "test_digestauth_401_count_reset_on_redirect"
+    ],
+    "expected_files": [
+      "tests/test_lowlevel.py"
+    ],
+    "hits": [
+      "test_digestauth_only_on_4xx.digest_response_handler",
+      "test_digestauth_401_count_reset_on_redirect.digest_response_handler",
+      "TestRequests.test_DIGEST_STREAM",
+      "test_digestauth_401_only_sent_once.digest_failed_response_handler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/tests/test_requests.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "requests-deps-012",
+    "repo": "requests",
+    "task_type": "dependency_trace",
+    "query": "cookie extraction jar response",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "extract_cookies_to_jar",
+      "RequestsCookieJar"
+    ],
+    "expected_files": [
+      "src/requests/cookies.py"
+    ],
+    "hits": [
+      "merge_cookies",
+      "import.http.cookiejar as cookielib",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.Cookie",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookiePolicy",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar",
+      "import.http.cookiejar.CookieJar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/src/requests/cookies.py",
+      ".codeatlas/bench-repos/requests/src/requests/compat.py",
+      ".codeatlas/bench-repos/requests/src/requests/_types.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/src/requests/utils.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "requests-impact-014",
+    "repo": "requests",
+    "task_type": "impact_analysis",
+    "query": "redirect authentication rebuild auth",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "SessionRedirectMixin.rebuild_auth",
+      "SessionRedirectMixin.resolve_redirects"
+    ],
+    "expected_files": [
+      "src/requests/sessions.py"
+    ],
+    "hits": [
+      "RedirectSession",
+      "REDIRECT_STATI",
+      "DEFAULT_REDIRECT_LIMIT",
+      "import..models.REDIRECT_STATI",
+      "test_redirect_rfc1808_to_non_ascii_location.redirect_resp_handler",
+      "TestRequests.test_custom_redirect_mixin.CustomRedirectSession.get_redirect_target",
+      "HTTPDigestAuth.handle_redirect",
+      "import..models.DEFAULT_REDIRECT_LIMIT",
+      "RedirectSession.__init__",
+      "Response.is_redirect"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/requests/tests/test_requests.py",
+      ".codeatlas/bench-repos/requests/src/requests/models.py",
+      ".codeatlas/bench-repos/requests/src/requests/sessions.py",
+      ".codeatlas/bench-repos/requests/tests/test_lowlevel.py",
+      ".codeatlas/bench-repos/requests/src/requests/auth.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "requests-arch-015",
+    "repo": "requests",
+    "task_type": "architecture_context",
+    "query": "public request api creates session",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "request",
+      "session",
+      "Session"
+    ],
+    "expected_files": [
+      "src/requests/api.py",
+      "src/requests/sessions.py"
+    ],
+    "hits": [],
+    "hit_files": [],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "click-impact-005",
+    "repo": "click",
+    "task_type": "impact_analysis",
+    "query": "command main make context parse args invoke",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Command.main",
+      "Command.make_context",
+      "Command.invoke"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "command",
+      "test_wrapping_long_command_name.command",
+      "import..core.Command as Command",
+      "import..core.CommandCollection as CommandCollection",
+      "import..decorators.command as command",
+      "test_repr.command",
+      "CommandCollection.get_command"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/tests/test_formatting.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/src/click/core.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "click-deps-006",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "group resolve command get command add command",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Group.resolve_command",
+      "Group.get_command",
+      "Group.add_command"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "group",
+      "group",
+      "import..core.Group as Group",
+      "import..decorators.group as group",
+      "Group.group",
+      "test_repr.group",
+      "test_group_invoke_collects_used_option_prefixes.group",
+      "import..core.Group"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/examples/completion/completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/tests/test_commands.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "click-arch-007",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "decorators command group pass context",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "command",
+      "group",
+      "pass_context",
+      "make_pass_decorator"
+    ],
+    "expected_files": [
+      "src/click/decorators.py"
+    ],
+    "hits": [
+      "import.click.decorators.help_option",
+      "import..decorators.argument as argument",
+      "import..decorators.command as command",
+      "import..decorators.group as group",
+      "import..decorators.option as option",
+      "import.click.decorators.pass_meta_key",
+      "import..decorators.confirmation_option as confirmation_option",
+      "import..decorators.help_option as help_option",
+      "import..decorators.pass_context as pass_context",
+      "import..decorators.pass_obj as pass_obj"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "click-arch-008",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "parameter types choice path shell completion",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "ParamType",
+      "Choice",
+      "Path"
+    ],
+    "expected_files": [
+      "src/click/types.py"
+    ],
+    "hits": [
+      "import..core.Parameter as Parameter",
+      "import..core.ParameterSource as ParameterSource",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.ParameterSource",
+      "import..core.Parameter",
+      "import.click.Parameter",
+      "import.click.core.ParameterSource",
+      "import.click.core.ParameterSource"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/exceptions.py",
+      ".codeatlas/bench-repos/click/src/click/shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/tests/test_defaults.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "click-test-009",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "default map parameter source tests",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "test_default_map_source"
+    ],
+    "expected_files": [
+      "tests/test_defaults.py"
+    ],
+    "hits": [
+      "test_show_default_default_map",
+      "_format_default",
+      "test_choice_default_rendering",
+      "import.._compat._default_text_stdout"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_options.py",
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "click-test-010",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "stream lifecycle invoke logging tests",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "test_invoke_with_logger_warning"
+    ],
+    "expected_files": [
+      "tests/test_stream_lifecycle.py"
+    ],
+    "hits": [
+      "import..utils.get_binary_stream as get_binary_stream",
+      "import..utils.get_text_stream as get_text_stream",
+      "import.click.testing.StreamMixer",
+      "_stream_is_misconfigured",
+      "import.._compat.open_stream",
+      "import.._compat.binary_streams",
+      "import.._compat.open_stream",
+      "import.._compat.text_streams",
+      "test_echo_stdin_stream",
+      "StreamMixer"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_stream_lifecycle.py",
+      ".codeatlas/bench-repos/click/src/click/_compat.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/src/click/utils.py",
+      ".codeatlas/bench-repos/click/tests/test_testing.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "click-deps-013",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "option handle parse result shell complete",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Option.handle_parse_result",
+      "Option.shell_complete"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "test_option_optional",
+      "import..core.Option as Option",
+      "import..decorators.option as option",
+      "_Option",
+      "OptionHelpExtra",
+      "test_option_with_optional_value"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/parser.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_options.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "click-arch-014",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "terminal ui prompt style secho",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "prompt",
+      "style",
+      "secho"
+    ],
+    "expected_files": [
+      "src/click/termui.py"
+    ],
+    "hits": [
+      "raw_terminal",
+      "raw_terminal",
+      "clear",
+      "cli",
+      "getchar",
+      "Result.output"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py",
+      ".codeatlas/bench-repos/click/examples/termui/termui.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "click-impact-005",
+    "repo": "click",
+    "task_type": "impact_analysis",
+    "query": "command main make context parse args invoke",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Command.main",
+      "Command.make_context",
+      "Command.invoke"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "command",
+      "test_wrapping_long_command_name.command",
+      "import..core.Command as Command",
+      "import..core.CommandCollection as CommandCollection",
+      "import..decorators.command as command",
+      "test_repr.command",
+      "CommandCollection.get_command"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/tests/test_formatting.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/src/click/core.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "click-deps-006",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "group resolve command get command add command",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Group.resolve_command",
+      "Group.get_command",
+      "Group.add_command"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "group",
+      "group",
+      "import..core.Group as Group",
+      "import..decorators.group as group",
+      "Group.group",
+      "test_repr.group",
+      "test_group_invoke_collects_used_option_prefixes.group",
+      "import..core.Group"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/examples/completion/completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/tests/test_commands.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "click-arch-007",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "decorators command group pass context",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "command",
+      "group",
+      "pass_context",
+      "make_pass_decorator"
+    ],
+    "expected_files": [
+      "src/click/decorators.py"
+    ],
+    "hits": [
+      "import.click.decorators.help_option",
+      "import..decorators.argument as argument",
+      "import..decorators.command as command",
+      "import..decorators.group as group",
+      "import..decorators.option as option",
+      "import.click.decorators.pass_meta_key",
+      "import..decorators.confirmation_option as confirmation_option",
+      "import..decorators.help_option as help_option",
+      "import..decorators.pass_context as pass_context",
+      "import..decorators.pass_obj as pass_obj"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "click-arch-008",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "parameter types choice path shell completion",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "ParamType",
+      "Choice",
+      "Path"
+    ],
+    "expected_files": [
+      "src/click/types.py"
+    ],
+    "hits": [
+      "import..core.Parameter as Parameter",
+      "import..core.ParameterSource as ParameterSource",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.ParameterSource",
+      "import..core.Parameter",
+      "import.click.Parameter",
+      "import.click.core.ParameterSource",
+      "import.click.core.ParameterSource"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/exceptions.py",
+      ".codeatlas/bench-repos/click/src/click/shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/tests/test_defaults.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "click-test-009",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "default map parameter source tests",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "test_default_map_source"
+    ],
+    "expected_files": [
+      "tests/test_defaults.py"
+    ],
+    "hits": [
+      "test_show_default_default_map",
+      "_format_default",
+      "test_choice_default_rendering",
+      "import.._compat._default_text_stdout"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_options.py",
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "click-test-010",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "stream lifecycle invoke logging tests",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "test_invoke_with_logger_warning"
+    ],
+    "expected_files": [
+      "tests/test_stream_lifecycle.py"
+    ],
+    "hits": [
+      "import..utils.get_binary_stream as get_binary_stream",
+      "import..utils.get_text_stream as get_text_stream",
+      "import.click.testing.StreamMixer",
+      "_stream_is_misconfigured",
+      "import.._compat.open_stream",
+      "import.._compat.binary_streams",
+      "import.._compat.open_stream",
+      "import.._compat.text_streams",
+      "test_echo_stdin_stream",
+      "StreamMixer"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_stream_lifecycle.py",
+      ".codeatlas/bench-repos/click/src/click/_compat.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/src/click/utils.py",
+      ".codeatlas/bench-repos/click/tests/test_testing.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "click-deps-013",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "option handle parse result shell complete",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Option.handle_parse_result",
+      "Option.shell_complete"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "test_option_optional",
+      "import..core.Option as Option",
+      "import..decorators.option as option",
+      "_Option",
+      "OptionHelpExtra",
+      "test_option_with_optional_value"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/parser.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_options.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "click-arch-014",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "terminal ui prompt style secho",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "prompt",
+      "style",
+      "secho"
+    ],
+    "expected_files": [
+      "src/click/termui.py"
+    ],
+    "hits": [
+      "raw_terminal",
+      "raw_terminal",
+      "clear",
+      "cli",
+      "getchar",
+      "Result.output"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py",
+      ".codeatlas/bench-repos/click/examples/termui/termui.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-symbol-001",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Command",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Command"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "test_wrapping_long_command_name.command",
+      "test_wrapping_long_options_strings.command",
+      "Command",
+      "test_repr.command"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_formatting.py",
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-symbol-002",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Group",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Group"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "Group",
+      "group",
+      "group",
+      "Group.group",
+      "test_repr.group"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/examples/completion/completion.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-symbol-003",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Context",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Context"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "Context",
+      "import..core.Context",
+      "import..core.Context",
+      "import..core.Context",
+      "import..core.Context"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/exceptions.py",
+      ".codeatlas/bench-repos/click/src/click/globals.py",
+      ".codeatlas/bench-repos/click/src/click/parser.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-symbol-004",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "CliRunner",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "CliRunner"
+    ],
+    "expected_files": [
+      "src/click/testing.py"
+    ],
+    "hits": [
+      "CliRunner",
+      "import.click.testing.CliRunner",
+      "import.click.testing.CliRunner",
+      "import.click.testing.CliRunner",
+      "import.click.testing.CliRunner"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/testing.py",
+      ".codeatlas/bench-repos/click/tests/conftest.py",
+      ".codeatlas/bench-repos/click/tests/test_options.py",
+      ".codeatlas/bench-repos/click/tests/test_stream_lifecycle.py",
+      ".codeatlas/bench-repos/click/tests/test_testing.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-impact-005",
+    "repo": "click",
+    "task_type": "impact_analysis",
+    "query": "command main make context parse args invoke",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Command.main",
+      "Command.make_context",
+      "Command.invoke"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "command",
+      "test_wrapping_long_command_name.command",
+      "import..core.Command as Command",
+      "import..core.CommandCollection as CommandCollection",
+      "import..decorators.command as command",
+      "test_repr.command",
+      "CommandCollection.get_command"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/tests/test_formatting.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/src/click/core.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-deps-006",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "group resolve command get command add command",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Group.resolve_command",
+      "Group.get_command",
+      "Group.add_command"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "group",
+      "group",
+      "import..core.Group as Group",
+      "import..decorators.group as group",
+      "Group.group",
+      "test_repr.group",
+      "test_group_invoke_collects_used_option_prefixes.group",
+      "import..core.Group"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/examples/completion/completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/tests/test_commands.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-arch-007",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "decorators command group pass context",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "command",
+      "group",
+      "pass_context",
+      "make_pass_decorator"
+    ],
+    "expected_files": [
+      "src/click/decorators.py"
+    ],
+    "hits": [
+      "import.click.decorators.help_option",
+      "import..decorators.argument as argument",
+      "import..decorators.command as command",
+      "import..decorators.group as group",
+      "import..decorators.option as option",
+      "import.click.decorators.pass_meta_key",
+      "import..decorators.confirmation_option as confirmation_option",
+      "import..decorators.help_option as help_option",
+      "import..decorators.pass_context as pass_context",
+      "import..decorators.pass_obj as pass_obj"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-arch-008",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "parameter types choice path shell completion",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "ParamType",
+      "Choice",
+      "Path"
+    ],
+    "expected_files": [
+      "src/click/types.py"
+    ],
+    "hits": [
+      "import..core.Parameter as Parameter",
+      "import..core.ParameterSource as ParameterSource",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.ParameterSource",
+      "import..core.Parameter",
+      "import.click.Parameter",
+      "import.click.core.ParameterSource",
+      "import.click.core.ParameterSource"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/exceptions.py",
+      ".codeatlas/bench-repos/click/src/click/shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/tests/test_defaults.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-test-009",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "default map parameter source tests",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "test_default_map_source"
+    ],
+    "expected_files": [
+      "tests/test_defaults.py"
+    ],
+    "hits": [
+      "test_show_default_default_map",
+      "_format_default",
+      "test_choice_default_rendering",
+      "import.._compat._default_text_stdout"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_options.py",
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-test-010",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "stream lifecycle invoke logging tests",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "test_invoke_with_logger_warning"
+    ],
+    "expected_files": [
+      "tests/test_stream_lifecycle.py"
+    ],
+    "hits": [
+      "import..utils.get_binary_stream as get_binary_stream",
+      "import..utils.get_text_stream as get_text_stream",
+      "import.click.testing.StreamMixer",
+      "_stream_is_misconfigured",
+      "import.._compat.open_stream",
+      "import.._compat.binary_streams",
+      "import.._compat.open_stream",
+      "import.._compat.text_streams",
+      "test_echo_stdin_stream",
+      "StreamMixer"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_stream_lifecycle.py",
+      ".codeatlas/bench-repos/click/src/click/_compat.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/src/click/utils.py",
+      ".codeatlas/bench-repos/click/tests/test_testing.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-symbol-011",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Option",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Option"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "Option",
+      "import..core.Option",
+      "import..core.Option",
+      "import.click.Option",
+      "import.click.Option"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/shell_completion.py",
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/tests/test_options.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-symbol-012",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Argument",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Argument"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "Argument",
+      "import..core.Argument",
+      "import..core.Argument",
+      "import.click.core.Argument",
+      "import..core.Argument as Argument"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/shell_completion.py",
+      ".codeatlas/bench-repos/click/tests/test_shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-deps-013",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "option handle parse result shell complete",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Option.handle_parse_result",
+      "Option.shell_complete"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "test_option_optional",
+      "import..core.Option as Option",
+      "import..decorators.option as option",
+      "_Option",
+      "OptionHelpExtra",
+      "test_option_with_optional_value"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/parser.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_options.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-arch-014",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "terminal ui prompt style secho",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "prompt",
+      "style",
+      "secho"
+    ],
+    "expected_files": [
+      "src/click/termui.py"
+    ],
+    "hits": [
+      "raw_terminal",
+      "raw_terminal",
+      "clear",
+      "cli",
+      "getchar",
+      "Result.output"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py",
+      ".codeatlas/bench-repos/click/examples/termui/termui.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "click-test-015",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "chain group command tests",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "test_basic_chaining",
+      "test_group_chaining"
+    ],
+    "expected_files": [
+      "tests/test_chain.py"
+    ],
+    "hits": [
+      "test_chained",
+      "import.itertools.chain",
+      "test_basic_chaining",
+      "test_group_chaining",
+      "_check_nested_chain",
+      "test_basic_chaining.cli"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_shell_completion.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/tests/test_chain.py",
+      ".codeatlas/bench-repos/click/src/click/core.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-symbol-001",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Command",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Command"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "test_wrapping_long_command_name.command",
+      "test_wrapping_long_options_strings.command",
+      "Command",
+      "test_repr.command"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_formatting.py",
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-symbol-002",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Group",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Group"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "Group",
+      "group",
+      "group",
+      "Group.group",
+      "test_repr.group"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/examples/completion/completion.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-symbol-003",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Context",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Context"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "Context",
+      "import..core.Context",
+      "import..core.Context",
+      "import..core.Context",
+      "import..core.Context"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/exceptions.py",
+      ".codeatlas/bench-repos/click/src/click/globals.py",
+      ".codeatlas/bench-repos/click/src/click/parser.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-symbol-004",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "CliRunner",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "CliRunner"
+    ],
+    "expected_files": [
+      "src/click/testing.py"
+    ],
+    "hits": [
+      "CliRunner",
+      "import.click.testing.CliRunner",
+      "import.click.testing.CliRunner",
+      "import.click.testing.CliRunner",
+      "import.click.testing.CliRunner"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/testing.py",
+      ".codeatlas/bench-repos/click/tests/conftest.py",
+      ".codeatlas/bench-repos/click/tests/test_options.py",
+      ".codeatlas/bench-repos/click/tests/test_stream_lifecycle.py",
+      ".codeatlas/bench-repos/click/tests/test_testing.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-impact-005",
+    "repo": "click",
+    "task_type": "impact_analysis",
+    "query": "command main make context parse args invoke",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Command.main",
+      "Command.make_context",
+      "Command.invoke"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "command",
+      "test_wrapping_long_command_name.command",
+      "import..core.Command as Command",
+      "import..core.CommandCollection as CommandCollection",
+      "import..decorators.command as command",
+      "test_repr.command",
+      "CommandCollection.get_command"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/tests/test_formatting.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/src/click/core.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-deps-006",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "group resolve command get command add command",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Group.resolve_command",
+      "Group.get_command",
+      "Group.add_command"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "group",
+      "group",
+      "import..core.Group as Group",
+      "import..decorators.group as group",
+      "Group.group",
+      "test_repr.group",
+      "test_group_invoke_collects_used_option_prefixes.group",
+      "import..core.Group"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/examples/completion/completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/tests/test_commands.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-arch-007",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "decorators command group pass context",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "command",
+      "group",
+      "pass_context",
+      "make_pass_decorator"
+    ],
+    "expected_files": [
+      "src/click/decorators.py"
+    ],
+    "hits": [
+      "import.click.decorators.help_option",
+      "import..decorators.argument as argument",
+      "import..decorators.command as command",
+      "import..decorators.group as group",
+      "import..decorators.option as option",
+      "import.click.decorators.pass_meta_key",
+      "import..decorators.confirmation_option as confirmation_option",
+      "import..decorators.help_option as help_option",
+      "import..decorators.pass_context as pass_context",
+      "import..decorators.pass_obj as pass_obj"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-arch-008",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "parameter types choice path shell completion",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "ParamType",
+      "Choice",
+      "Path"
+    ],
+    "expected_files": [
+      "src/click/types.py"
+    ],
+    "hits": [
+      "import..core.Parameter as Parameter",
+      "import..core.ParameterSource as ParameterSource",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.ParameterSource",
+      "import..core.Parameter",
+      "import.click.Parameter",
+      "import.click.core.ParameterSource",
+      "import.click.core.ParameterSource"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/exceptions.py",
+      ".codeatlas/bench-repos/click/src/click/shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/tests/test_defaults.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-test-009",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "default map parameter source tests",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "test_default_map_source"
+    ],
+    "expected_files": [
+      "tests/test_defaults.py"
+    ],
+    "hits": [
+      "test_show_default_default_map",
+      "_format_default",
+      "test_choice_default_rendering",
+      "import.._compat._default_text_stdout"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_options.py",
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-test-010",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "stream lifecycle invoke logging tests",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "test_invoke_with_logger_warning"
+    ],
+    "expected_files": [
+      "tests/test_stream_lifecycle.py"
+    ],
+    "hits": [
+      "import..utils.get_binary_stream as get_binary_stream",
+      "import..utils.get_text_stream as get_text_stream",
+      "import.click.testing.StreamMixer",
+      "_stream_is_misconfigured",
+      "import.._compat.open_stream",
+      "import.._compat.binary_streams",
+      "import.._compat.open_stream",
+      "import.._compat.text_streams",
+      "test_echo_stdin_stream",
+      "StreamMixer"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_stream_lifecycle.py",
+      ".codeatlas/bench-repos/click/src/click/_compat.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/src/click/utils.py",
+      ".codeatlas/bench-repos/click/tests/test_testing.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-symbol-011",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Option",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Option"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "Option",
+      "import..core.Option",
+      "import..core.Option",
+      "import.click.Option",
+      "import.click.Option"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/shell_completion.py",
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/tests/test_options.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-symbol-012",
+    "repo": "click",
+    "task_type": "symbol_lookup",
+    "query": "Argument",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Argument"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "Argument",
+      "import..core.Argument",
+      "import..core.Argument",
+      "import.click.core.Argument",
+      "import..core.Argument as Argument"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/shell_completion.py",
+      ".codeatlas/bench-repos/click/tests/test_shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-deps-013",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "option handle parse result shell complete",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Option.handle_parse_result",
+      "Option.shell_complete"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "test_option_optional",
+      "import..core.Option as Option",
+      "import..decorators.option as option",
+      "_Option",
+      "OptionHelpExtra",
+      "test_option_with_optional_value"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/parser.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_options.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-arch-014",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "terminal ui prompt style secho",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "prompt",
+      "style",
+      "secho"
+    ],
+    "expected_files": [
+      "src/click/termui.py"
+    ],
+    "hits": [
+      "raw_terminal",
+      "raw_terminal",
+      "clear",
+      "cli",
+      "getchar",
+      "Result.output"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py",
+      ".codeatlas/bench-repos/click/examples/termui/termui.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "click-test-015",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "chain group command tests",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "test_basic_chaining",
+      "test_group_chaining"
+    ],
+    "expected_files": [
+      "tests/test_chain.py"
+    ],
+    "hits": [
+      "test_chained",
+      "import.itertools.chain",
+      "test_basic_chaining",
+      "test_group_chaining",
+      "_check_nested_chain",
+      "test_basic_chaining.cli"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_shell_completion.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/tests/test_chain.py",
+      ".codeatlas/bench-repos/click/src/click/core.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "context-pack",
+    "id": "click-impact-005",
+    "repo": "click",
+    "task_type": "impact_analysis",
+    "query": "command main make context parse args invoke",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Command.main",
+      "Command.make_context",
+      "Command.invoke"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "command",
+      "test_wrapping_long_command_name.command",
+      "import..core.Command as Command",
+      "import..core.CommandCollection as CommandCollection",
+      "import..decorators.command as command",
+      "test_repr.command",
+      "CommandCollection.get_command"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/tests/test_formatting.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/src/click/core.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "click-deps-006",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "group resolve command get command add command",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Group.resolve_command",
+      "Group.get_command",
+      "Group.add_command"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "group",
+      "group",
+      "import..core.Group as Group",
+      "import..decorators.group as group",
+      "Group.group",
+      "test_repr.group",
+      "test_group_invoke_collects_used_option_prefixes.group",
+      "import..core.Group"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/examples/completion/completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/core.py",
+      ".codeatlas/bench-repos/click/tests/test_basic.py",
+      ".codeatlas/bench-repos/click/tests/test_commands.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "click-arch-007",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "decorators command group pass context",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "command",
+      "group",
+      "pass_context",
+      "make_pass_decorator"
+    ],
+    "expected_files": [
+      "src/click/decorators.py"
+    ],
+    "hits": [
+      "import.click.decorators.help_option",
+      "import..decorators.argument as argument",
+      "import..decorators.command as command",
+      "import..decorators.group as group",
+      "import..decorators.option as option",
+      "import.click.decorators.pass_meta_key",
+      "import..decorators.confirmation_option as confirmation_option",
+      "import..decorators.help_option as help_option",
+      "import..decorators.pass_context as pass_context",
+      "import..decorators.pass_obj as pass_obj"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "click-arch-008",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "parameter types choice path shell completion",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "ParamType",
+      "Choice",
+      "Path"
+    ],
+    "expected_files": [
+      "src/click/types.py"
+    ],
+    "hits": [
+      "import..core.Parameter as Parameter",
+      "import..core.ParameterSource as ParameterSource",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.Parameter",
+      "import..core.ParameterSource",
+      "import..core.Parameter",
+      "import.click.Parameter",
+      "import.click.core.ParameterSource",
+      "import.click.core.ParameterSource"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/decorators.py",
+      ".codeatlas/bench-repos/click/src/click/exceptions.py",
+      ".codeatlas/bench-repos/click/src/click/shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_context.py",
+      ".codeatlas/bench-repos/click/tests/test_defaults.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "click-test-009",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "default map parameter source tests",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "test_default_map_source"
+    ],
+    "expected_files": [
+      "tests/test_defaults.py"
+    ],
+    "hits": [
+      "test_show_default_default_map",
+      "_format_default",
+      "test_choice_default_rendering",
+      "import.._compat._default_text_stdout"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_options.py",
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "click-test-010",
+    "repo": "click",
+    "task_type": "test_location",
+    "query": "stream lifecycle invoke logging tests",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "test_invoke_with_logger_warning"
+    ],
+    "expected_files": [
+      "tests/test_stream_lifecycle.py"
+    ],
+    "hits": [
+      "import..utils.get_binary_stream as get_binary_stream",
+      "import..utils.get_text_stream as get_text_stream",
+      "import.click.testing.StreamMixer",
+      "_stream_is_misconfigured",
+      "import.._compat.open_stream",
+      "import.._compat.binary_streams",
+      "import.._compat.open_stream",
+      "import.._compat.text_streams",
+      "test_echo_stdin_stream",
+      "StreamMixer"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/tests/test_stream_lifecycle.py",
+      ".codeatlas/bench-repos/click/src/click/_compat.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/src/click/utils.py",
+      ".codeatlas/bench-repos/click/tests/test_testing.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "click-deps-013",
+    "repo": "click",
+    "task_type": "dependency_trace",
+    "query": "option handle parse result shell complete",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Option.handle_parse_result",
+      "Option.shell_complete"
+    ],
+    "expected_files": [
+      "src/click/core.py"
+    ],
+    "hits": [
+      "test_option_optional",
+      "import..core.Option as Option",
+      "import..decorators.option as option",
+      "_Option",
+      "OptionHelpExtra",
+      "test_option_with_optional_value"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/tests/test_shell_completion.py",
+      ".codeatlas/bench-repos/click/src/click/__init__.py",
+      ".codeatlas/bench-repos/click/src/click/parser.py",
+      ".codeatlas/bench-repos/click/src/click/types.py",
+      ".codeatlas/bench-repos/click/tests/test_options.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "click-arch-014",
+    "repo": "click",
+    "task_type": "architecture_context",
+    "query": "terminal ui prompt style secho",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "prompt",
+      "style",
+      "secho"
+    ],
+    "expected_files": [
+      "src/click/termui.py"
+    ],
+    "hits": [
+      "raw_terminal",
+      "raw_terminal",
+      "clear",
+      "cli",
+      "getchar",
+      "Result.output"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/click/src/click/termui.py",
+      ".codeatlas/bench-repos/click/src/click/_termui_impl.py",
+      ".codeatlas/bench-repos/click/examples/termui/termui.py",
+      ".codeatlas/bench-repos/click/src/click/testing.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "rich-impact-005",
+    "repo": "rich",
+    "task_type": "impact_analysis",
+    "query": "console render lines measure print",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Console.render",
+      "Console.render_lines",
+      "Console.print"
+    ],
+    "expected_files": [
+      "rich/console.py"
+    ],
+    "hits": [
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleRenderable",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/__init__.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/_wrap.py",
+      ".codeatlas/bench-repos/rich/rich/align.py",
+      ".codeatlas/bench-repos/rich/rich/ansi.py",
+      ".codeatlas/bench-repos/rich/rich/bar.py",
+      ".codeatlas/bench-repos/rich/rich/box.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "rich-deps-006",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "table add column add row console render",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Table.add_column",
+      "Table.add_row",
+      "Table.__rich_console__"
+    ],
+    "expected_files": [
+      "rich/table.py"
+    ],
+    "hits": [
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import.rich.table.Table"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/box.py",
+      ".codeatlas/bench-repos/rich/rich/color.py",
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "rich-arch-007",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "live rendering update start stop",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Live",
+      "Live.start",
+      "Live.stop",
+      "Live.update"
+    ],
+    "expected_files": [
+      "rich/live.py"
+    ],
+    "hits": [
+      "import..live.Live as Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/rich/status.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/layout.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/examples/spinners.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "fts",
+    "id": "rich-arch-008",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "syntax highlighting console render",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Syntax",
+      "Syntax.__rich_console__",
+      "Syntax.__rich_measure__"
+    ],
+    "expected_files": [
+      "rich/syntax.py"
+    ],
+    "hits": [
+      "RichHandler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/logging.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "rich-test-009",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "markup render escape tests",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "test_render",
+      "test_escape"
+    ],
+    "expected_files": [
+      "tests/test_markup.py"
+    ],
+    "hits": [
+      "MARKUP",
+      "MARKUP",
+      "MarkupError",
+      "import..errors.MarkupError",
+      "import.rich.errors.MarkupError",
+      "import..markup.render as render_markup",
+      "test_markup_error",
+      "test_markup_escape",
+      "test_spinner_markup",
+      "Tag.markup"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/benchmarks/snippets.py",
+      ".codeatlas/bench-repos/rich/rich/markup.py",
+      ".codeatlas/bench-repos/rich/rich/errors.py",
+      ".codeatlas/bench-repos/rich/tests/test_markup.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/tests/test_spinner.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "rich-test-010",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "pretty dataclass namedtuple tests",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "test_pretty_dataclass",
+      "test_pretty_namedtuple"
+    ],
+    "expected_files": [
+      "tests/test_pretty.py"
+    ],
+    "hits": [
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py",
+      ".codeatlas/bench-repos/rich/examples/attrs.py",
+      ".codeatlas/bench-repos/rich/rich/__main__.py",
+      ".codeatlas/bench-repos/rich/rich/diagnose.py",
+      ".codeatlas/bench-repos/rich/tests/test_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/profile_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/stress_test_pretty.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "rich-deps-013",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "style render theme color",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Style",
+      "Style.render",
+      "Theme"
+    ],
+    "expected_files": [
+      "rich/style.py",
+      "rich/theme.py"
+    ],
+    "hits": [
+      "Syntax",
+      "Syntax.from_path"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/syntax.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "fts",
+    "id": "rich-arch-014",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "progress columns render task update",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "Progress",
+      "Progress.update"
+    ],
+    "expected_files": [
+      "rich/progress.py"
+    ],
+    "hits": [
+      "make_progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import..progress_bar.ProgressBar",
+      "import.rich.progress.Progress",
+      "import.rich.progress_bar.ProgressBar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/tests/test_progress.py",
+      ".codeatlas/bench-repos/rich/examples/cp_progress.py",
+      ".codeatlas/bench-repos/rich/examples/downloader.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/jobs.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/tests/test_bar.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "fts",
+    "id": "rich-test-015",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "align measure render tests",
+    "mode_effective": "fts",
+    "expected_symbols": [
+      "test_measure",
+      "test_align_center"
+    ],
+    "expected_files": [
+      "tests/test_align.py"
+    ],
+    "hits": [
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import.rich.align.Align"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/panel.py",
+      ".codeatlas/bench-repos/rich/rich/rule.py",
+      ".codeatlas/bench-repos/rich/rich/text.py",
+      ".codeatlas/bench-repos/rich/examples/bars.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "rich-impact-005",
+    "repo": "rich",
+    "task_type": "impact_analysis",
+    "query": "console render lines measure print",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Console.render",
+      "Console.render_lines",
+      "Console.print"
+    ],
+    "expected_files": [
+      "rich/console.py"
+    ],
+    "hits": [
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleRenderable",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/__init__.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/_wrap.py",
+      ".codeatlas/bench-repos/rich/rich/align.py",
+      ".codeatlas/bench-repos/rich/rich/ansi.py",
+      ".codeatlas/bench-repos/rich/rich/bar.py",
+      ".codeatlas/bench-repos/rich/rich/box.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "rich-deps-006",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "table add column add row console render",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Table.add_column",
+      "Table.add_row",
+      "Table.__rich_console__"
+    ],
+    "expected_files": [
+      "rich/table.py"
+    ],
+    "hits": [
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import.rich.table.Table"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/box.py",
+      ".codeatlas/bench-repos/rich/rich/color.py",
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "rich-arch-007",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "live rendering update start stop",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Live",
+      "Live.start",
+      "Live.stop",
+      "Live.update"
+    ],
+    "expected_files": [
+      "rich/live.py"
+    ],
+    "hits": [
+      "import..live.Live as Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/rich/status.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/layout.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/examples/spinners.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "pagerank",
+    "id": "rich-arch-008",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "syntax highlighting console render",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Syntax",
+      "Syntax.__rich_console__",
+      "Syntax.__rich_measure__"
+    ],
+    "expected_files": [
+      "rich/syntax.py"
+    ],
+    "hits": [
+      "RichHandler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/logging.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "rich-test-009",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "markup render escape tests",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "test_render",
+      "test_escape"
+    ],
+    "expected_files": [
+      "tests/test_markup.py"
+    ],
+    "hits": [
+      "MARKUP",
+      "MARKUP",
+      "MarkupError",
+      "import..errors.MarkupError",
+      "import.rich.errors.MarkupError",
+      "import..markup.render as render_markup",
+      "test_markup_error",
+      "test_markup_escape",
+      "test_spinner_markup",
+      "Tag.markup"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/benchmarks/snippets.py",
+      ".codeatlas/bench-repos/rich/rich/markup.py",
+      ".codeatlas/bench-repos/rich/rich/errors.py",
+      ".codeatlas/bench-repos/rich/tests/test_markup.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/tests/test_spinner.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "rich-test-010",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "pretty dataclass namedtuple tests",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "test_pretty_dataclass",
+      "test_pretty_namedtuple"
+    ],
+    "expected_files": [
+      "tests/test_pretty.py"
+    ],
+    "hits": [
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py",
+      ".codeatlas/bench-repos/rich/examples/attrs.py",
+      ".codeatlas/bench-repos/rich/rich/__main__.py",
+      ".codeatlas/bench-repos/rich/rich/diagnose.py",
+      ".codeatlas/bench-repos/rich/tests/test_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/profile_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/stress_test_pretty.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "rich-deps-013",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "style render theme color",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Style",
+      "Style.render",
+      "Theme"
+    ],
+    "expected_files": [
+      "rich/style.py",
+      "rich/theme.py"
+    ],
+    "hits": [
+      "Syntax",
+      "Syntax.from_path"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/syntax.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "pagerank",
+    "id": "rich-arch-014",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "progress columns render task update",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "Progress",
+      "Progress.update"
+    ],
+    "expected_files": [
+      "rich/progress.py"
+    ],
+    "hits": [
+      "make_progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import..progress_bar.ProgressBar",
+      "import.rich.progress.Progress",
+      "import.rich.progress_bar.ProgressBar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/tests/test_progress.py",
+      ".codeatlas/bench-repos/rich/examples/cp_progress.py",
+      ".codeatlas/bench-repos/rich/examples/downloader.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/jobs.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/tests/test_bar.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "pagerank",
+    "id": "rich-test-015",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "align measure render tests",
+    "mode_effective": "pagerank",
+    "expected_symbols": [
+      "test_measure",
+      "test_align_center"
+    ],
+    "expected_files": [
+      "tests/test_align.py"
+    ],
+    "hits": [
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import.rich.align.Align"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/panel.py",
+      ".codeatlas/bench-repos/rich/rich/rule.py",
+      ".codeatlas/bench-repos/rich/rich/text.py",
+      ".codeatlas/bench-repos/rich/examples/bars.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-symbol-001",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Console",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Console"
+    ],
+    "expected_files": [
+      "rich/console.py"
+    ],
+    "hits": [
+      "Console",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.Console"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/__init__.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/_wrap.py",
+      ".codeatlas/bench-repos/rich/rich/align.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-symbol-002",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Text",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Text"
+    ],
+    "expected_files": [
+      "rich/text.py"
+    ],
+    "hits": [
+      "Text",
+      "import..text.Text",
+      "import..text.Text",
+      "import..text.Text",
+      "import..text.Text"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/text.py",
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/ansi.py",
+      ".codeatlas/bench-repos/rich/rich/box.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-symbol-003",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Table",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Table"
+    ],
+    "expected_files": [
+      "rich/table.py"
+    ],
+    "hits": [
+      "Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/table.py",
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/box.py",
+      ".codeatlas/bench-repos/rich/rich/color.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-symbol-004",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Progress",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Progress"
+    ],
+    "expected_files": [
+      "rich/progress.py"
+    ],
+    "hits": [
+      "Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/examples/cp_progress.py",
+      ".codeatlas/bench-repos/rich/examples/downloader.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-impact-005",
+    "repo": "rich",
+    "task_type": "impact_analysis",
+    "query": "console render lines measure print",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Console.render",
+      "Console.render_lines",
+      "Console.print"
+    ],
+    "expected_files": [
+      "rich/console.py"
+    ],
+    "hits": [
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleRenderable",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/__init__.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/_wrap.py",
+      ".codeatlas/bench-repos/rich/rich/align.py",
+      ".codeatlas/bench-repos/rich/rich/ansi.py",
+      ".codeatlas/bench-repos/rich/rich/bar.py",
+      ".codeatlas/bench-repos/rich/rich/box.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-deps-006",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "table add column add row console render",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Table.add_column",
+      "Table.add_row",
+      "Table.__rich_console__"
+    ],
+    "expected_files": [
+      "rich/table.py"
+    ],
+    "hits": [
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import.rich.table.Table"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/box.py",
+      ".codeatlas/bench-repos/rich/rich/color.py",
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-arch-007",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "live rendering update start stop",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Live",
+      "Live.start",
+      "Live.stop",
+      "Live.update"
+    ],
+    "expected_files": [
+      "rich/live.py"
+    ],
+    "hits": [
+      "import..live.Live as Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/rich/status.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/layout.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/examples/spinners.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-arch-008",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "syntax highlighting console render",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Syntax",
+      "Syntax.__rich_console__",
+      "Syntax.__rich_measure__"
+    ],
+    "expected_files": [
+      "rich/syntax.py"
+    ],
+    "hits": [
+      "RichHandler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/logging.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-test-009",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "markup render escape tests",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "test_render",
+      "test_escape"
+    ],
+    "expected_files": [
+      "tests/test_markup.py"
+    ],
+    "hits": [
+      "MARKUP",
+      "MARKUP",
+      "MarkupError",
+      "import..errors.MarkupError",
+      "import.rich.errors.MarkupError",
+      "import..markup.render as render_markup",
+      "test_markup_error",
+      "test_markup_escape",
+      "test_spinner_markup",
+      "Tag.markup"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/benchmarks/snippets.py",
+      ".codeatlas/bench-repos/rich/rich/markup.py",
+      ".codeatlas/bench-repos/rich/rich/errors.py",
+      ".codeatlas/bench-repos/rich/tests/test_markup.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/tests/test_spinner.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-test-010",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "pretty dataclass namedtuple tests",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "test_pretty_dataclass",
+      "test_pretty_namedtuple"
+    ],
+    "expected_files": [
+      "tests/test_pretty.py"
+    ],
+    "hits": [
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py",
+      ".codeatlas/bench-repos/rich/examples/attrs.py",
+      ".codeatlas/bench-repos/rich/rich/__main__.py",
+      ".codeatlas/bench-repos/rich/rich/diagnose.py",
+      ".codeatlas/bench-repos/rich/tests/test_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/profile_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/stress_test_pretty.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-symbol-011",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Panel",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Panel"
+    ],
+    "expected_files": [
+      "rich/panel.py"
+    ],
+    "hits": [
+      "Panel",
+      "import..panel.Panel",
+      "import..panel.Panel",
+      "import..panel.Panel",
+      "import..panel.Panel"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/panel.py",
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-symbol-012",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Markdown",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Markdown"
+    ],
+    "expected_files": [
+      "rich/markdown.py"
+    ],
+    "hits": [
+      "Markdown",
+      "import.rich.markdown.Markdown",
+      "import.rich.markdown.Markdown",
+      "import.rich.markdown.Markdown",
+      "import.rich.markdown.Markdown"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/markdown.py",
+      ".codeatlas/bench-repos/rich/rich/__main__.py",
+      ".codeatlas/bench-repos/rich/rich/tree.py",
+      ".codeatlas/bench-repos/rich/tests/test_markdown.py",
+      ".codeatlas/bench-repos/rich/tests/test_markdown_no_hyperlinks.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-deps-013",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "style render theme color",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Style",
+      "Style.render",
+      "Theme"
+    ],
+    "expected_files": [
+      "rich/style.py",
+      "rich/theme.py"
+    ],
+    "hits": [
+      "Syntax",
+      "Syntax.from_path"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/syntax.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-arch-014",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "progress columns render task update",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "Progress",
+      "Progress.update"
+    ],
+    "expected_files": [
+      "rich/progress.py"
+    ],
+    "hits": [
+      "make_progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import..progress_bar.ProgressBar",
+      "import.rich.progress.Progress",
+      "import.rich.progress_bar.ProgressBar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/tests/test_progress.py",
+      ".codeatlas/bench-repos/rich/examples/cp_progress.py",
+      ".codeatlas/bench-repos/rich/examples/downloader.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/jobs.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/tests/test_bar.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "semantic",
+    "id": "rich-test-015",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "align measure render tests",
+    "mode_effective": "fts-fallback",
+    "expected_symbols": [
+      "test_measure",
+      "test_align_center"
+    ],
+    "expected_files": [
+      "tests/test_align.py"
+    ],
+    "hits": [
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import.rich.align.Align"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/panel.py",
+      ".codeatlas/bench-repos/rich/rich/rule.py",
+      ".codeatlas/bench-repos/rich/rich/text.py",
+      ".codeatlas/bench-repos/rich/examples/bars.py"
+    ],
+    "reason": "fts-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-symbol-001",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Console",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Console"
+    ],
+    "expected_files": [
+      "rich/console.py"
+    ],
+    "hits": [
+      "Console",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.Console"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/__init__.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/_wrap.py",
+      ".codeatlas/bench-repos/rich/rich/align.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-symbol-002",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Text",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Text"
+    ],
+    "expected_files": [
+      "rich/text.py"
+    ],
+    "hits": [
+      "Text",
+      "import..text.Text",
+      "import..text.Text",
+      "import..text.Text",
+      "import..text.Text"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/text.py",
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/ansi.py",
+      ".codeatlas/bench-repos/rich/rich/box.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-symbol-003",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Table",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Table"
+    ],
+    "expected_files": [
+      "rich/table.py"
+    ],
+    "hits": [
+      "Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/table.py",
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/box.py",
+      ".codeatlas/bench-repos/rich/rich/color.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-symbol-004",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Progress",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Progress"
+    ],
+    "expected_files": [
+      "rich/progress.py"
+    ],
+    "hits": [
+      "Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/examples/cp_progress.py",
+      ".codeatlas/bench-repos/rich/examples/downloader.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-impact-005",
+    "repo": "rich",
+    "task_type": "impact_analysis",
+    "query": "console render lines measure print",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Console.render",
+      "Console.render_lines",
+      "Console.print"
+    ],
+    "expected_files": [
+      "rich/console.py"
+    ],
+    "hits": [
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleRenderable",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/__init__.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/_wrap.py",
+      ".codeatlas/bench-repos/rich/rich/align.py",
+      ".codeatlas/bench-repos/rich/rich/ansi.py",
+      ".codeatlas/bench-repos/rich/rich/bar.py",
+      ".codeatlas/bench-repos/rich/rich/box.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-deps-006",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "table add column add row console render",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Table.add_column",
+      "Table.add_row",
+      "Table.__rich_console__"
+    ],
+    "expected_files": [
+      "rich/table.py"
+    ],
+    "hits": [
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import.rich.table.Table"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/box.py",
+      ".codeatlas/bench-repos/rich/rich/color.py",
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-arch-007",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "live rendering update start stop",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Live",
+      "Live.start",
+      "Live.stop",
+      "Live.update"
+    ],
+    "expected_files": [
+      "rich/live.py"
+    ],
+    "hits": [
+      "import..live.Live as Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/rich/status.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/layout.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/examples/spinners.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-arch-008",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "syntax highlighting console render",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Syntax",
+      "Syntax.__rich_console__",
+      "Syntax.__rich_measure__"
+    ],
+    "expected_files": [
+      "rich/syntax.py"
+    ],
+    "hits": [
+      "RichHandler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/logging.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-test-009",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "markup render escape tests",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "test_render",
+      "test_escape"
+    ],
+    "expected_files": [
+      "tests/test_markup.py"
+    ],
+    "hits": [
+      "MARKUP",
+      "MARKUP",
+      "MarkupError",
+      "import..errors.MarkupError",
+      "import.rich.errors.MarkupError",
+      "import..markup.render as render_markup",
+      "test_markup_error",
+      "test_markup_escape",
+      "test_spinner_markup",
+      "Tag.markup"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/benchmarks/snippets.py",
+      ".codeatlas/bench-repos/rich/rich/markup.py",
+      ".codeatlas/bench-repos/rich/rich/errors.py",
+      ".codeatlas/bench-repos/rich/tests/test_markup.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/tests/test_spinner.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-test-010",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "pretty dataclass namedtuple tests",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "test_pretty_dataclass",
+      "test_pretty_namedtuple"
+    ],
+    "expected_files": [
+      "tests/test_pretty.py"
+    ],
+    "hits": [
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py",
+      ".codeatlas/bench-repos/rich/examples/attrs.py",
+      ".codeatlas/bench-repos/rich/rich/__main__.py",
+      ".codeatlas/bench-repos/rich/rich/diagnose.py",
+      ".codeatlas/bench-repos/rich/tests/test_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/profile_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/stress_test_pretty.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-symbol-011",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Panel",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Panel"
+    ],
+    "expected_files": [
+      "rich/panel.py"
+    ],
+    "hits": [
+      "Panel",
+      "import..panel.Panel",
+      "import..panel.Panel",
+      "import..panel.Panel",
+      "import..panel.Panel"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/panel.py",
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-symbol-012",
+    "repo": "rich",
+    "task_type": "symbol_lookup",
+    "query": "Markdown",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Markdown"
+    ],
+    "expected_files": [
+      "rich/markdown.py"
+    ],
+    "hits": [
+      "Markdown",
+      "import.rich.markdown.Markdown",
+      "import.rich.markdown.Markdown",
+      "import.rich.markdown.Markdown",
+      "import.rich.markdown.Markdown"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/markdown.py",
+      ".codeatlas/bench-repos/rich/rich/__main__.py",
+      ".codeatlas/bench-repos/rich/rich/tree.py",
+      ".codeatlas/bench-repos/rich/tests/test_markdown.py",
+      ".codeatlas/bench-repos/rich/tests/test_markdown_no_hyperlinks.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-deps-013",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "style render theme color",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Style",
+      "Style.render",
+      "Theme"
+    ],
+    "expected_files": [
+      "rich/style.py",
+      "rich/theme.py"
+    ],
+    "hits": [
+      "Syntax",
+      "Syntax.from_path"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/syntax.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-arch-014",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "progress columns render task update",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "Progress",
+      "Progress.update"
+    ],
+    "expected_files": [
+      "rich/progress.py"
+    ],
+    "hits": [
+      "make_progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import..progress_bar.ProgressBar",
+      "import.rich.progress.Progress",
+      "import.rich.progress_bar.ProgressBar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/tests/test_progress.py",
+      ".codeatlas/bench-repos/rich/examples/cp_progress.py",
+      ".codeatlas/bench-repos/rich/examples/downloader.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/jobs.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/tests/test_bar.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "hybrid",
+    "id": "rich-test-015",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "align measure render tests",
+    "mode_effective": "pagerank-fallback",
+    "expected_symbols": [
+      "test_measure",
+      "test_align_center"
+    ],
+    "expected_files": [
+      "tests/test_align.py"
+    ],
+    "hits": [
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import.rich.align.Align"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/panel.py",
+      ".codeatlas/bench-repos/rich/rich/rule.py",
+      ".codeatlas/bench-repos/rich/rich/text.py",
+      ".codeatlas/bench-repos/rich/examples/bars.py"
+    ],
+    "reason": "pagerank-fallback; semantic index was unavailable"
+  },
+  {
+    "mode": "context-pack",
+    "id": "rich-impact-005",
+    "repo": "rich",
+    "task_type": "impact_analysis",
+    "query": "console render lines measure print",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Console.render",
+      "Console.render_lines",
+      "Console.print"
+    ],
+    "expected_files": [
+      "rich/console.py"
+    ],
+    "hits": [
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleRenderable",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console",
+      "import..console.Console",
+      "import..console.ConsoleOptions",
+      "import..console.Console"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/__init__.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/_wrap.py",
+      ".codeatlas/bench-repos/rich/rich/align.py",
+      ".codeatlas/bench-repos/rich/rich/ansi.py",
+      ".codeatlas/bench-repos/rich/rich/bar.py",
+      ".codeatlas/bench-repos/rich/rich/box.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "rich-deps-006",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "table add column add row console render",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Table.add_column",
+      "Table.add_row",
+      "Table.__rich_console__"
+    ],
+    "expected_files": [
+      "rich/table.py"
+    ],
+    "hits": [
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import..table.Table",
+      "import.rich.table.Table"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/_log_render.py",
+      ".codeatlas/bench-repos/rich/rich/box.py",
+      ".codeatlas/bench-repos/rich/rich/color.py",
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "rich-arch-007",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "live rendering update start stop",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Live",
+      "Live.start",
+      "Live.stop",
+      "Live.update"
+    ],
+    "expected_files": [
+      "rich/live.py"
+    ],
+    "hits": [
+      "import..live.Live as Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import..live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live",
+      "import.rich.live.Live"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/rich/spinner.py",
+      ".codeatlas/bench-repos/rich/rich/status.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/layout.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/examples/spinners.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "context-pack",
+    "id": "rich-arch-008",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "syntax highlighting console render",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Syntax",
+      "Syntax.__rich_console__",
+      "Syntax.__rich_measure__"
+    ],
+    "expected_files": [
+      "rich/syntax.py"
+    ],
+    "hits": [
+      "RichHandler"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/logging.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "rich-test-009",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "markup render escape tests",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "test_render",
+      "test_escape"
+    ],
+    "expected_files": [
+      "tests/test_markup.py"
+    ],
+    "hits": [
+      "MARKUP",
+      "MARKUP",
+      "MarkupError",
+      "import..errors.MarkupError",
+      "import.rich.errors.MarkupError",
+      "import..markup.render as render_markup",
+      "test_markup_error",
+      "test_markup_escape",
+      "test_spinner_markup",
+      "Tag.markup"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/benchmarks/snippets.py",
+      ".codeatlas/bench-repos/rich/rich/markup.py",
+      ".codeatlas/bench-repos/rich/rich/errors.py",
+      ".codeatlas/bench-repos/rich/tests/test_markup.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/tests/test_spinner.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "rich-test-010",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "pretty dataclass namedtuple tests",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "test_pretty_dataclass",
+      "test_pretty_namedtuple"
+    ],
+    "expected_files": [
+      "tests/test_pretty.py"
+    ],
+    "hits": [
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import..pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty",
+      "import.rich.pretty.Pretty"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/_inspect.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/scope.py",
+      ".codeatlas/bench-repos/rich/benchmarks/benchmarks.py",
+      ".codeatlas/bench-repos/rich/examples/attrs.py",
+      ".codeatlas/bench-repos/rich/rich/__main__.py",
+      ".codeatlas/bench-repos/rich/rich/diagnose.py",
+      ".codeatlas/bench-repos/rich/tests/test_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/profile_pretty.py",
+      ".codeatlas/bench-repos/rich/tools/stress_test_pretty.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "rich-deps-013",
+    "repo": "rich",
+    "task_type": "dependency_trace",
+    "query": "style render theme color",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Style",
+      "Style.render",
+      "Theme"
+    ],
+    "expected_files": [
+      "rich/style.py",
+      "rich/theme.py"
+    ],
+    "hits": [
+      "Syntax",
+      "Syntax.from_path"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/syntax.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  },
+  {
+    "mode": "context-pack",
+    "id": "rich-arch-014",
+    "repo": "rich",
+    "task_type": "architecture_context",
+    "query": "progress columns render task update",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "Progress",
+      "Progress.update"
+    ],
+    "expected_files": [
+      "rich/progress.py"
+    ],
+    "hits": [
+      "make_progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import.rich.progress.Progress",
+      "import..progress_bar.ProgressBar",
+      "import.rich.progress.Progress",
+      "import.rich.progress_bar.ProgressBar"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/tests/test_progress.py",
+      ".codeatlas/bench-repos/rich/examples/cp_progress.py",
+      ".codeatlas/bench-repos/rich/examples/downloader.py",
+      ".codeatlas/bench-repos/rich/examples/dynamic_progress.py",
+      ".codeatlas/bench-repos/rich/examples/fullscreen.py",
+      ".codeatlas/bench-repos/rich/examples/jobs.py",
+      ".codeatlas/bench-repos/rich/examples/live_progress.py",
+      ".codeatlas/bench-repos/rich/rich/progress.py",
+      ".codeatlas/bench-repos/rich/tests/test_bar.py"
+    ],
+    "reason": "some expected symbols were outside top-k"
+  },
+  {
+    "mode": "context-pack",
+    "id": "rich-test-015",
+    "repo": "rich",
+    "task_type": "test_location",
+    "query": "align measure render tests",
+    "mode_effective": "context-pack",
+    "expected_symbols": [
+      "test_measure",
+      "test_align_center"
+    ],
+    "expected_files": [
+      "tests/test_align.py"
+    ],
+    "hits": [
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.Align",
+      "import..align.Align",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import..align.AlignMethod",
+      "import.rich.align.Align"
+    ],
+    "hit_files": [
+      ".codeatlas/bench-repos/rich/rich/columns.py",
+      ".codeatlas/bench-repos/rich/rich/console.py",
+      ".codeatlas/bench-repos/rich/rich/layout.py",
+      ".codeatlas/bench-repos/rich/rich/live.py",
+      ".codeatlas/bench-repos/rich/rich/panel.py",
+      ".codeatlas/bench-repos/rich/rich/rule.py",
+      ".codeatlas/bench-repos/rich/rich/text.py",
+      ".codeatlas/bench-repos/rich/examples/bars.py"
+    ],
+    "reason": "expected symbol did not appear in ranked context pack"
+  }
+]

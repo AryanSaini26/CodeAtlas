@@ -4,6 +4,7 @@ import contextlib
 import io
 import json as _json
 import platform
+import subprocess
 import sys
 import tempfile
 import time
@@ -160,6 +161,12 @@ def index(repo_path: str, db: str, incremental: bool, watch: bool, workers: int)
 @click.option("--json", "as_json", is_flag=True, help="Emit results as JSON only")
 @click.option("-o", "--output", default=None, type=click.Path(), help="Write benchmark artifact")
 @click.option("--profile", is_flag=True, help="Include runtime/platform metadata")
+@click.option("--build-semantic", is_flag=True, help="Build/load semantic index for eval modes")
+@click.option(
+    "--require-semantic",
+    is_flag=True,
+    help="Fail if semantic/hybrid modes cannot use a real semantic index",
+)
 @click.option(
     "--eval-suite",
     default=None,
@@ -172,6 +179,8 @@ def bench(
     as_json: bool,
     output: str | None,
     profile: bool,
+    build_semantic: bool,
+    require_semantic: bool,
     eval_suite: str | None,
 ) -> None:
     """Benchmark indexing throughput on this repo.
@@ -181,60 +190,15 @@ def bench(
     LOC/sec — useful for profiling parser changes or quoting numbers in
     a launch post.
     """
-    root = Path(repo_path)
-    config = CodeAtlasConfig.find_and_load(root)
-    with tempfile.TemporaryDirectory(prefix="codeatlas-bench-") as tmp:
-        db_path = Path(tmp) / "bench.db"
-        config.graph.db_path = db_path
-        store = _get_store(db_path)
-        try:
-            indexer = RepoIndexer(config, store, workers=workers)
-            files = indexer._discover_files()
-            loc = _count_loc(files)
-            start = time.monotonic()
-            if as_json:
-                with (
-                    contextlib.redirect_stdout(io.StringIO()),
-                    contextlib.redirect_stderr(io.StringIO()),
-                ):
-                    indexer.index_full(resolve=False)
-            else:
-                indexer.index_full(resolve=False)
-            elapsed = time.monotonic() - start
-            stats = store.get_stats()
-            eval_report = None
-            if eval_suite:
-                from codeatlas.eval import run_eval_comparison
-
-                eval_report = run_eval_comparison(store, eval_suite, budget_tokens=2000)
-        finally:
-            store.close()
-
-    files_n = stats["files"]
-    symbols_n = stats["symbols"]
-    relationships_n = stats["relationships"]
-    payload = {
-        "repo": repo_path,
-        "workers": workers,
-        "files": files_n,
-        "symbols": symbols_n,
-        "relationships": relationships_n,
-        "loc": loc,
-        "elapsed_seconds": round(elapsed, 3),
-        "files_per_sec": round(files_n / elapsed, 1) if elapsed > 0 else 0.0,
-        "symbols_per_sec": round(symbols_n / elapsed, 1) if elapsed > 0 else 0.0,
-        "loc_per_sec": round(loc / elapsed, 1) if elapsed > 0 else 0.0,
-    }
-    if profile:
-        payload["profile"] = {
-            "timestamp_utc": datetime.now(UTC).isoformat(),
-            "python": sys.version.split()[0],
-            "platform": platform.platform(),
-            "machine": platform.machine(),
-            "processor": platform.processor(),
-        }
-    if eval_report:
-        payload["eval"] = eval_report
+    payload = _benchmark_repo(
+        repo_path,
+        workers=workers,
+        quiet=as_json,
+        profile=profile,
+        eval_suite=eval_suite,
+        build_semantic=build_semantic,
+        require_semantic=require_semantic,
+    )
 
     if output:
         out_path = Path(output)
@@ -255,15 +219,102 @@ def bench(
     table.add_column("value", justify="right")
     table.add_row("Repo", str(payload["repo"]))
     table.add_row("Workers", str(workers))
-    table.add_row("Files", f"{files_n:,}")
-    table.add_row("Symbols", f"{symbols_n:,}")
-    table.add_row("Relationships", f"{relationships_n:,}")
-    table.add_row("LOC", f"{loc:,}")
-    table.add_row("Elapsed", f"{elapsed:.2f}s")
+    table.add_row("Files", f"{payload['files']:,}")
+    table.add_row("Symbols", f"{payload['symbols']:,}")
+    table.add_row("Relationships", f"{payload['relationships']:,}")
+    table.add_row("LOC", f"{payload['loc']:,}")
+    table.add_row("Elapsed", f"{payload['elapsed_seconds']:.2f}s")
     table.add_row("Files/sec", f"{payload['files_per_sec']:,.1f}")
     table.add_row("Symbols/sec", f"{payload['symbols_per_sec']:,.1f}")
     table.add_row("LOC/sec", f"{payload['loc_per_sec']:,.0f}")
     console.print(table)
+
+
+def _benchmark_repo(
+    repo_path: str,
+    *,
+    workers: int = 1,
+    quiet: bool = False,
+    profile: bool = False,
+    eval_suite: str | None = None,
+    build_semantic: bool = False,
+    require_semantic: bool = False,
+    repo_filter: str | None = None,
+) -> dict[str, Any]:
+    root = Path(repo_path)
+    config = CodeAtlasConfig.find_and_load(root)
+    semantic_meta: dict[str, Any] | None = None
+    with tempfile.TemporaryDirectory(prefix="codeatlas-bench-") as tmp:
+        db_path = Path(tmp) / "bench.db"
+        config.graph.db_path = db_path
+        store = _get_store(db_path)
+        try:
+            indexer = RepoIndexer(config, store, workers=workers)
+            files = indexer._discover_files()
+            loc = _count_loc(files)
+            start = time.monotonic()
+            if quiet:
+                with (
+                    contextlib.redirect_stdout(io.StringIO()),
+                    contextlib.redirect_stderr(io.StringIO()),
+                ):
+                    indexer.index_full(resolve=False)
+            else:
+                indexer.index_full(resolve=False)
+            elapsed = time.monotonic() - start
+            stats = store.get_stats()
+            eval_report = None
+            if eval_suite:
+                from codeatlas.eval import run_eval_comparison
+
+                semantic_index, semantic_meta = _semantic_index_for_eval(
+                    db_path,
+                    store,
+                    build_semantic=build_semantic,
+                    require_semantic=require_semantic,
+                )
+                eval_report = run_eval_comparison(
+                    store,
+                    eval_suite,
+                    budget_tokens=2000,
+                    semantic_index=semantic_index,
+                    repo_filter=repo_filter,
+                )
+        finally:
+            store.close()
+
+    files_n = stats["files"]
+    symbols_n = stats["symbols"]
+    relationships_n = stats["relationships"]
+    payload: dict[str, Any] = {
+        "repo": repo_path,
+        "workers": workers,
+        "files": files_n,
+        "symbols": symbols_n,
+        "relationships": relationships_n,
+        "loc": loc,
+        "elapsed_seconds": round(elapsed, 3),
+        "files_per_sec": round(files_n / elapsed, 1) if elapsed > 0 else 0.0,
+        "symbols_per_sec": round(symbols_n / elapsed, 1) if elapsed > 0 else 0.0,
+        "loc_per_sec": round(loc / elapsed, 1) if elapsed > 0 else 0.0,
+    }
+    if profile:
+        payload["profile"] = _profile_payload()
+    if semantic_meta:
+        payload["semantic"] = semantic_meta
+    if eval_report:
+        payload["eval"] = eval_report
+    return payload
+
+
+def _profile_payload() -> dict[str, str]:
+    return {
+        "timestamp_utc": datetime.now(UTC).isoformat(),
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "processor": platform.processor(),
+    }
 
 
 def _render_bench_markdown(payload: dict[str, Any]) -> str:
@@ -304,15 +355,16 @@ def _render_bench_markdown(payload: dict[str, Any]) -> str:
                 "",
                 "## Retrieval Eval",
                 "",
-                "| Mode | Effective | Recall@k | MRR | Avg latency | Context savings |",
-                "|------|-----------|----------|-----|-------------|-----------------|",
+                "| Mode | Effective | Symbol recall@k | File recall@k | MRR | Avg latency | Context savings | Misses |",
+                "|------|-----------|-----------------|---------------|-----|-------------|-----------------|--------|",
             ]
         )
         for row in payload["eval"]["comparison"]:
             lines.append(
                 f"| `{row['mode']}` | `{row['mode_effective']}` | "
-                f"{row['recall_at_k']:.3f} | {row['mrr']:.3f} | "
-                f"{row['avg_latency_ms']:.2f} ms | {row['avg_context_savings']:.2%} |"
+                f"{row['symbol_recall_at_k']:.3f} | {row['file_recall_at_k']:.3f} | "
+                f"{row['mrr']:.3f} | {row['avg_latency_ms']:.2f} ms | "
+                f"{row['avg_context_savings']:.2%} | {row['miss_count']} |"
             )
     return "\n".join(lines)
 
@@ -328,6 +380,278 @@ def _load_existing_semantic_index(db: str) -> Any | None:
     if sem_index.load(Path(db).parent):
         return sem_index
     return None
+
+
+def _semantic_index_for_eval(
+    db_path: Path,
+    store: GraphStore,
+    *,
+    build_semantic: bool,
+    require_semantic: bool,
+) -> tuple[Any | None, dict[str, Any]]:
+    try:
+        from codeatlas.search.embeddings import DEFAULT_MODEL, SemanticIndex
+    except ImportError as exc:
+        if require_semantic:
+            raise click.ClickException(
+                "Semantic eval required but search dependencies are not installed. "
+                "Install with: pip install codeatlas[search]"
+            ) from exc
+        return None, {
+            "enabled": False,
+            "required": require_semantic,
+            "model": None,
+            "reason": "search dependencies not installed",
+        }
+
+    data_dir = db_path.parent
+    sem_index = SemanticIndex()
+    if sem_index.load(data_dir):
+        return sem_index, {
+            "enabled": True,
+            "required": require_semantic,
+            "model": DEFAULT_MODEL,
+            "built": False,
+            "symbols": sem_index.size,
+        }
+    if not build_semantic:
+        if require_semantic:
+            raise click.ClickException("Semantic eval required but no semantic index exists.")
+        return None, {
+            "enabled": False,
+            "required": require_semantic,
+            "model": DEFAULT_MODEL,
+            "reason": "semantic index not built; pass --build-semantic",
+        }
+
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        count = sem_index.build_from_store(store)
+        sem_index.save(data_dir)
+    except Exception as exc:
+        if require_semantic:
+            raise click.ClickException(f"Failed to build semantic index: {exc}") from exc
+        return None, {
+            "enabled": False,
+            "required": require_semantic,
+            "model": DEFAULT_MODEL,
+            "reason": f"semantic index build failed: {exc}",
+        }
+    return sem_index, {
+        "enabled": True,
+        "required": require_semantic,
+        "model": DEFAULT_MODEL,
+        "built": True,
+        "symbols": count,
+    }
+
+
+@cli.command("bench-suite")
+@click.option("--repos", "repos_path", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("--suite", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("--out", required=True, type=click.Path(file_okay=False))
+@click.option(
+    "--cache-dir",
+    default=".codeatlas/bench-repos",
+    show_default=True,
+    type=click.Path(file_okay=False),
+    help="Where remote benchmark repos are cloned/reused",
+)
+@click.option("--workers", default=1, show_default=True, type=int)
+@click.option("--build-semantic", is_flag=True, help="Build/load semantic index for semantic modes")
+@click.option(
+    "--require-semantic",
+    is_flag=True,
+    help="Fail if semantic/hybrid modes cannot use a real semantic index",
+)
+def bench_suite(
+    repos_path: str,
+    suite: str,
+    out: str,
+    cache_dir: str,
+    workers: int,
+    build_semantic: bool,
+    require_semantic: bool,
+) -> None:
+    """Run benchmark/eval comparisons across pinned repositories."""
+    specs = _load_bench_repos(Path(repos_path))
+    out_dir = Path(out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cache_root = Path(cache_dir)
+    cache_root.mkdir(parents=True, exist_ok=True)
+
+    repo_reports: list[dict[str, Any]] = []
+    all_misses: list[dict[str, Any]] = []
+    for spec in specs:
+        name = str(spec["name"])
+        repo_path = _materialize_bench_repo(spec, cache_root)
+        payload = _benchmark_repo(
+            str(repo_path),
+            workers=workers,
+            quiet=True,
+            profile=True,
+            eval_suite=suite,
+            build_semantic=build_semantic,
+            require_semantic=require_semantic,
+            repo_filter=name,
+        )
+        payload["repo_name"] = name
+        payload["repo_url"] = spec.get("url", "local")
+        payload["repo_commit"] = spec.get("commit", spec.get("ref", "unknown"))
+        repo_reports.append(payload)
+        if "eval" in payload:
+            for mode, mode_report in payload["eval"]["modes"].items():
+                for miss in mode_report.get("misses", []):
+                    all_misses.append({"mode": mode, **miss})
+
+    suite_payload = {
+        "repos_file": repos_path,
+        "suite": suite,
+        "profile": _profile_payload(),
+        "aggregate": _aggregate_bench_suite(repo_reports),
+        "repos": repo_reports,
+    }
+    (out_dir / "results.json").write_text(_json.dumps(suite_payload, indent=2) + "\n")
+    (out_dir / "misses.json").write_text(_json.dumps(all_misses, indent=2) + "\n")
+    (out_dir / "report.md").write_text(_render_bench_suite_markdown(suite_payload) + "\n")
+    console.print(f"[green]Benchmark suite written to {out_dir}[/green]")
+
+
+def _load_bench_repos(path: Path) -> list[dict[str, Any]]:
+    raw = path.read_text()
+    try:
+        data = _json.loads(raw)
+    except _json.JSONDecodeError as exc:
+        raise click.ClickException(
+            f"{path} must be JSON-compatible YAML in this build; failed to parse: {exc}"
+        ) from exc
+    repos = data.get("repos", data) if isinstance(data, dict) else data
+    if not isinstance(repos, list) or not repos:
+        raise click.ClickException("repos file must contain a non-empty repos list")
+    normalized: list[dict[str, Any]] = []
+    for idx, repo in enumerate(repos, 1):
+        if not isinstance(repo, dict):
+            raise click.ClickException(f"repo entry {idx} must be an object")
+        name = str(repo.get("name", "")).strip()
+        if not name:
+            raise click.ClickException(f"repo entry {idx} is missing name")
+        if not repo.get("path") and not repo.get("url"):
+            raise click.ClickException(f"repo entry {name} must include path or url")
+        normalized.append(repo)
+    return normalized
+
+
+def _materialize_bench_repo(spec: dict[str, Any], cache_root: Path) -> Path:
+    if spec.get("path"):
+        path = Path(str(spec["path"]))
+        if not path.exists():
+            raise click.ClickException(f"local benchmark repo does not exist: {path}")
+        return path
+
+    name = str(spec["name"])
+    url = str(spec["url"])
+    commit = str(spec.get("commit", spec.get("ref", "HEAD")))
+    repo_dir = cache_root / name
+    if not repo_dir.exists():
+        subprocess.run(["git", "clone", url, str(repo_dir)], check=True)
+    else:
+        subprocess.run(["git", "-C", str(repo_dir), "fetch", "origin", commit], check=True)
+    subprocess.run(["git", "-C", str(repo_dir), "checkout", "--detach", commit], check=True)
+    return repo_dir
+
+
+def _aggregate_bench_suite(reports: list[dict[str, Any]]) -> dict[str, Any]:
+    totals: dict[str, Any] = {
+        "repos": len(reports),
+        "files": sum(int(r["files"]) for r in reports),
+        "symbols": sum(int(r["symbols"]) for r in reports),
+        "relationships": sum(int(r["relationships"]) for r in reports),
+        "loc": sum(int(r["loc"]) for r in reports),
+        "elapsed_seconds": round(sum(float(r["elapsed_seconds"]) for r in reports), 3),
+    }
+    mode_rows: dict[str, dict[str, float]] = {}
+    mode_counts: dict[str, int] = {}
+    for report in reports:
+        for row in report.get("eval", {}).get("comparison", []):
+            mode = str(row["mode"])
+            bucket = mode_rows.setdefault(
+                mode,
+                {
+                    "symbol_recall_at_k": 0.0,
+                    "file_recall_at_k": 0.0,
+                    "mrr": 0.0,
+                    "avg_latency_ms": 0.0,
+                    "avg_context_savings": 0.0,
+                    "miss_count": 0.0,
+                },
+            )
+            mode_counts[mode] = mode_counts.get(mode, 0) + 1
+            for key in bucket:
+                bucket[key] += float(row[key])
+    comparison = []
+    for mode, bucket in mode_rows.items():
+        count = max(1, mode_counts[mode])
+        comparison.append(
+            {
+                "mode": mode,
+                "symbol_recall_at_k": round(bucket["symbol_recall_at_k"] / count, 6),
+                "file_recall_at_k": round(bucket["file_recall_at_k"] / count, 6),
+                "mrr": round(bucket["mrr"] / count, 6),
+                "avg_latency_ms": round(bucket["avg_latency_ms"] / count, 3),
+                "avg_context_savings": round(bucket["avg_context_savings"] / count, 4),
+                "miss_count": int(bucket["miss_count"]),
+            }
+        )
+    totals["comparison"] = comparison
+    return totals
+
+
+def _render_bench_suite_markdown(payload: dict[str, Any]) -> str:
+    aggregate = payload["aggregate"]
+    lines = [
+        "# CodeAtlas OSS Benchmark Suite",
+        "",
+        "## Aggregate",
+        "",
+        "| Metric | Value |",
+        "|--------|-------|",
+        f"| Repos | {aggregate['repos']} |",
+        f"| Files | {aggregate['files']:,} |",
+        f"| Symbols | {aggregate['symbols']:,} |",
+        f"| Relationships | {aggregate['relationships']:,} |",
+        f"| LOC | {aggregate['loc']:,} |",
+        f"| Total indexing time | {aggregate['elapsed_seconds']:.3f}s |",
+        "",
+        "## Aggregate Retrieval Eval",
+        "",
+        "| Mode | Symbol recall@k | File recall@k | MRR | Avg latency | Context savings | Misses |",
+        "|------|-----------------|---------------|-----|-------------|-----------------|--------|",
+    ]
+    for row in aggregate["comparison"]:
+        lines.append(
+            f"| `{row['mode']}` | {row['symbol_recall_at_k']:.3f} | "
+            f"{row['file_recall_at_k']:.3f} | {row['mrr']:.3f} | "
+            f"{row['avg_latency_ms']:.2f} ms | {row['avg_context_savings']:.2%} | "
+            f"{row['miss_count']} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Repositories",
+            "",
+            "| Repo | Commit | Files | Symbols | Relationships | Symbols/sec |",
+            "|------|--------|-------|---------|---------------|-------------|",
+        ]
+    )
+    for report in payload["repos"]:
+        commit = str(report.get("repo_commit", "unknown"))
+        lines.append(
+            f"| `{report['repo_name']}` | `{commit[:12]}` | {report['files']:,} | "
+            f"{report['symbols']:,} | {report['relationships']:,} | "
+            f"{report['symbols_per_sec']:,.1f} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _count_loc(files: list[Path]) -> int:
@@ -729,6 +1053,12 @@ def query(
     show_default=True,
     help="Retrieval/ranking mode",
 )
+@click.option("--build-semantic", is_flag=True, help="Build/load semantic index for semantic modes")
+@click.option(
+    "--require-semantic",
+    is_flag=True,
+    help="Fail if semantic/hybrid modes cannot use a real semantic index",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output full context pack as JSON")
 def context_cmd(
     query_text: str,
@@ -736,6 +1066,8 @@ def context_cmd(
     budget: int,
     limit: int,
     mode: str,
+    build_semantic: bool,
+    require_semantic: bool,
     as_json: bool,
 ) -> None:
     """Build a token-budgeted context pack for an AI coding agent."""
@@ -745,13 +1077,21 @@ def context_cmd(
 
     store = _get_store(Path(db))
     try:
+        semantic_index = None
+        if mode in {"semantic", "hybrid"} or build_semantic or require_semantic:
+            semantic_index, _ = _semantic_index_for_eval(
+                Path(db),
+                store,
+                build_semantic=build_semantic,
+                require_semantic=require_semantic,
+            )
         pack = build_context_pack(
             store,
             query_text,
             budget_tokens=budget,
             limit=limit,
             mode=mode,  # type: ignore[arg-type]
-            semantic_index=_load_existing_semantic_index(db),
+            semantic_index=semantic_index,
         )
     finally:
         store.close()
@@ -797,6 +1137,12 @@ def context_cmd(
 )
 @click.option("--budget", default=2000, show_default=True, help="Context-pack token budget")
 @click.option("--compare", is_flag=True, help="Compare fts, pagerank, semantic, and hybrid modes")
+@click.option("--build-semantic", is_flag=True, help="Build/load semantic index for semantic modes")
+@click.option(
+    "--require-semantic",
+    is_flag=True,
+    help="Fail if semantic/hybrid modes cannot use a real semantic index",
+)
 @click.option(
     "--mode",
     type=click.Choice(["fts", "semantic", "hybrid", "pagerank"]),
@@ -811,6 +1157,8 @@ def eval_cmd(
     output_format: str,
     budget: int,
     compare: bool,
+    build_semantic: bool,
+    require_semantic: bool,
     mode: str,
 ) -> None:
     """Run golden retrieval/context evals and report recall, MRR, and latency."""
@@ -820,7 +1168,14 @@ def eval_cmd(
 
     store = _get_store(Path(db))
     try:
-        semantic_index = _load_existing_semantic_index(db)
+        semantic_index = None
+        if compare or mode in {"semantic", "hybrid"} or build_semantic or require_semantic:
+            semantic_index, _ = _semantic_index_for_eval(
+                Path(db),
+                store,
+                build_semantic=build_semantic,
+                require_semantic=require_semantic,
+            )
         if compare:
             report = run_eval_comparison(
                 store,

@@ -25,7 +25,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 - **Persistent SQLite + FTS5 graph** — scales past 1M symbols, incrementally updated; not a flat `graph.json` re-serialized every run.
 - **True embedding-based semantic search** — FAISS + sentence-transformers, not just keyword matching. Hybrid mode blends FTS5 + vectors via reciprocal rank fusion.
 - **PageRank centrality** — caller-weighted importance, not degree-based "god node" heuristics. Plus label-propagation communities, git-churn hotspots, and coverage gaps.
-- **30 MCP tools, 34 CLI subcommands, 6 export formats** — the widest agent and terminal surface in the category.
+- **30 MCP tools, 35 CLI subcommands, 6 export formats** — the widest agent and terminal surface in the category.
 - **Full React web UI** — interactive force graph, search, symbol details, analysis tabs — all backed by a FastAPI layer. Launch with one command: `codeatlas ui`.
 - **24 languages via tree-sitter** — Python, TypeScript/TSX, Go, Rust, JavaScript, Java, Kotlin, C, C++, C#, Ruby, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
 
@@ -33,16 +33,20 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 CodeAtlas ships with a reproducible AI-infra benchmark instead of only a feature list:
 
-- Latest committed local smoke report: 153 files, 3,341 symbols, 10,601 relationships, 1.000 recall@k, 0.978 MRR, ~27% context savings, and >2k symbols/sec on an Apple Silicon dev machine.
+- Latest committed local smoke report: 154 files, 3,371 symbols, 10,837 relationships, 1.000 symbol recall@k, 0.978 MRR, ~27% context savings, and ~978 symbols/sec on an Apple Silicon dev machine.
+- Latest committed OSS suite report: 3 pinned repos, 314 files, 7,581 symbols, 21,443 relationships, 0.778 file recall@k, 0.476 multi-symbol recall@k, 0.578 MRR, and ~60% context savings.
+- The committed OSS run intentionally labels semantic/hybrid as fallback; publish semantic comparisons with `--build-semantic --require-semantic` so fallback numbers cannot be mistaken for vector-search results.
 - `benchmarks/report.md` is generated from `codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md`.
 - `benchmarks/eval-suite.json` contains 30 golden retrieval tasks across symbol lookup, impact analysis, dependency tracing, architecture questions, context-pack retrieval, and SQL lineage.
-- `codeatlas eval --compare` compares FTS, semantic, hybrid, PageRank-boosted, and context-pack ranking paths with recall@k, MRR, latency, and token-savings metrics.
-- `codeatlas context <query> --mode fts|semantic|hybrid|pagerank --budget 2000 --json` returns agent-ready context packs with definitions, callers, callees, file summaries, confidence labels, and budget trimming.
+- `benchmarks/oss-eval-suite.json` adds 45 deterministic real-repo tasks across pinned `requests`, `click`, and `rich` commits in `benchmarks/repos.lock.yml`.
+- `codeatlas eval --compare` compares FTS, semantic, hybrid, PageRank-boosted, and context-pack ranking paths with symbol recall@k, file recall@k, MRR, latency, misses, and token-savings metrics.
+- `codeatlas context <query> --mode fts|semantic|hybrid|pagerank --build-semantic --budget 2000 --json` returns agent-ready context packs with definitions, callers, callees, file summaries, confidence labels, and budget trimming.
 - `docs/ai-infra-case-study.md` explains architecture, tradeoffs, bottlenecks, failure modes, and how the benchmark changed implementation choices.
 
 ```bash
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output benchmarks/results.json
+codeatlas bench-suite --repos benchmarks/repos.lock.yml --suite benchmarks/oss-eval-suite.json --out benchmarks/oss --build-semantic --require-semantic
 ```
 
 ## Features
@@ -419,7 +423,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests with coverage (latest local gate: 1062 tests, 91.70% coverage)
+# Run tests with coverage (latest local gate: 1067 tests, 91.41% coverage)
 .venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
 # Lint / format

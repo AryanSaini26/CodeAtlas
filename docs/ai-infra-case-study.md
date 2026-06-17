@@ -35,17 +35,39 @@ codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output ben
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output benchmarks/results.json
 ```
 
+The real-repo proof path is:
+
+```bash
+codeatlas bench-suite \
+  --repos benchmarks/repos.lock.yml \
+  --suite benchmarks/oss-eval-suite.json \
+  --out benchmarks/oss \
+  --build-semantic \
+  --require-semantic
+```
+
 The benchmark captures:
 
 - Indexing throughput: files/sec, symbols/sec, LOC/sec.
 - Graph scale: files, symbols, relationships, LOC.
 - Runtime metadata: Python version, platform, machine, timestamp.
-- Retrieval quality: recall@k, MRR, latency, and context savings.
-- Mode comparison: FTS, PageRank-boosted ranking, semantic, and hybrid.
+- Retrieval quality: symbol recall@k, file recall@k, MRR, latency, misses,
+  and context savings.
+- Mode comparison: FTS, PageRank-boosted ranking, semantic, hybrid, and
+  context-pack.
+- Real-repo reproducibility: exact commits for `requests`, `click`, and `rich`
+  are locked in `benchmarks/repos.lock.yml`.
+
+The committed OSS baseline currently covers 314 files, 7,581 symbols, and
+21,443 relationships across the three pinned repos. It reports 0.778 file
+recall@k, 0.476 multi-symbol recall@k, 0.578 MRR, and about 60% context savings.
+Semantic/hybrid rows are explicitly fallback rows in that committed artifact;
+use `--build-semantic --require-semantic` before publishing vector-search claims.
 
 The committed suite intentionally runs against the local repository so CI can
-reproduce it without network access. `benchmarks/repos.yml` lists larger OSS
-targets for manual or scheduled runs where cloning pinned commits is acceptable.
+reproduce it without network access. `benchmarks/oss-eval-suite.json` is the
+manual or scheduled proof suite for pinned OSS repos where cloning commits is
+acceptable.
 
 ## Retrieval Modes
 
@@ -76,6 +98,8 @@ navigation data.
 Optional FAISS search was kept optional because benchmark correctness should not
 depend on model downloads or external APIs. Semantic and hybrid modes are still
 public interfaces, but the deterministic fallback keeps tests and CI reliable.
+Publishing-quality benchmark runs should use `--require-semantic`, which fails
+instead of reporting semantic/hybrid fallback numbers.
 
 ## Bottlenecks
 

@@ -340,6 +340,37 @@ def test_context_command_json(tmp_path: Path) -> None:
     assert data["estimated_tokens"] <= 512
 
 
+def test_context_command_build_semantic_uses_index(tmp_path: Path) -> None:
+    class FakeSemanticIndex:
+        def search(self, query: str, store: object, limit: int = 20) -> list[tuple[object, float]]:
+            return [(sym, 1.0) for sym in store.search(query, limit=limit)]  # type: ignore[attr-defined]
+
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    with patch("codeatlas.cli._semantic_index_for_eval") as mocked:
+        mocked.return_value = (FakeSemanticIndex(), {"enabled": True})
+        result = runner.invoke(
+            cli,
+            [
+                "context",
+                "greet",
+                "--db",
+                db_path,
+                "--mode",
+                "semantic",
+                "--build-semantic",
+                "--json",
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    data = __import__("json").loads(result.output)
+    assert data["mode"] == "semantic"
+    assert data["mode_effective"] == "semantic"
+    assert mocked.called
+
+
 def test_eval_command_writes_reports(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     db_path = str(tmp_path / "test.db")
@@ -363,8 +394,10 @@ def test_eval_command_writes_reports(tmp_path: Path) -> None:
         "pagerank",
         "semantic",
         "hybrid",
+        "context-pack",
     }
     assert data["modes"]["pagerank"]["metrics"]["recall_at_k"] == 1.0
+    assert "file_recall_at_k" in data["modes"]["pagerank"]["metrics"]
 
 
 def test_eval_command_json_single_mode(tmp_path: Path) -> None:
@@ -392,6 +425,29 @@ def test_eval_command_json_single_mode(tmp_path: Path) -> None:
     data = __import__("json").loads(result.output)
     assert data["mode"] == "fts"
     assert data["metrics"]["recall_at_k"] == 1.0
+
+
+def test_eval_command_require_semantic_fails_without_index(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    suite = tmp_path / "suite.json"
+    suite.write_text('{"tasks":[{"query":"greet","expected_symbols":["greet"],"k":3}]}')
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(
+        cli,
+        [
+            "eval",
+            "--suite",
+            str(suite),
+            "--db",
+            db_path,
+            "--compare",
+            "--require-semantic",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "Semantic eval required" in result.output
 
 
 # --- find-path command ---
@@ -1601,6 +1657,73 @@ def test_bench_command_writes_profile_eval_artifacts(tmp_path: Path) -> None:
     report = md_out.read_text()
     assert "Retrieval Eval" in report
     assert "`pagerank`" in report
+
+
+def test_bench_suite_with_local_fixture_repos(tmp_path: Path) -> None:
+    import json
+
+    repo_a = tmp_path / "repo-a"
+    repo_a.mkdir()
+    _make_repo(repo_a)
+    repo_b = tmp_path / "repo-b"
+    repo_b.mkdir()
+    _make_repo(repo_b)
+    repos = tmp_path / "repos.lock.yml"
+    repos.write_text(
+        json.dumps(
+            {
+                "repos": [
+                    {"name": "repo-a", "path": str(repo_a), "commit": "local-a"},
+                    {"name": "repo-b", "path": str(repo_b), "commit": "local-b"},
+                ]
+            }
+        )
+    )
+    suite = tmp_path / "suite.json"
+    suite.write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {
+                        "id": "a-1",
+                        "repo": "repo-a",
+                        "task_type": "symbol_lookup",
+                        "query": "greet",
+                        "expected_symbols": ["greet"],
+                        "expected_files": ["main.py"],
+                    },
+                    {
+                        "id": "b-1",
+                        "repo": "repo-b",
+                        "task_type": "symbol_lookup",
+                        "query": "add",
+                        "expected_symbols": ["add"],
+                        "expected_files": ["helpers.py"],
+                    },
+                ]
+            }
+        )
+    )
+    out_dir = tmp_path / "bench-suite"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "bench-suite",
+            "--repos",
+            str(repos),
+            "--suite",
+            str(suite),
+            "--out",
+            str(out_dir),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads((out_dir / "results.json").read_text())
+    assert payload["aggregate"]["repos"] == 2
+    assert len(payload["repos"]) == 2
+    assert (out_dir / "misses.json").exists()
+    assert "OSS Benchmark Suite" in (out_dir / "report.md").read_text()
 
 
 def test_bench_does_not_touch_primary_db(tmp_path: Path) -> None:

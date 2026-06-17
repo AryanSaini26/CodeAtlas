@@ -8,15 +8,16 @@ Every CodeAtlas CLI subcommand. Run `codeatlas <cmd> --help` for option details.
 |---|---|
 | `codeatlas init` | Write `codeatlas.toml` and create `.codeatlas/` |
 | `codeatlas install-completion [bash\|zsh\|fish]` | Print shell completion script (autodetects shell) |
-| `codeatlas languages` | List all 26 supported parsers |
+| `codeatlas languages` | List all 24 supported parsers |
 | `codeatlas clean` | Remove `.codeatlas/` state |
 
 ## Indexing
 
 | Command | Purpose |
 |---|---|
-| `codeatlas index [PATH] [--workers N] [--watch] [--semantic]` | Parse + ingest into graph |
-| `codeatlas bench [PATH] [--workers N] [--json]` | Benchmark indexing throughput (temp DB, doesn't clobber the main graph) |
+| `codeatlas index [PATH] [--workers N] [--watch]` | Parse + ingest into graph |
+| `codeatlas bench [PATH] [--workers N] [--json] [--eval-suite SUITE] [--build-semantic]` | Benchmark indexing throughput and optional eval quality |
+| `codeatlas bench-suite --repos REPOS --suite SUITE --out DIR` | Run pinned multi-repo benchmark/eval suite |
 | `codeatlas doctor [--json]` | Diagnose install: Python, SQLite/FTS5, parsers, optional deps |
 | `codeatlas list-files` | Enumerate files that would be indexed |
 
@@ -25,6 +26,8 @@ Every CodeAtlas CLI subcommand. Run `codeatlas <cmd> --help` for option details.
 | Command | Purpose |
 |---|---|
 | `codeatlas query <text> [--kind K] [--file F] [--semantic] [--hybrid]` | Search symbols (FTS / semantic / hybrid) |
+| `codeatlas context <text> [--mode MODE] [--budget N] [--json]` | Build a token-budgeted context pack |
+| `codeatlas eval --suite SUITE [--compare] [--build-semantic]` | Run deterministic retrieval/context evals |
 | `codeatlas show <symbol>` | Print full details for a symbol |
 | `codeatlas find-path <src> <dst>` | Shortest path between two symbols |
 | `codeatlas find-usages <symbol>` | Incoming edges (callers, importers) |

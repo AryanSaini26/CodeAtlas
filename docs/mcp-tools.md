@@ -1,6 +1,6 @@
 # MCP tools
 
-CodeAtlas exposes 29 tools over the Model Context Protocol. Agents call them the same way they call filesystem or web-fetch tools.
+CodeAtlas exposes 30 tools over the Model Context Protocol. Agents call them the same way they call filesystem or web-fetch tools.
 
 ## Search + lookup
 
@@ -10,6 +10,7 @@ CodeAtlas exposes 29 tools over the Model Context Protocol. Agents call them the
 | `find_similar_code(query, limit?)` | FAISS semantic search (requires `codeatlas[search]`) |
 | `get_symbol_details(symbol_name)` | Full metadata for one symbol |
 | `get_symbol_context(symbol_name, context_lines?)` | Metadata + surrounding source |
+| `get_agent_context(query, budget_tokens?, limit?, mode?)` | Token-budgeted context pack for agent workflows |
 | `list_symbols_by_kind(kind, file_filter?, limit?, offset?)` | Paginated by kind |
 | `find_by_decorator(decorator, file_filter?)` | All symbols tagged with a decorator |
 | `find_usages(symbol_name, limit?)` | All incoming edges |

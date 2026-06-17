@@ -77,7 +77,7 @@ Add to `~/.claude/claude_desktop_config.json` (Claude Code) or the equivalent MC
 }
 ```
 
-Restart the client. The 29 CodeAtlas tools (listed in [MCP tools](mcp-tools.md)) will appear.
+Restart the client. The 30 CodeAtlas tools (listed in [MCP tools](mcp-tools.md)) will appear.
 
 ## Keep the graph fresh
 
