@@ -163,10 +163,17 @@ def build_router(
         q: str = Query(..., min_length=1),
         budget: int = Query(default=2000, ge=128, le=50000),
         limit: int = Query(default=10, ge=1, le=100),
+        mode: str = Query(default="pagerank", pattern="^(fts|semantic|hybrid|pagerank)$"),
     ) -> schemas.ContextResponse:
         from codeatlas.agent_context import build_context_pack
 
-        pack = build_context_pack(store, q, budget_tokens=budget, limit=limit)
+        pack = build_context_pack(
+            store,
+            q,
+            budget_tokens=budget,
+            limit=limit,
+            mode=mode,  # type: ignore[arg-type]
+        )
         return schemas.ContextResponse(**pack)
 
     @router.get("/pagerank", response_model=schemas.PageRankResponse)

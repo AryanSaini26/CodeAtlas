@@ -329,11 +329,13 @@ def test_context_command_json(tmp_path: Path) -> None:
     runner.invoke(cli, ["index", str(repo), "--db", db_path])
     result = runner.invoke(
         cli,
-        ["context", "greet", "--db", db_path, "--budget", "512", "--json"],
+        ["context", "greet", "--db", db_path, "--budget", "512", "--mode", "fts", "--json"],
     )
     assert result.exit_code == 0
     data = __import__("json").loads(result.output)
     assert data["query"] == "greet"
+    assert data["mode"] == "fts"
+    assert data["mode_effective"] == "fts"
     assert data["result_count"] >= 1
     assert data["estimated_tokens"] <= 512
 
@@ -348,12 +350,47 @@ def test_eval_command_writes_reports(tmp_path: Path) -> None:
     runner.invoke(cli, ["index", str(repo), "--db", db_path])
     result = runner.invoke(
         cli,
-        ["eval", "--suite", str(suite), "--db", db_path, "--out", str(out_dir)],
+        ["eval", "--suite", str(suite), "--db", db_path, "--out", str(out_dir), "--compare"],
     )
     assert result.exit_code == 0
     assert (out_dir / "report.json").exists()
     assert (out_dir / "report.md").exists()
     data = __import__("json").loads((out_dir / "report.json").read_text())
+    assert data["task_count"] == 1
+    assert "comparison" in data
+    assert {row["mode"] for row in data["comparison"]} == {
+        "fts",
+        "pagerank",
+        "semantic",
+        "hybrid",
+    }
+    assert data["modes"]["pagerank"]["metrics"]["recall_at_k"] == 1.0
+
+
+def test_eval_command_json_single_mode(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    suite = tmp_path / "suite.json"
+    suite.write_text('{"tasks":[{"query":"greet","expected_symbols":["greet"],"k":3}]}')
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(
+        cli,
+        [
+            "eval",
+            "--suite",
+            str(suite),
+            "--db",
+            db_path,
+            "--format",
+            "json",
+            "--mode",
+            "fts",
+        ],
+    )
+    assert result.exit_code == 0
+    data = __import__("json").loads(result.output)
+    assert data["mode"] == "fts"
     assert data["metrics"]["recall_at_k"] == 1.0
 
 
@@ -1517,6 +1554,53 @@ def test_bench_command_json(tmp_path: Path) -> None:
     assert payload["elapsed_seconds"] >= 0
     for key in ("files_per_sec", "symbols_per_sec", "loc_per_sec", "workers", "repo"):
         assert key in payload
+
+
+def test_bench_command_writes_profile_eval_artifacts(tmp_path: Path) -> None:
+    import json
+
+    repo = _make_repo(tmp_path)
+    suite = tmp_path / "suite.json"
+    suite.write_text('{"tasks":[{"query":"greet","expected_symbols":["greet"],"k":3}]}')
+    json_out = tmp_path / "bench" / "results.json"
+    md_out = tmp_path / "bench" / "report.md"
+    runner = CliRunner()
+
+    json_result = runner.invoke(
+        cli,
+        [
+            "bench",
+            str(repo),
+            "--profile",
+            "--eval-suite",
+            str(suite),
+            "--json",
+            "--output",
+            str(json_out),
+        ],
+    )
+    assert json_result.exit_code == 0, json_result.output
+    payload = json.loads(json_out.read_text())
+    assert "profile" in payload
+    assert payload["eval"]["task_count"] == 1
+    assert payload["eval"]["modes"]["pagerank"]["metrics"]["recall_at_k"] == 1.0
+
+    md_result = runner.invoke(
+        cli,
+        [
+            "bench",
+            str(repo),
+            "--profile",
+            "--eval-suite",
+            str(suite),
+            "--output",
+            str(md_out),
+        ],
+    )
+    assert md_result.exit_code == 0, md_result.output
+    report = md_out.read_text()
+    assert "Retrieval Eval" in report
+    assert "`pagerank`" in report
 
 
 def test_bench_does_not_touch_primary_db(tmp_path: Path) -> None:

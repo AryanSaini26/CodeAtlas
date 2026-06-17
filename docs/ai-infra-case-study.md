@@ -1,35 +1,142 @@
 # AI Infra Case Study
 
-CodeAtlas is positioned as code-intelligence infrastructure for AI coding agents:
-it turns a repository into a queryable graph, then exposes that graph through a
-CLI, HTTP API, React UI, and MCP server.
+CodeAtlas is code-intelligence infrastructure for AI coding agents. It turns a
+repository into a persistent graph, then serves that graph through a CLI, HTTP
+API, React UI, and MCP server so agents can retrieve the right context before
+editing code.
 
-## What makes it infrastructure-grade
+The project is designed to answer one hiring-relevant question:
 
-- **Measurable retrieval**: `codeatlas eval` runs golden tasks and reports recall@k,
-  MRR, latency, indexed graph size, and context-size savings.
-- **Agent context packs**: `codeatlas context` and `/api/v1/context` return ranked,
-  token-budgeted symbol bundles with dependencies, dependents, confidence labels,
-  and file summaries.
-- **Standards-aware output**: `codeatlas audit --format sarif` emits SARIF 2.1.0 so
-  findings can flow into GitHub code scanning.
-- **Protocol breadth**: the MCP server exposes tools, resources, and prompt
-  templates for graph-aware review, architecture explanation, and impact analysis.
-- **Production posture**: optional OpenTelemetry hooks make indexing, retrieval,
-  API calls, and MCP workflows instrumentable by embedding applications.
+> Can a local system measurably improve code-agent context retrieval without a
+> paid LLM dependency?
 
-## Example workflow
+## System Shape
+
+The architecture has five layers:
+
+1. **Parsing**: tree-sitter parsers extract symbols, spans, docstrings,
+   signatures, imports, calls, and test markers across 24 languages.
+2. **Storage**: SQLite stores files, symbols, relationships, FTS rows, and graph
+   metadata in a local database that can be copied, inspected, and benchmarked.
+3. **Retrieval**: FTS, optional FAISS semantic search, reciprocal-rank hybrid
+   search, and PageRank-boosted graph ranking produce candidate symbols.
+4. **Agent context**: `codeatlas context` trims ranked results into
+   token-budgeted packs containing definitions, callers, callees, file summaries,
+   relationship confidence labels, and context-savings estimates.
+5. **Surfaces**: the same graph backs CLI commands, FastAPI endpoints, MCP tools,
+   MCP resources, MCP prompts, SARIF export, and a React visualization.
+
+## Measured Proof
+
+The flagship artifact is `benchmarks/report.md`, generated from:
 
 ```bash
-codeatlas index . --workers 4
-codeatlas context "authentication flow" --budget 2000 --json
-codeatlas eval --suite benchmarks/eval-suite.json --out benchmarks/eval
-codeatlas audit --format sarif -o codeatlas.sarif
-codeatlas bench . --workers 4 --json -o benchmarks/results.json
+codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md
+codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output benchmarks/results.json
 ```
 
-## Resume story
+The benchmark captures:
 
-CodeAtlas demonstrates static analysis, graph algorithms, search/retrieval,
-agent protocol design, API design, frontend integration, CI quality gates, and
-reproducible benchmarking in one cohesive system.
+- Indexing throughput: files/sec, symbols/sec, LOC/sec.
+- Graph scale: files, symbols, relationships, LOC.
+- Runtime metadata: Python version, platform, machine, timestamp.
+- Retrieval quality: recall@k, MRR, latency, and context savings.
+- Mode comparison: FTS, PageRank-boosted ranking, semantic, and hybrid.
+
+The committed suite intentionally runs against the local repository so CI can
+reproduce it without network access. `benchmarks/repos.yml` lists larger OSS
+targets for manual or scheduled runs where cloning pinned commits is acceptable.
+
+## Retrieval Modes
+
+`codeatlas context` supports:
+
+- `fts`: lexical FTS over symbol names, qualified names, signatures, and docs.
+- `pagerank`: FTS candidates re-ranked with graph centrality.
+- `semantic`: FAISS-backed vector search when an index is present, with a
+  deterministic FTS fallback in local CI.
+- `hybrid`: reciprocal-rank fusion between FTS and semantic candidates, with a
+  deterministic PageRank fallback when semantic dependencies are absent.
+
+This gives recruiters and reviewers a concrete comparison story: the project
+does not simply claim "graph search"; it measures graph-aware retrieval against
+naive keyword search.
+
+## Tradeoffs
+
+SQLite was chosen over Neo4j because the product goal is local-first developer
+infrastructure. SQLite keeps install friction low, supports FTS5, works in CI,
+and lets the API/MCP server share the same store with the CLI.
+
+Tree-sitter was chosen over regex parsing because CodeAtlas needs stable symbol
+spans, nested definitions, decorators, imports, and cross-language consistency.
+The cost is parser maintenance across languages, but the benefit is credible
+navigation data.
+
+Optional FAISS search was kept optional because benchmark correctness should not
+depend on model downloads or external APIs. Semantic and hybrid modes are still
+public interfaces, but the deterministic fallback keeps tests and CI reliable.
+
+## Bottlenecks
+
+The main bottlenecks are:
+
+- Parsing large repos with many files, especially when relationship resolution is
+  enabled.
+- Recomputing PageRank on dense graphs during repeated context-pack generation.
+- Optional embedding model startup time when semantic search is built from
+  scratch.
+- Rendering very large force graphs in the browser without filtering.
+
+The current benchmark isolates indexing throughput from relationship resolution
+by running `index_full(resolve=False)` in the bench command. That makes parser
+throughput easier to compare across changes. Full correctness tests still cover
+relationship behavior.
+
+## Failure Modes
+
+Known failure modes are tracked explicitly:
+
+- **Ambiguous symbol names**: mitigated with qualified names, file paths, and
+  graph-neighborhood context in context packs.
+- **Missing semantic index**: semantic/hybrid modes report an effective fallback
+  mode instead of silently pretending vector search ran.
+- **Over-large context packs**: budget trimming keeps the first relevant result
+  and skips later entries that would overflow the budget.
+- **Presentation drift**: README counts, benchmark artifacts, and CI smoke tests
+  are updated together so public claims stay reproducible.
+
+## Data Lineage Angle
+
+CodeAtlas includes a SQL parser, which means the same graph model can represent
+code impact and data-pipeline lineage. The eval suite includes SQL lineage tasks
+against `SQLParser`, framing dbt/Airflow-style dependency analysis as an
+extension of the same core engine rather than a separate demo.
+
+This matters for data engineering and ML infrastructure roles: the project can
+explain how a code-intelligence graph generalizes to tables, models, DAG tasks,
+and downstream consumers.
+
+## What Changed After Profiling
+
+The benchmark/eval path pushed the project toward proof over breadth:
+
+- `codeatlas eval --compare` now reports retrieval quality by mode.
+- `codeatlas bench --profile --eval-suite` emits one publishable Markdown/JSON
+  artifact.
+- Context packs expose both requested and effective mode, making optional
+  semantic dependencies auditable.
+- README now points to one reproduction command instead of unsupported claims.
+
+## Recruiter Narrative
+
+CodeAtlas demonstrates:
+
+- Systems engineering: parsers, persistence, APIs, CI, packaging, and local-first
+  deployment.
+- AI infrastructure: MCP, agent context packs, retrieval evals, and prompt
+  templates.
+- Search and graphs: FTS, semantic search, hybrid search, PageRank, impact
+  analysis, and graph traversal.
+- Production instincts: SARIF export, OpenTelemetry hooks, reproducible
+  benchmarks, deterministic tests, and no mandatory paid services.

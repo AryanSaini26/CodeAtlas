@@ -3,8 +3,11 @@
 import contextlib
 import io
 import json as _json
+import platform
+import sys
 import tempfile
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -156,7 +159,21 @@ def index(repo_path: str, db: str, incremental: bool, watch: bool, workers: int)
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit results as JSON only")
 @click.option("-o", "--output", default=None, type=click.Path(), help="Write benchmark artifact")
-def bench(repo_path: str, workers: int, as_json: bool, output: str | None) -> None:
+@click.option("--profile", is_flag=True, help="Include runtime/platform metadata")
+@click.option(
+    "--eval-suite",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="Run a retrieval eval suite against the temporary benchmark DB",
+)
+def bench(
+    repo_path: str,
+    workers: int,
+    as_json: bool,
+    output: str | None,
+    profile: bool,
+    eval_suite: str | None,
+) -> None:
     """Benchmark indexing throughput on this repo.
 
     Uses a throwaway temp database so the primary .codeatlas/graph.db is
@@ -185,6 +202,11 @@ def bench(repo_path: str, workers: int, as_json: bool, output: str | None) -> No
                 indexer.index_full(resolve=False)
             elapsed = time.monotonic() - start
             stats = store.get_stats()
+            eval_report = None
+            if eval_suite:
+                from codeatlas.eval import run_eval_comparison
+
+                eval_report = run_eval_comparison(store, eval_suite, budget_tokens=2000)
         finally:
             store.close()
 
@@ -192,7 +214,7 @@ def bench(repo_path: str, workers: int, as_json: bool, output: str | None) -> No
     symbols_n = stats["symbols"]
     relationships_n = stats["relationships"]
     payload = {
-        "repo": str(root.resolve()),
+        "repo": repo_path,
         "workers": workers,
         "files": files_n,
         "symbols": symbols_n,
@@ -203,11 +225,21 @@ def bench(repo_path: str, workers: int, as_json: bool, output: str | None) -> No
         "symbols_per_sec": round(symbols_n / elapsed, 1) if elapsed > 0 else 0.0,
         "loc_per_sec": round(loc / elapsed, 1) if elapsed > 0 else 0.0,
     }
+    if profile:
+        payload["profile"] = {
+            "timestamp_utc": datetime.now(UTC).isoformat(),
+            "python": sys.version.split()[0],
+            "platform": platform.platform(),
+            "machine": platform.machine(),
+            "processor": platform.processor(),
+        }
+    if eval_report:
+        payload["eval"] = eval_report
 
     if output:
         out_path = Path(output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        if as_json:
+        if as_json or out_path.suffix.lower() == ".json":
             out_path.write_text(_json.dumps(payload, indent=2) + "\n")
         else:
             out_path.write_text(_render_bench_markdown(payload) + "\n")
@@ -235,24 +267,67 @@ def bench(repo_path: str, workers: int, as_json: bool, output: str | None) -> No
 
 
 def _render_bench_markdown(payload: dict[str, Any]) -> str:
-    return "\n".join(
-        [
-            "# CodeAtlas Benchmark",
-            "",
-            "| Metric | Value |",
-            "|--------|-------|",
-            f"| Repo | `{payload['repo']}` |",
-            f"| Workers | {payload['workers']} |",
-            f"| Files | {payload['files']:,} |",
-            f"| Symbols | {payload['symbols']:,} |",
-            f"| Relationships | {payload['relationships']:,} |",
-            f"| LOC | {payload['loc']:,} |",
-            f"| Elapsed | {payload['elapsed_seconds']:.3f}s |",
-            f"| Files/sec | {payload['files_per_sec']:,.1f} |",
-            f"| Symbols/sec | {payload['symbols_per_sec']:,.1f} |",
-            f"| LOC/sec | {payload['loc_per_sec']:,.0f} |",
-        ]
-    )
+    lines = [
+        "# CodeAtlas Benchmark",
+        "",
+        "| Metric | Value |",
+        "|--------|-------|",
+        f"| Repo | `{payload['repo']}` |",
+        f"| Workers | {payload['workers']} |",
+        f"| Files | {payload['files']:,} |",
+        f"| Symbols | {payload['symbols']:,} |",
+        f"| Relationships | {payload['relationships']:,} |",
+        f"| LOC | {payload['loc']:,} |",
+        f"| Elapsed | {payload['elapsed_seconds']:.3f}s |",
+        f"| Files/sec | {payload['files_per_sec']:,.1f} |",
+        f"| Symbols/sec | {payload['symbols_per_sec']:,.1f} |",
+        f"| LOC/sec | {payload['loc_per_sec']:,.0f} |",
+    ]
+    if "profile" in payload:
+        profile = payload["profile"]
+        lines.extend(
+            [
+                "",
+                "## Environment",
+                "",
+                "| Field | Value |",
+                "|-------|-------|",
+                f"| Timestamp UTC | `{profile['timestamp_utc']}` |",
+                f"| Python | `{profile['python']}` |",
+                f"| Platform | `{profile['platform']}` |",
+                f"| Machine | `{profile['machine']}` |",
+            ]
+        )
+    if "eval" in payload:
+        lines.extend(
+            [
+                "",
+                "## Retrieval Eval",
+                "",
+                "| Mode | Effective | Recall@k | MRR | Avg latency | Context savings |",
+                "|------|-----------|----------|-----|-------------|-----------------|",
+            ]
+        )
+        for row in payload["eval"]["comparison"]:
+            lines.append(
+                f"| `{row['mode']}` | `{row['mode_effective']}` | "
+                f"{row['recall_at_k']:.3f} | {row['mrr']:.3f} | "
+                f"{row['avg_latency_ms']:.2f} ms | {row['avg_context_savings']:.2%} |"
+            )
+    return "\n".join(lines)
+
+
+def _load_existing_semantic_index(db: str) -> Any | None:
+    """Load an already-built semantic index without downloading models in CI."""
+    try:
+        from codeatlas.search.embeddings import SemanticIndex
+    except ImportError:
+        return None
+
+    sem_index = SemanticIndex()
+    if sem_index.load(Path(db).parent):
+        return sem_index
+    return None
 
 
 def _count_loc(files: list[Path]) -> int:
@@ -647,8 +722,22 @@ def query(
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--budget", default=2000, show_default=True, help="Approximate token budget")
 @click.option("--limit", default=10, show_default=True, help="Maximum ranked symbols")
+@click.option(
+    "--mode",
+    type=click.Choice(["fts", "semantic", "hybrid", "pagerank"]),
+    default="pagerank",
+    show_default=True,
+    help="Retrieval/ranking mode",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output full context pack as JSON")
-def context_cmd(query_text: str, db: str, budget: int, limit: int, as_json: bool) -> None:
+def context_cmd(
+    query_text: str,
+    db: str,
+    budget: int,
+    limit: int,
+    mode: str,
+    as_json: bool,
+) -> None:
     """Build a token-budgeted context pack for an AI coding agent."""
     import json as json_mod
 
@@ -656,7 +745,14 @@ def context_cmd(query_text: str, db: str, budget: int, limit: int, as_json: bool
 
     store = _get_store(Path(db))
     try:
-        pack = build_context_pack(store, query_text, budget_tokens=budget, limit=limit)
+        pack = build_context_pack(
+            store,
+            query_text,
+            budget_tokens=budget,
+            limit=limit,
+            mode=mode,  # type: ignore[arg-type]
+            semantic_index=_load_existing_semantic_index(db),
+        )
     finally:
         store.close()
 
@@ -682,7 +778,8 @@ def context_cmd(query_text: str, db: str, budget: int, limit: int, as_json: bool
         )
     console.print(table)
     console.print(
-        f"[dim]Estimated {pack['estimated_tokens']} tokens "
+        f"[dim]Mode {pack['mode']} ({pack['mode_effective']}); "
+        f"estimated {pack['estimated_tokens']} tokens "
         f"({pack['context_savings']:.1%} smaller than the candidate set).[/dim]"
     )
 
@@ -699,21 +796,46 @@ def context_cmd(query_text: str, db: str, budget: int, limit: int, as_json: bool
     show_default=True,
 )
 @click.option("--budget", default=2000, show_default=True, help="Context-pack token budget")
+@click.option("--compare", is_flag=True, help="Compare fts, pagerank, semantic, and hybrid modes")
+@click.option(
+    "--mode",
+    type=click.Choice(["fts", "semantic", "hybrid", "pagerank"]),
+    default="pagerank",
+    show_default=True,
+    help="Retrieval/ranking mode when --compare is not set",
+)
 def eval_cmd(
     suite: str,
     db: str,
     out: str | None,
     output_format: str,
     budget: int,
+    compare: bool,
+    mode: str,
 ) -> None:
     """Run golden retrieval/context evals and report recall, MRR, and latency."""
     import json as json_mod
 
-    from codeatlas.eval import render_eval_markdown, run_eval_suite
+    from codeatlas.eval import render_eval_markdown, run_eval_comparison, run_eval_suite
 
     store = _get_store(Path(db))
     try:
-        report = run_eval_suite(store, suite, budget_tokens=budget)
+        semantic_index = _load_existing_semantic_index(db)
+        if compare:
+            report = run_eval_comparison(
+                store,
+                suite,
+                budget_tokens=budget,
+                semantic_index=semantic_index,
+            )
+        else:
+            report = run_eval_suite(
+                store,
+                suite,
+                budget_tokens=budget,
+                mode=mode,  # type: ignore[arg-type]
+                semantic_index=semantic_index,
+            )
     finally:
         store.close()
 

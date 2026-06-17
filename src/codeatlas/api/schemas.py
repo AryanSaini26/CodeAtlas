@@ -203,6 +203,8 @@ class FileSummary(BaseModel):
 
 class ContextResponse(BaseModel):
     query: str
+    mode: str
+    mode_effective: str
     budget_tokens: int
     estimated_tokens: int
     context_savings: float

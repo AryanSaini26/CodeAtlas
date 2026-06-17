@@ -29,6 +29,22 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 - **Full React web UI** — interactive force graph, search, symbol details, analysis tabs — all backed by a FastAPI layer. Launch with one command: `codeatlas ui`.
 - **24 languages via tree-sitter** — Python, TypeScript/TSX, Go, Rust, JavaScript, Java, Kotlin, C, C++, C#, Ruby, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
 
+## Measured Results
+
+CodeAtlas ships with a reproducible AI-infra benchmark instead of only a feature list:
+
+- Latest committed local smoke report: 153 files, 3,341 symbols, 10,601 relationships, 1.000 recall@k, 0.978 MRR, ~27% context savings, and >2k symbols/sec on an Apple Silicon dev machine.
+- `benchmarks/report.md` is generated from `codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md`.
+- `benchmarks/eval-suite.json` contains 30 golden retrieval tasks across symbol lookup, impact analysis, dependency tracing, architecture questions, context-pack retrieval, and SQL lineage.
+- `codeatlas eval --compare` compares FTS, semantic, hybrid, PageRank-boosted, and context-pack ranking paths with recall@k, MRR, latency, and token-savings metrics.
+- `codeatlas context <query> --mode fts|semantic|hybrid|pagerank --budget 2000 --json` returns agent-ready context packs with definitions, callers, callees, file summaries, confidence labels, and budget trimming.
+- `docs/ai-infra-case-study.md` explains architecture, tradeoffs, bottlenecks, failure modes, and how the benchmark changed implementation choices.
+
+```bash
+codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md
+codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output benchmarks/results.json
+```
+
 ## Features
 
 - **Multi-language parsing** — Tree-sitter AST parsing for 24 languages (list above).
@@ -40,7 +56,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 - **HTTP/JSON API** — FastAPI layer over the graph for custom frontends and tooling.
 - **Real-time sync** — Watchdog file watcher and GitHub webhook handler for incremental updates.
 - **Change impact analysis** — Git-aware diff analysis showing which symbols and files are affected.
-- **MCP server** — 29 tools exposed via the Model Context Protocol for AI agent consumption.
+- **MCP server** — 30 tools exposed via the Model Context Protocol for AI agent consumption.
 - **Graph export** — DOT (Graphviz), JSON (D3.js), Mermaid, GraphML, CSV, and Cypher formats.
 - **Config files** — Optional `codeatlas.toml` for per-repo settings.
 
@@ -308,7 +324,7 @@ Add to your Claude Code MCP settings:
 }
 ```
 
-### Available MCP Tools (29)
+### Available MCP Tools (30)
 
 | Tool | Description |
 |------|-------------|
@@ -339,6 +355,7 @@ Add to your Claude Code MCP settings:
 | `get_file_content` | Return raw source content of a file, optionally sliced to a line range |
 | `find_usages` | Find every call site, import, and reference to a symbol (inverse of trace) |
 | `get_symbol_context` | Symbol metadata + surrounding source snippet in one call |
+| `get_agent_context` | Token-budgeted, ranked context pack for AI coding agents |
 
 ## Graph Visualization
 
@@ -402,15 +419,15 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests with coverage (1038 tests, 92.2%)
+# Run tests with coverage (latest local gate: 1062 tests, 91.70% coverage)
 .venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
 # Lint / format
 .venv/bin/ruff check src tests
 .venv/bin/ruff format src tests
 
-# Benchmarks (clones requests + click, runs timing/memory/token-savings)
-python benchmarks/bench.py
+# Benchmarks and eval comparison
+codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md
 ```
 
 ## Releasing

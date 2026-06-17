@@ -46,6 +46,12 @@ jobs:
       - name: Test with coverage
         run: pytest -v --cov=codeatlas --cov-report=xml --cov-report=term-missing
 
+      - name: Benchmark smoke
+        if: matrix.python-version == '3.13'
+        run: |
+          codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output /tmp/codeatlas-bench-results.json
+          test -s /tmp/codeatlas-bench-results.json
+
       - name: Build Python package
         if: matrix.python-version == '3.13'
         run: python -m build

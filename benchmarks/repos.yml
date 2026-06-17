@@ -1,0 +1,27 @@
+# Reproducible benchmark targets.
+#
+# The committed report is generated against the local CodeAtlas checkout so it
+# can run in CI without network access. The OSS targets below are for manual or
+# scheduled benchmark runs where cloning pinned repositories is allowed.
+repos:
+  - name: codeatlas
+    url: local
+    path: .
+    ref: main
+    role: ci-smoke-and-committed-report
+  - name: requests
+    url: https://github.com/psf/requests.git
+    ref: main
+    role: python-library-real-world-target
+  - name: click
+    url: https://github.com/pallets/click.git
+    ref: main
+    role: cli-framework-real-world-target
+  - name: fastapi
+    url: https://github.com/fastapi/fastapi.git
+    ref: master
+    role: api-framework-real-world-target
+pinning_policy:
+  local_ci: use the current commit under test
+  manual_real_repo_runs: replace branch refs with exact commit SHAs in this file before publishing numbers
+  no_paid_services: benchmark correctness must not require an LLM API

@@ -259,7 +259,12 @@ def search_symbols(
 
 
 @mcp.tool()
-def get_agent_context(query: str, budget_tokens: int = 2000, limit: int = 10) -> str:
+def get_agent_context(
+    query: str,
+    budget_tokens: int = 2000,
+    limit: int = 10,
+    mode: str = "pagerank",
+) -> str:
     """Return a ranked, token-budgeted context pack for an AI coding agent.
 
     The pack includes matching symbols, incoming/outgoing relationships with
@@ -272,13 +277,19 @@ def get_agent_context(query: str, budget_tokens: int = 2000, limit: int = 10) ->
     validated_limit = _validate_limit(limit)
     if isinstance(validated_limit, str):
         return validated_limit
-    from codeatlas.agent_context import build_context_pack
+    from codeatlas.agent_context import VALID_CONTEXT_MODES, build_context_pack
+
+    if mode not in VALID_CONTEXT_MODES:
+        return _validation_error(
+            "mode", f"mode must be one of: {', '.join(VALID_CONTEXT_MODES)}", mode
+        )
 
     pack = build_context_pack(
         get_store(),
         query,
         budget_tokens=budget_tokens,
         limit=validated_limit,
+        mode=mode,
     )
     return json.dumps(pack, indent=2)
 

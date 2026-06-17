@@ -7,8 +7,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-from codeatlas.agent_context import build_context_pack
+from codeatlas.agent_context import VALID_CONTEXT_MODES, ContextMode, build_context_pack
 from codeatlas.graph.store import GraphStore
+
+DEFAULT_EVAL_MODES: tuple[ContextMode, ...] = ("fts", "pagerank", "semantic", "hybrid")
 
 
 def load_suite(path: str | Path) -> list[dict[str, Any]]:
@@ -35,6 +37,8 @@ def load_suite(path: str | Path) -> list[dict[str, Any]]:
         normalized.append(
             {
                 "id": task.get("id", f"task-{i}"),
+                "category": task.get("category", "retrieval"),
+                "repo": task.get("repo", "local"),
                 "query": query,
                 "expected_symbols": [str(e) for e in expected],
                 "k": int(task.get("k", 5)),
@@ -45,7 +49,10 @@ def load_suite(path: str | Path) -> list[dict[str, Any]]:
 
 def _hit_matches(hit_name: str, expected: list[str]) -> bool:
     hit = hit_name.lower()
-    return any(hit == exp.lower() or hit.endswith(f"::{exp.lower()}") for exp in expected)
+    return any(
+        hit == exp.lower() or hit.endswith(f"::{exp.lower()}") or hit.endswith(f".{exp.lower()}")
+        for exp in expected
+    )
 
 
 def run_eval_suite(
@@ -53,13 +60,20 @@ def run_eval_suite(
     suite_path: str | Path,
     *,
     budget_tokens: int = 2000,
+    mode: ContextMode = "pagerank",
+    semantic_index: Any | None = None,
 ) -> dict[str, Any]:
+    if mode not in VALID_CONTEXT_MODES:
+        valid = ", ".join(VALID_CONTEXT_MODES)
+        raise ValueError(f"mode must be one of: {valid}")
+
     tasks = load_suite(suite_path)
     task_results: list[dict[str, Any]] = []
     total_latency = 0.0
     total_recall = 0.0
     total_rr = 0.0
     total_savings = 0.0
+    effective_modes: set[str] = set()
 
     for task in tasks:
         started = time.perf_counter()
@@ -68,8 +82,11 @@ def run_eval_suite(
             task["query"],
             budget_tokens=budget_tokens,
             limit=max(1, int(task["k"])),
+            mode=mode,
+            semantic_index=semantic_index,
         )
         latency_ms = (time.perf_counter() - started) * 1000.0
+        effective_modes.add(str(pack["mode_effective"]))
         total_latency += latency_ms
         hits = [r["symbol"]["qualified_name"] for r in pack["results"]]
         matched = [_hit_matches(hit, task["expected_symbols"]) for hit in hits]
@@ -82,7 +99,10 @@ def run_eval_suite(
         task_results.append(
             {
                 "id": task["id"],
+                "category": task["category"],
+                "repo": task["repo"],
                 "query": task["query"],
+                "mode_effective": pack["mode_effective"],
                 "expected_symbols": task["expected_symbols"],
                 "hits": hits,
                 "recall_at_k": recall,
@@ -97,6 +117,8 @@ def run_eval_suite(
     return {
         "suite": str(suite_path),
         "task_count": n,
+        "mode": mode,
+        "mode_effective": next(iter(effective_modes)) if len(effective_modes) == 1 else "mixed",
         "metrics": {
             "recall_at_k": round(total_recall / n, 6) if n else 0.0,
             "mrr": round(total_rr / n, 6) if n else 0.0,
@@ -110,7 +132,47 @@ def run_eval_suite(
     }
 
 
+def run_eval_comparison(
+    store: GraphStore,
+    suite_path: str | Path,
+    *,
+    budget_tokens: int = 2000,
+    modes: list[ContextMode] | tuple[ContextMode, ...] = DEFAULT_EVAL_MODES,
+    semantic_index: Any | None = None,
+) -> dict[str, Any]:
+    """Run the same suite across retrieval modes for apples-to-apples comparison."""
+    reports = {
+        mode: run_eval_suite(
+            store,
+            suite_path,
+            budget_tokens=budget_tokens,
+            mode=mode,
+            semantic_index=semantic_index,
+        )
+        for mode in modes
+    }
+    comparison = [
+        {
+            "mode": mode,
+            "mode_effective": reports[mode]["mode_effective"],
+            **reports[mode]["metrics"],
+        }
+        for mode in modes
+    ]
+    first = next(iter(reports.values()), {"task_count": 0})
+    return {
+        "suite": str(suite_path),
+        "task_count": first["task_count"],
+        "budget_tokens": budget_tokens,
+        "comparison": comparison,
+        "modes": reports,
+    }
+
+
 def render_eval_markdown(report: dict[str, Any]) -> str:
+    if "comparison" in report:
+        return _render_comparison_markdown(report)
+
     metrics = report["metrics"]
     lines = [
         "# CodeAtlas Eval Report",
@@ -120,6 +182,8 @@ def render_eval_markdown(report: dict[str, Any]) -> str:
         "| Metric | Value |",
         "|--------|-------|",
         f"| Tasks | {report['task_count']} |",
+        f"| Mode | `{report.get('mode', 'pagerank')}` |",
+        f"| Effective mode | `{report.get('mode_effective', report.get('mode', 'pagerank'))}` |",
         f"| Recall@k | {metrics['recall_at_k']:.3f} |",
         f"| MRR | {metrics['mrr']:.3f} |",
         f"| Avg latency | {metrics['avg_latency_ms']:.2f} ms |",
@@ -140,4 +204,61 @@ def render_eval_markdown(report: dict[str, Any]) -> str:
             f"{task['reciprocal_rank']:.3f} | {task['latency_ms']:.2f} ms |"
         )
     lines.append("")
+    return "\n".join(lines)
+
+
+def _render_comparison_markdown(report: dict[str, Any]) -> str:
+    lines = [
+        "# CodeAtlas Eval Report",
+        "",
+        "## Mode Comparison",
+        "",
+        "| Mode | Effective | Recall@k | MRR | Avg latency | Context savings |",
+        "|------|-----------|----------|-----|-------------|-----------------|",
+    ]
+    for row in report["comparison"]:
+        lines.append(
+            f"| `{row['mode']}` | `{row['mode_effective']}` | "
+            f"{row['recall_at_k']:.3f} | {row['mrr']:.3f} | "
+            f"{row['avg_latency_ms']:.2f} ms | {row['avg_context_savings']:.2%} |"
+        )
+
+    best = max(
+        report["comparison"],
+        key=lambda row: (row["recall_at_k"], row["mrr"], -row["avg_latency_ms"]),
+    )
+    lines.extend(
+        [
+            "",
+            "## Summary",
+            "",
+            "| Metric | Value |",
+            "|--------|-------|",
+            f"| Tasks | {report['task_count']} |",
+            f"| Budget | {report['budget_tokens']:,} tokens |",
+            f"| Best mode | `{best['mode']}` |",
+            f"| Best recall@k | {best['recall_at_k']:.3f} |",
+            f"| Best MRR | {best['mrr']:.3f} |",
+            "",
+            "## Tasks",
+            "",
+        ]
+    )
+    for mode, mode_report in report["modes"].items():
+        lines.extend(
+            [
+                f"### `{mode}`",
+                "",
+                "| Query | Expected | Top hits | RR | Latency |",
+                "|-------|----------|----------|----|---------|",
+            ]
+        )
+        for task in mode_report["tasks"]:
+            expected = ", ".join(f"`{e}`" for e in task["expected_symbols"])
+            hits = ", ".join(f"`{h}`" for h in task["hits"][:5]) or "_none_"
+            lines.append(
+                f"| `{task['query']}` | {expected} | {hits} | "
+                f"{task['reciprocal_rank']:.3f} | {task['latency_ms']:.2f} ms |"
+            )
+        lines.append("")
     return "\n".join(lines)

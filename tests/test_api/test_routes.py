@@ -148,10 +148,15 @@ def test_search(client: TestClient) -> None:
 
 
 def test_context_endpoint(client: TestClient) -> None:
-    resp = client.get("/api/v1/context", params={"q": "main", "budget": 512})
+    resp = client.get(
+        "/api/v1/context",
+        params={"q": "main", "budget": 512, "mode": "fts"},
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["query"] == "main"
+    assert data["mode"] == "fts"
+    assert data["mode_effective"] == "fts"
     assert data["result_count"] >= 1
     assert data["estimated_tokens"] <= 512
 

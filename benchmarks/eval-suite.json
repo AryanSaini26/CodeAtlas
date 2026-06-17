@@ -1,0 +1,246 @@
+{
+  "name": "codeatlas-ai-infra-golden-suite",
+  "description": "Golden retrieval tasks for CodeAtlas' local AI-infra benchmark. The default suite targets this repository so CI can reproduce it without network or paid LLM APIs.",
+  "tasks": [
+    {
+      "id": "symbol-001",
+      "category": "symbol_lookup",
+      "repo": "codeatlas",
+      "query": "RepoIndexer",
+      "expected_symbols": ["RepoIndexer"],
+      "k": 5
+    },
+    {
+      "id": "symbol-002",
+      "category": "symbol_lookup",
+      "repo": "codeatlas",
+      "query": "GraphStore",
+      "expected_symbols": ["GraphStore"],
+      "k": 5
+    },
+    {
+      "id": "symbol-003",
+      "category": "context_pack_retrieval",
+      "repo": "codeatlas",
+      "query": "build_context_pack",
+      "expected_symbols": ["build_context_pack"],
+      "k": 5
+    },
+    {
+      "id": "symbol-004",
+      "category": "eval_metrics",
+      "repo": "codeatlas",
+      "query": "run_eval_suite",
+      "expected_symbols": ["run_eval_suite"],
+      "k": 5
+    },
+    {
+      "id": "symbol-005",
+      "category": "eval_metrics",
+      "repo": "codeatlas",
+      "query": "render_eval_markdown",
+      "expected_symbols": ["render_eval_markdown"],
+      "k": 5
+    },
+    {
+      "id": "symbol-006",
+      "category": "sarif_export",
+      "repo": "codeatlas",
+      "query": "build_audit_sarif",
+      "expected_symbols": ["build_audit_sarif"],
+      "k": 5
+    },
+    {
+      "id": "symbol-007",
+      "category": "api_surface",
+      "repo": "codeatlas",
+      "query": "build_router",
+      "expected_symbols": ["build_router"],
+      "k": 5
+    },
+    {
+      "id": "symbol-008",
+      "category": "api_surface",
+      "repo": "codeatlas",
+      "query": "create_app",
+      "expected_symbols": ["create_app"],
+      "k": 5
+    },
+    {
+      "id": "symbol-009",
+      "category": "mcp_agent_context",
+      "repo": "codeatlas",
+      "query": "get_agent_context",
+      "expected_symbols": ["get_agent_context"],
+      "k": 5
+    },
+    {
+      "id": "symbol-010",
+      "category": "mcp_symbol_context",
+      "repo": "codeatlas",
+      "query": "get_symbol_context",
+      "expected_symbols": ["get_symbol_context"],
+      "k": 5
+    },
+    {
+      "id": "symbol-011",
+      "category": "graph_analysis",
+      "repo": "codeatlas",
+      "query": "compute_pagerank",
+      "expected_symbols": ["compute_pagerank"],
+      "k": 5
+    },
+    {
+      "id": "symbol-012",
+      "category": "graph_analysis",
+      "repo": "codeatlas",
+      "query": "detect_cycles",
+      "expected_symbols": ["detect_cycles"],
+      "k": 5
+    },
+    {
+      "id": "symbol-013",
+      "category": "graph_analysis",
+      "repo": "codeatlas",
+      "query": "find_dead_code",
+      "expected_symbols": ["find_dead_code"],
+      "k": 5
+    },
+    {
+      "id": "symbol-014",
+      "category": "graph_analysis",
+      "repo": "codeatlas",
+      "query": "get_hotspots",
+      "expected_symbols": ["get_hotspots"],
+      "k": 5
+    },
+    {
+      "id": "symbol-015",
+      "category": "graph_analysis",
+      "repo": "codeatlas",
+      "query": "get_coverage_gaps",
+      "expected_symbols": ["get_coverage_gaps"],
+      "k": 5
+    },
+    {
+      "id": "symbol-016",
+      "category": "dependency_tracing",
+      "repo": "codeatlas",
+      "query": "find_path_between_symbols",
+      "expected_symbols": ["find_path_between_symbols"],
+      "k": 5
+    },
+    {
+      "id": "symbol-017",
+      "category": "dependency_tracing",
+      "repo": "codeatlas",
+      "query": "trace_call_chain",
+      "expected_symbols": ["trace_call_chain"],
+      "k": 5
+    },
+    {
+      "id": "symbol-018",
+      "category": "impact_analysis",
+      "repo": "codeatlas",
+      "query": "get_impact_analysis",
+      "expected_symbols": ["get_impact_analysis"],
+      "k": 5
+    },
+    {
+      "id": "symbol-019",
+      "category": "impact_analysis",
+      "repo": "codeatlas",
+      "query": "compute_symbol_diff",
+      "expected_symbols": ["compute_symbol_diff"],
+      "k": 5
+    },
+    {
+      "id": "symbol-020",
+      "category": "search",
+      "repo": "codeatlas",
+      "query": "SemanticIndex",
+      "expected_symbols": ["SemanticIndex"],
+      "k": 5
+    },
+    {
+      "id": "symbol-021",
+      "category": "search",
+      "repo": "codeatlas",
+      "query": "HybridSearch",
+      "expected_symbols": ["HybridSearch"],
+      "k": 5
+    },
+    {
+      "id": "symbol-022",
+      "category": "parser_architecture",
+      "repo": "codeatlas",
+      "query": "ParserRegistry",
+      "expected_symbols": ["ParserRegistry"],
+      "k": 5
+    },
+    {
+      "id": "symbol-023",
+      "category": "parser_architecture",
+      "repo": "codeatlas",
+      "query": "PythonParser",
+      "expected_symbols": ["PythonParser"],
+      "k": 5
+    },
+    {
+      "id": "symbol-024",
+      "category": "parser_architecture",
+      "repo": "codeatlas",
+      "query": "TypeScriptParser",
+      "expected_symbols": ["TypeScriptParser"],
+      "k": 5
+    },
+    {
+      "id": "symbol-025",
+      "category": "data_lineage",
+      "repo": "codeatlas",
+      "query": "SqlParser",
+      "expected_symbols": ["SqlParser"],
+      "k": 5
+    },
+    {
+      "id": "symbol-026",
+      "category": "data_lineage",
+      "repo": "codeatlas",
+      "query": "sql table lineage references",
+      "expected_symbols": ["SqlParser"],
+      "k": 10
+    },
+    {
+      "id": "symbol-027",
+      "category": "watch_sync",
+      "repo": "codeatlas",
+      "query": "FileWatcher",
+      "expected_symbols": ["FileWatcher"],
+      "k": 5
+    },
+    {
+      "id": "symbol-028",
+      "category": "watch_sync",
+      "repo": "codeatlas",
+      "query": "WebhookHandler",
+      "expected_symbols": ["WebhookHandler"],
+      "k": 5
+    },
+    {
+      "id": "symbol-029",
+      "category": "cli_workflow",
+      "repo": "codeatlas",
+      "query": "context_cmd",
+      "expected_symbols": ["context_cmd"],
+      "k": 5
+    },
+    {
+      "id": "symbol-030",
+      "category": "cli_workflow",
+      "repo": "codeatlas",
+      "query": "eval_cmd",
+      "expected_symbols": ["eval_cmd"],
+      "k": 5
+    }
+  ]
+}

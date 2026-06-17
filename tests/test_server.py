@@ -324,10 +324,17 @@ def test_search_symbols_rejects_negative_limit() -> None:
 
 
 def test_get_agent_context_tool() -> None:
-    result = json.loads(get_agent_context("main", budget_tokens=512))
+    result = json.loads(get_agent_context("main", budget_tokens=512, mode="fts"))
     assert result["query"] == "main"
+    assert result["mode"] == "fts"
     assert result["result_count"] >= 1
     assert result["estimated_tokens"] <= 512
+
+
+def test_get_agent_context_rejects_unknown_mode() -> None:
+    result = json.loads(get_agent_context("main", mode="bogus"))
+    assert result["error"].startswith("mode must be one of")
+    assert result["field"] == "mode"
 
 
 def test_mcp_resources_and_prompt_templates() -> None:
