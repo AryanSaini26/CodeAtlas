@@ -6,9 +6,9 @@ CodeAtlas parses your codebase with tree-sitter, materializes it into a persiste
 
 ## Why CodeAtlas
 
-- **26 tree-sitter parsers** — Python, TypeScript/JavaScript, Go, Rust, Java, Kotlin, C/C++, C#, Ruby, PHP, Scala, Swift, Haskell, Bash, Lua, Elixir, SQL, Zig, OCaml, Julia, PowerShell, Svelte, and more.
-- **29 MCP tools** — the widest agent surface in the category (search, graph traversal, centrality, coverage, impact).
-- **27 CLI subcommands** — everything the MCP server does is also scriptable.
+- **24 tree-sitter parsers** — Python, TypeScript/JavaScript, Go, Rust, Java, Kotlin, C/C++, C#, Ruby, PHP, Scala, Swift, Haskell, Bash, Lua, Elixir, SQL, Zig, OCaml, Julia, PowerShell, Svelte, and more.
+- **30 MCP tools** — broad agent surface area including search, graph traversal, context packs, centrality, coverage, and impact.
+- **34 CLI subcommands** — everything the MCP server does is also scriptable.
 - **Persistent SQLite + FTS5 store** — scales past 1M symbols, survives restarts, incrementally updatable.
 - **True PageRank centrality** — not just degree counting.
 - **Embedding-based semantic search** — FAISS + MiniLM for "find similar" queries, with reciprocal-rank-fusion hybrid over FTS5.

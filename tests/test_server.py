@@ -25,6 +25,7 @@ from codeatlas.server import (
     find_dead_code,
     find_path_between_symbols,
     find_usages,
+    get_agent_context,
     get_api_surface,
     get_change_impact,
     get_coverage_gaps,
@@ -43,9 +44,12 @@ from codeatlas.server import (
     get_symbol_details,
     get_symbol_diff,
     get_symbol_history,
+    graph_summary_resource,
     list_symbols_by_kind,
+    review_change,
     search_symbols,
     set_store,
+    symbol_resource,
     trace_call_chain,
 )
 
@@ -317,6 +321,23 @@ def test_search_symbols_rejects_negative_limit() -> None:
     result = json.loads(search_symbols("main", limit=-1))
     assert "error" in result
     assert result["field"] == "limit"
+
+
+def test_get_agent_context_tool() -> None:
+    result = json.loads(get_agent_context("main", budget_tokens=512))
+    assert result["query"] == "main"
+    assert result["result_count"] >= 1
+    assert result["estimated_tokens"] <= 512
+
+
+def test_mcp_resources_and_prompt_templates() -> None:
+    summary = json.loads(graph_summary_resource())
+    assert summary["symbols"] == 3
+    symbol = json.loads(symbol_resource("app.py::main"))
+    assert symbol["symbol"]["name"] == "main"
+    prompt = review_change("Changed main")
+    assert "Changed main" in prompt
+    assert "CodeAtlas" in prompt
 
 
 # --- get_symbol_details ---

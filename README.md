@@ -8,11 +8,12 @@
 
 An open-source MCP server that constructs real-time code knowledge graphs of any repository and exposes them to AI coding agents like Claude Code and Cursor — plus a CLI, HTTP API, and React web UI over the same graph.
 
-<!-- DEMO GIF: docs/assets/hero.gif — 30s screencast of `codeatlas index`
+<!-- DEMO ASSET: docs/assets/hero.svg is a tracked placeholder.
+     Replace with docs/assets/hero.gif after recording a 30s screencast of `codeatlas index`
      on a 100k-LOC repo, then an agent walking the graph with MCP tools,
      then the web UI rendering the force graph. Drop the file here. -->
 <p align="center">
-  <img src="docs/assets/hero.gif" alt="CodeAtlas demo" width="720" />
+  <img src="docs/assets/hero.svg" alt="CodeAtlas demo placeholder" width="720" />
 </p>
 
 ## The Problem
@@ -24,13 +25,13 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 - **Persistent SQLite + FTS5 graph** — scales past 1M symbols, incrementally updated; not a flat `graph.json` re-serialized every run.
 - **True embedding-based semantic search** — FAISS + sentence-transformers, not just keyword matching. Hybrid mode blends FTS5 + vectors via reciprocal rank fusion.
 - **PageRank centrality** — caller-weighted importance, not degree-based "god node" heuristics. Plus label-propagation communities, git-churn hotspots, and coverage gaps.
-- **29 MCP tools, 27 CLI subcommands, 6 export formats** — the widest agent and terminal surface in the category.
+- **30 MCP tools, 34 CLI subcommands, 6 export formats** — the widest agent and terminal surface in the category.
 - **Full React web UI** — interactive force graph, search, symbol details, analysis tabs — all backed by a FastAPI layer. Launch with one command: `codeatlas ui`.
-- **26 languages via tree-sitter** — Python, TypeScript/TSX, Go, Rust, Java, C, C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
+- **24 languages via tree-sitter** — Python, TypeScript/TSX, Go, Rust, JavaScript, Java, Kotlin, C, C++, C#, Ruby, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
 
 ## Features
 
-- **Multi-language parsing** — Tree-sitter AST parsing for 26 languages (list above).
+- **Multi-language parsing** — Tree-sitter AST parsing for 24 languages (list above).
 - **Knowledge graph** — SQLite + FTS5 with recursive CTE graph traversals (zero infrastructure).
 - **Semantic search** — FAISS vector search with sentence-transformers for natural language code queries.
 - **Hybrid search** — Reciprocal rank fusion merging keyword (FTS5) and vector (FAISS) results.
@@ -109,10 +110,11 @@ The UI surfaces:
 - **Diff** — compare symbols between two git refs (added/removed/modified columns)
 - **Settings** — configure API credentials, trigger incremental/full reindex, view version info
 
-<!-- DEMO GIF: docs/assets/web-ui.gif — walkthrough of the force graph,
+<!-- DEMO ASSET: docs/assets/web-ui.svg is a tracked placeholder.
+     Replace with docs/assets/web-ui.gif after recording a walkthrough of the force graph,
      search, symbol details, and the diff view. -->
 <p align="center">
-  <img src="docs/assets/web-ui.gif" alt="CodeAtlas web UI walkthrough" width="720" />
+  <img src="docs/assets/web-ui.svg" alt="CodeAtlas web UI placeholder" width="720" />
 </p>
 
 ## Installation

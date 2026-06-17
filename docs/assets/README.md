@@ -1,11 +1,15 @@
 # docs/assets
 
-Screencast GIFs and screenshots referenced from `README.md` and `docs/landing/index.md`. None of these are committed yet — the user records them before launch.
+Screencast GIFs and screenshots referenced from `README.md` and `docs/landing/index.md`.
+SVG placeholders are committed so README images never break; replace them with
+recorded GIFs before launch.
 
 ## Expected files
 
 | Path | What | Suggested length |
 |---|---|---|
+| `hero.svg` | Tracked placeholder for README hero media | — |
+| `web-ui.svg` | Tracked placeholder for README UI media | — |
 | `hero.gif` | `codeatlas index` on a 100k-LOC repo, then an agent chaining MCP tools, then the web UI graph | ~30s |
 | `web-ui.gif` | Walkthrough of `/graph` → `/search` → `/symbol/:id` → `/diff` | ~20s |
 | `ui-overview.png` | Static screenshot of the `/` overview dashboard | — |

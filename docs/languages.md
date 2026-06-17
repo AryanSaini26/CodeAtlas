@@ -1,6 +1,6 @@
 # Supported languages
 
-CodeAtlas ships 26 tree-sitter parsers out of the box. Run `codeatlas languages` for the live list.
+CodeAtlas ships 24 tree-sitter parsers out of the box. Run `codeatlas languages` for the live list.
 
 | Language | File extensions | Symbols extracted |
 |---|---|---|

@@ -10,7 +10,7 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -37,7 +37,11 @@ def _check_auth(api_key: str | None, header_value: str | None) -> None:
         raise HTTPException(status_code=401, detail={"error": "invalid API key"})
 
 
-def build_router(store: GraphStore, api_key: str | None = None) -> APIRouter:
+def build_router(
+    store: GraphStore,
+    api_key: str | None = None,
+    eval_report_path: Path | None = None,
+) -> APIRouter:
     async def auth_dep(x_api_key: str | None = Header(default=None)) -> None:
         _check_auth(api_key, x_api_key)
 
@@ -153,6 +157,17 @@ def build_router(store: GraphStore, api_key: str | None = None) -> APIRouter:
             next_offset=offset + len(hits) if has_more else None,
             hits=hits,
         )
+
+    @router.get("/context", response_model=schemas.ContextResponse)
+    async def context(
+        q: str = Query(..., min_length=1),
+        budget: int = Query(default=2000, ge=128, le=50000),
+        limit: int = Query(default=10, ge=1, le=100),
+    ) -> schemas.ContextResponse:
+        from codeatlas.agent_context import build_context_pack
+
+        pack = build_context_pack(store, q, budget_tokens=budget, limit=limit)
+        return schemas.ContextResponse(**pack)
 
     @router.get("/pagerank", response_model=schemas.PageRankResponse)
     async def pagerank(
@@ -314,5 +329,15 @@ def build_router(store: GraphStore, api_key: str | None = None) -> APIRouter:
             next_offset=offset + len(entries) if has_more else None,
             gaps=entries,
         )
+
+    @router.get("/eval/report")
+    async def eval_report() -> dict[str, Any]:
+        path = eval_report_path or (Path(".codeatlas") / "eval" / "report.json")
+        if not path.is_file():
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "no eval report found; run codeatlas eval --out <dir> first"},
+            )
+        return cast(dict[str, Any], json.loads(path.read_text()))
 
     return router

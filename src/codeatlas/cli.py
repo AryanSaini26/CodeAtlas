@@ -155,7 +155,8 @@ def index(repo_path: str, db: str, incremental: bool, watch: bool, workers: int)
     help="Parse files in parallel processes (1 = serial)",
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit results as JSON only")
-def bench(repo_path: str, workers: int, as_json: bool) -> None:
+@click.option("-o", "--output", default=None, type=click.Path(), help="Write benchmark artifact")
+def bench(repo_path: str, workers: int, as_json: bool, output: str | None) -> None:
     """Benchmark indexing throughput on this repo.
 
     Uses a throwaway temp database so the primary .codeatlas/graph.db is
@@ -203,6 +204,16 @@ def bench(repo_path: str, workers: int, as_json: bool) -> None:
         "loc_per_sec": round(loc / elapsed, 1) if elapsed > 0 else 0.0,
     }
 
+    if output:
+        out_path = Path(output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        if as_json:
+            out_path.write_text(_json.dumps(payload, indent=2) + "\n")
+        else:
+            out_path.write_text(_render_bench_markdown(payload) + "\n")
+        console.print(f"[green]Benchmark written to {out_path}[/green]")
+        return
+
     if as_json:
         click.echo(_json.dumps(payload, indent=2))
         return
@@ -221,6 +232,27 @@ def bench(repo_path: str, workers: int, as_json: bool) -> None:
     table.add_row("Symbols/sec", f"{payload['symbols_per_sec']:,.1f}")
     table.add_row("LOC/sec", f"{payload['loc_per_sec']:,.0f}")
     console.print(table)
+
+
+def _render_bench_markdown(payload: dict[str, Any]) -> str:
+    return "\n".join(
+        [
+            "# CodeAtlas Benchmark",
+            "",
+            "| Metric | Value |",
+            "|--------|-------|",
+            f"| Repo | `{payload['repo']}` |",
+            f"| Workers | {payload['workers']} |",
+            f"| Files | {payload['files']:,} |",
+            f"| Symbols | {payload['symbols']:,} |",
+            f"| Relationships | {payload['relationships']:,} |",
+            f"| LOC | {payload['loc']:,} |",
+            f"| Elapsed | {payload['elapsed_seconds']:.3f}s |",
+            f"| Files/sec | {payload['files_per_sec']:,.1f} |",
+            f"| Symbols/sec | {payload['symbols_per_sec']:,.1f} |",
+            f"| LOC/sec | {payload['loc_per_sec']:,.0f} |",
+        ]
+    )
 
 
 def _count_loc(files: list[Path]) -> int:
@@ -610,6 +642,99 @@ def query(
     console.print(table)
 
 
+@cli.command(name="context")
+@click.argument("query_text")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--budget", default=2000, show_default=True, help="Approximate token budget")
+@click.option("--limit", default=10, show_default=True, help="Maximum ranked symbols")
+@click.option("--json", "as_json", is_flag=True, help="Output full context pack as JSON")
+def context_cmd(query_text: str, db: str, budget: int, limit: int, as_json: bool) -> None:
+    """Build a token-budgeted context pack for an AI coding agent."""
+    import json as json_mod
+
+    from codeatlas.agent_context import build_context_pack
+
+    store = _get_store(Path(db))
+    try:
+        pack = build_context_pack(store, query_text, budget_tokens=budget, limit=limit)
+    finally:
+        store.close()
+
+    if as_json:
+        click.echo(json_mod.dumps(pack, indent=2))
+        return
+
+    table = Table(title=f"Agent Context: {query_text}")
+    table.add_column("Score", justify="right", style="green")
+    table.add_column("Symbol", style="cyan")
+    table.add_column("Kind", style="magenta")
+    table.add_column("File")
+    table.add_column("Deps", justify="right")
+    for entry in pack["results"]:
+        sym = entry["symbol"]
+        rels = entry["relationships"]
+        table.add_row(
+            f"{entry['score']:.2f}",
+            sym["qualified_name"],
+            sym["kind"],
+            f"{sym['file']}:{sym['line']}",
+            str(rels["incoming_count"] + rels["outgoing_count"]),
+        )
+    console.print(table)
+    console.print(
+        f"[dim]Estimated {pack['estimated_tokens']} tokens "
+        f"({pack['context_savings']:.1%} smaller than the candidate set).[/dim]"
+    )
+
+
+@cli.command(name="eval")
+@click.option("--suite", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--out", default=None, type=click.Path(file_okay=False), help="Write report files")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["json", "markdown"]),
+    default="markdown",
+    show_default=True,
+)
+@click.option("--budget", default=2000, show_default=True, help="Context-pack token budget")
+def eval_cmd(
+    suite: str,
+    db: str,
+    out: str | None,
+    output_format: str,
+    budget: int,
+) -> None:
+    """Run golden retrieval/context evals and report recall, MRR, and latency."""
+    import json as json_mod
+
+    from codeatlas.eval import render_eval_markdown, run_eval_suite
+
+    store = _get_store(Path(db))
+    try:
+        report = run_eval_suite(store, suite, budget_tokens=budget)
+    finally:
+        store.close()
+
+    rendered = (
+        json_mod.dumps(report, indent=2)
+        if output_format == "json"
+        else render_eval_markdown(report)
+    )
+    if out:
+        out_dir = Path(out)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "report.json").write_text(json_mod.dumps(report, indent=2) + "\n")
+        (out_dir / "report.md").write_text(render_eval_markdown(report) + "\n")
+        latest_dir = Path(db).parent / "eval"
+        latest_dir.mkdir(parents=True, exist_ok=True)
+        (latest_dir / "report.json").write_text(json_mod.dumps(report, indent=2) + "\n")
+        console.print(f"[green]Eval report written to {out_dir}[/green]")
+        return
+    click.echo(rendered)
+
+
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option(
@@ -822,6 +947,15 @@ def clean(repo_path: str, yes: bool) -> None:
 @click.option("--limit", default=20, show_default=True, help="Max results for centrality")
 @click.option("--include-tests", is_flag=True, help="Include test symbols in dead code analysis")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json", "sarif"]),
+    default="text",
+    show_default=True,
+    help="Audit output format",
+)
+@click.option("-o", "--output", default=None, type=click.Path(), help="Write audit output to file")
 def audit(
     db: str,
     show_cycles: bool,
@@ -830,11 +964,15 @@ def audit(
     limit: int,
     include_tests: bool,
     as_json: bool,
+    output_format: str,
+    output: str | None,
 ) -> None:
     """Run code quality analysis: cycles, dead code, and complexity."""
     import json as json_mod
 
     store = _get_store(Path(db))
+    if as_json:
+        output_format = "json"
 
     # If no specific flag, show all
     show_all = not (show_cycles or show_unused or show_centrality)
@@ -845,28 +983,46 @@ def audit(
     )
     centrality = store.get_symbol_centrality(limit=limit) if (show_all or show_centrality) else []
 
+    if output_format == "sarif":
+        from codeatlas.sarif import build_audit_sarif
+
+        payload = json_mod.dumps(
+            build_audit_sarif(store, include_tests=include_tests, limit=max(limit, 100)),
+            indent=2,
+        )
+        store.close()
+        if output:
+            Path(output).write_text(payload + "\n")
+            console.print(f"[green]SARIF audit written to {output}[/green]")
+        else:
+            click.echo(payload)
+        return
+
     store.close()
 
-    if as_json:
-        console.print(
-            json_mod.dumps(
-                {
-                    "cycles": cycles,
-                    "unused": [
-                        {
-                            "name": s.qualified_name,
-                            "kind": s.kind.value,
-                            "file": s.file_path,
-                            "line": s.span.start.line + 1,
-                            "is_test": s.is_test,
-                        }
-                        for s in unused
-                    ],
-                    "centrality": [dict(e) for e in centrality],
-                },
-                indent=2,
-            )
+    if output_format == "json":
+        payload = json_mod.dumps(
+            {
+                "cycles": cycles,
+                "unused": [
+                    {
+                        "name": s.qualified_name,
+                        "kind": s.kind.value,
+                        "file": s.file_path,
+                        "line": s.span.start.line + 1,
+                        "is_test": s.is_test,
+                    }
+                    for s in unused
+                ],
+                "centrality": [dict(e) for e in centrality],
+            },
+            indent=2,
         )
+        if output:
+            Path(output).write_text(payload + "\n")
+            console.print(f"[green]Audit written to {output}[/green]")
+        else:
+            click.echo(payload)
         return
 
     if show_all or show_cycles:

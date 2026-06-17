@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="360" viewBox="0 0 720 360" role="img" aria-label="CodeAtlas web UI placeholder">
+  <rect width="720" height="360" fill="#0d1117"/>
+  <rect x="28" y="28" width="664" height="304" rx="8" fill="#161b22" stroke="#30363d"/>
+  <rect x="52" y="58" width="140" height="244" rx="6" fill="#0d1117" stroke="#30363d"/>
+  <rect x="216" y="58" width="448" height="244" rx="6" fill="#0d1117" stroke="#30363d"/>
+  <text x="72" y="96" fill="#58a6ff" font-family="monospace" font-size="18">Overview</text>
+  <text x="72" y="132" fill="#c9d1d9" font-family="monospace" font-size="14">Graph</text>
+  <text x="72" y="162" fill="#c9d1d9" font-family="monospace" font-size="14">Search</text>
+  <text x="72" y="192" fill="#c9d1d9" font-family="monospace" font-size="14">Analysis</text>
+  <text x="240" y="96" fill="#c9d1d9" font-family="monospace" font-size="20">Knowledge graph</text>
+  <circle cx="390" cy="180" r="46" fill="#238636"/>
+  <circle cx="502" cy="132" r="26" fill="#1f6feb"/>
+  <circle cx="548" cy="232" r="34" fill="#a371f7"/>
+  <circle cx="302" cy="238" r="25" fill="#f0883e"/>
+  <line x1="390" y1="180" x2="502" y2="132" stroke="#8b949e" stroke-width="3"/>
+  <line x1="390" y1="180" x2="548" y2="232" stroke="#8b949e" stroke-width="3"/>
+  <line x1="390" y1="180" x2="302" y2="238" stroke="#8b949e" stroke-width="3"/>
+</svg>

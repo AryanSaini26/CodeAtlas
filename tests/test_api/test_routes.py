@@ -147,6 +147,22 @@ def test_search(client: TestClient) -> None:
     assert any(h["name"] == "main" for h in data["hits"])
 
 
+def test_context_endpoint(client: TestClient) -> None:
+    resp = client.get("/api/v1/context", params={"q": "main", "budget": 512})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["query"] == "main"
+    assert data["result_count"] >= 1
+    assert data["estimated_tokens"] <= 512
+
+
+def test_eval_report_endpoint_missing(client: TestClient) -> None:
+    resp = client.get("/api/v1/eval/report")
+    assert resp.status_code in (200, 404)
+    if resp.status_code == 404:
+        assert "no eval report" in resp.json()["detail"]["error"]
+
+
 def test_search_requires_query(client: TestClient) -> None:
     resp = client.get("/api/v1/search")
     assert resp.status_code == 422

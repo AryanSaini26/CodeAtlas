@@ -60,6 +60,7 @@ nav:
   - Getting started: getting-started.md
   - CLI reference: cli.md
   - MCP tools: mcp-tools.md
+  - AI infra case study: ai-infra-case-study.md
   - Architecture: architecture.md
   - Languages: languages.md
   - Changelog: changelog.md

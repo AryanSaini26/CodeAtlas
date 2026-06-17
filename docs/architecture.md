@@ -3,7 +3,7 @@
 ```
 ┌──────────────┐    ┌─────────────────┐    ┌──────────────────┐
 │  Source      │───▶│  ParserRegistry │───▶│  ParseResult     │
-│  (tree-sitter│    │  (26 languages) │    │  (Symbol, Edge)  │
+│  (tree-sitter│    │  (24 languages) │    │  (Symbol, Edge)  │
 │   grammars)  │    └─────────────────┘    └────────┬─────────┘
 └──────────────┘                                    │
                                                     ▼

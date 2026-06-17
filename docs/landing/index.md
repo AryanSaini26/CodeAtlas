@@ -3,7 +3,7 @@
 > Tree-sitter parsers, a persistent SQLite + FTS5 graph, FAISS semantic search, PageRank centrality, and a 29-tool MCP surface. Installs in one `pip install`. Ships with a React web UI.
 
 <!-- hero screencast (recorded before launch; see docs/assets/README.md) -->
-<!-- ![hero](../assets/hero.gif) -->
+![hero](../assets/hero.svg)
 
 ## Why it exists
 
@@ -29,7 +29,7 @@ codeatlas index /path/to/repo
 codeatlas ui                       # API + web UI on :8080
 ```
 
-Point Claude Code at `codeatlas serve` to hand agents 29 MCP tools over the same graph:
+Point Claude Code at `codeatlas serve` to hand agents 30 MCP tools over the same graph:
 
 ```json
 {
@@ -46,7 +46,7 @@ Point Claude Code at `codeatlas serve` to hand agents 29 MCP tools over the same
 
 ## What's in the box
 
-- **26 languages** via tree-sitter — Python, TypeScript/TSX, Go, Rust, Java, C, C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
+- **24 languages** via tree-sitter — Python, TypeScript/TSX, Go, Rust, JavaScript, Java, Kotlin, C, C++, C#, Ruby, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
 - **Graph analysis** — PageRank, label-propagation communities, cycle detection, dead code, hotspots, coverage gaps, shortest path, file coupling.
 - **Exports** — DOT, JSON, Mermaid, GraphML, CSV, Cypher.
 - **Sync** — file watcher, GitHub webhook, `pre-commit install` hook.

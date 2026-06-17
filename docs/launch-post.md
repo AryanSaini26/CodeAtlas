@@ -6,11 +6,11 @@
 
 ## One-liner
 
-CodeAtlas 1.0 — tree-sitter → SQLite + FAISS graph + 29 MCP tools + web UI. `pip install codeatlas`.
+CodeAtlas 1.0 — tree-sitter → SQLite + FAISS graph + 30 MCP tools + web UI. `pip install codeatlas`.
 
 ## Pitch (≤280 chars)
 
-Open-sourced **CodeAtlas 1.0** — a persistent code knowledge graph for AI agents. Tree-sitter for 26 languages, PageRank + FAISS embeddings in SQLite, 29 MCP tools, 27 CLI commands, React web UI. One install. MIT licensed.
+Open-sourced **CodeAtlas 1.0** — a persistent code knowledge graph for AI agents. Tree-sitter for 24 languages, PageRank + FAISS embeddings in SQLite, 30 MCP tools, 34 CLI commands, React web UI. One install. MIT licensed.
 
 ## HN title
 
@@ -20,7 +20,7 @@ Show HN: CodeAtlas – Persistent code knowledge graph for AI agents (26 langs, 
 
 Hi HN — I've been building CodeAtlas for a few months and tagged 1.0 this week.
 
-The premise is simple: most AI coding agents waste 60–80% of their context window orienting themselves in a codebase before doing real work. CodeAtlas parses the repo once with tree-sitter, stores symbols and relationships in a persistent SQLite + FTS5 graph, and exposes 29 MCP tools plus a CLI and web UI over it. Agents jump straight to the right symbol; humans get a force graph, PageRank ranking, and a diff view over two git refs.
+The premise is simple: most AI coding agents waste 60–80% of their context window orienting themselves in a codebase before doing real work. CodeAtlas parses the repo once with tree-sitter, stores symbols and relationships in a persistent SQLite + FTS5 graph, and exposes 30 MCP tools plus a CLI and web UI over it. Agents jump straight to the right symbol; humans get a force graph, PageRank ranking, and a diff view over two git refs.
 
 A few things I'm proud of:
 
@@ -29,7 +29,7 @@ A few things I'm proud of:
 - **Persistent storage.** 1M+ symbols in SQLite, incremental reindex via content hashes, watchdog + GitHub webhook for live updates.
 - **Visibility.** React + Vite + Tailwind web UI backed by a FastAPI layer — same data the MCP tools see. `codeatlas ui` launches both on one port.
 
-26 languages: Python, TypeScript/TSX, Go, Rust, Java, C, C++, C#, Ruby, JavaScript, Kotlin, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
+24 languages: Python, TypeScript/TSX, Go, Rust, JavaScript, Java, Kotlin, C, C++, C#, Ruby, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
 
 Install: `pip install codeatlas` → `codeatlas index .` → `codeatlas ui`.
 
@@ -43,7 +43,7 @@ MIT licensed. Would love feedback, especially on the MCP tool surface and what's
 
 **1/** Shipped **CodeAtlas 1.0** — an open-source code knowledge graph for AI agents. `pip install codeatlas`.
 
-26 languages. 29 MCP tools. FAISS semantic search. PageRank centrality. React web UI. MIT licensed.
+24 languages. 30 MCP tools. FAISS semantic search. PageRank centrality. React web UI. MIT licensed.
 
 **2/** Why it exists: AI coding agents burn most of their context just orienting. CodeAtlas indexes once → agents jump straight to the right symbol. No repeated greps, no hallucinated call chains.
 
@@ -52,7 +52,7 @@ MIT licensed. Would love feedback, especially on the MCP tool surface and what's
 - SQLite + FTS5 graph (1M+ symbols)
 - FAISS embeddings, hybrid search
 - PageRank, communities, hotspots, dead code, coverage gaps
-- 27 CLI commands, 29 MCP tools, 6 export formats
+- 34 CLI commands, 30 MCP tools, 6 export formats
 - React UI backed by FastAPI
 
 **4/** Drop this in your Claude Code config:
@@ -73,7 +73,7 @@ Would love feedback. What MCP tools are missing for your workflow?
 
 ## Reddit (r/LocalLLaMA, r/ClaudeAI, r/programming)
 
-Title: **CodeAtlas 1.0 — an open-source persistent code graph + MCP server for AI agents (26 languages, FAISS, PageRank)**
+Title: **CodeAtlas 1.0 — an open-source persistent code graph + MCP server for AI agents (24 languages, FAISS, PageRank)**
 
 Body: *(reuse HN body, adjust opener to the subreddit tone)*
 

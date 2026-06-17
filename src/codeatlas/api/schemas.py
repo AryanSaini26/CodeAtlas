@@ -163,3 +163,49 @@ class ReindexResponse(BaseModel):
     skipped: int
     errors: int
     duration_ms: int
+
+
+class ContextRelationshipRef(BaseModel):
+    symbol_id: str
+    qualified_name: str
+    kind: str
+    file: str
+    line: int | None = None
+    relationship: str
+    confidence: str
+
+
+class ContextSymbol(BaseModel):
+    id: str
+    name: str
+    qualified_name: str
+    kind: str
+    file: str
+    line: int
+    end_line: int
+    language: str
+    signature: str | None = None
+    docstring: str | None = None
+    is_test: bool = False
+
+
+class ContextEntry(BaseModel):
+    score: float
+    symbol: ContextSymbol
+    relationships: dict[str, object]
+
+
+class FileSummary(BaseModel):
+    file: str
+    symbol_count: int
+    symbols: list[dict[str, object]]
+
+
+class ContextResponse(BaseModel):
+    query: str
+    budget_tokens: int
+    estimated_tokens: int
+    context_savings: float
+    result_count: int
+    results: list[ContextEntry]
+    file_summaries: list[FileSummary]

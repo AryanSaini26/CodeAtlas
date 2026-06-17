@@ -259,6 +259,31 @@ def search_symbols(
 
 
 @mcp.tool()
+def get_agent_context(query: str, budget_tokens: int = 2000, limit: int = 10) -> str:
+    """Return a ranked, token-budgeted context pack for an AI coding agent.
+
+    The pack includes matching symbols, incoming/outgoing relationships with
+    confidence labels, and compact file summaries.
+    """
+    if not isinstance(query, str) or not query.strip():
+        return _validation_error("query", "query must be a non-empty string", query)
+    if budget_tokens < 128:
+        return _validation_error("budget_tokens", "budget_tokens must be >= 128", budget_tokens)
+    validated_limit = _validate_limit(limit)
+    if isinstance(validated_limit, str):
+        return validated_limit
+    from codeatlas.agent_context import build_context_pack
+
+    pack = build_context_pack(
+        get_store(),
+        query,
+        budget_tokens=budget_tokens,
+        limit=validated_limit,
+    )
+    return json.dumps(pack, indent=2)
+
+
+@mcp.tool()
 def get_symbol_details(symbol_name: str) -> str:
     """Get full metadata and relationship summary for a named symbol in one call.
 
@@ -1068,4 +1093,100 @@ def find_usages(symbol_name: str, limit: int = 50) -> str:
             "usages": [{"file": fp, "references": refs} for fp, refs in sorted(by_file.items())],
         },
         indent=2,
+    )
+
+
+@mcp.resource("codeatlas://graph/summary")
+def graph_summary_resource() -> str:
+    """Expose graph statistics as an MCP resource."""
+    store = get_store()
+    stats = store.get_stats()
+    return json.dumps(
+        {
+            **stats,
+            "languages": store.get_language_breakdown(),
+            "kinds": store.get_kind_breakdown(),
+            "relationship_confidence": store.get_confidence_stats(),
+        },
+        indent=2,
+    )
+
+
+@mcp.resource("codeatlas://symbol/{symbol_id}")
+def symbol_resource(symbol_id: str) -> str:
+    """Expose a symbol detail document as an MCP resource."""
+    store = get_store()
+    sym = store.get_symbol_by_id(symbol_id)
+    if sym is None:
+        return json.dumps({"error": f"symbol {symbol_id} not found"})
+    return json.dumps(
+        {
+            "symbol": {
+                "id": sym.id,
+                "name": sym.name,
+                "qualified_name": sym.qualified_name,
+                "kind": sym.kind.value,
+                "file": sym.file_path,
+                "line": sym.span.start.line + 1,
+                "signature": sym.signature,
+                "docstring": sym.docstring,
+            },
+            "dependencies": [r.target_id for r in store.get_dependencies(sym.id)],
+            "dependents": [r.source_id for r in store.get_dependents(sym.id)],
+        },
+        indent=2,
+    )
+
+
+@mcp.resource("codeatlas://file/{path}")
+def file_resource(path: str) -> str:
+    """Expose a file overview document as an MCP resource."""
+    store = get_store()
+    symbols = store.get_symbols_in_file(path)
+    return json.dumps(
+        {
+            "file": path,
+            "symbol_count": len(symbols),
+            "symbols": [
+                {
+                    "id": sym.id,
+                    "qualified_name": sym.qualified_name,
+                    "kind": sym.kind.value,
+                    "line": sym.span.start.line + 1,
+                    "signature": sym.signature,
+                }
+                for sym in symbols
+            ],
+        },
+        indent=2,
+    )
+
+
+@mcp.prompt()
+def review_change(change_summary: str) -> str:
+    """Prompt template for graph-aware code review."""
+    return (
+        "Review this change using CodeAtlas graph context. First call get_agent_context "
+        "for the changed symbols, then inspect dependents and coverage gaps before "
+        f"summarizing risk.\n\nChange summary:\n{change_summary}"
+    )
+
+
+@mcp.prompt()
+def explain_architecture(area: str) -> str:
+    """Prompt template for architecture explanation."""
+    return (
+        "Explain the architecture of this area using CodeAtlas. Use graph_summary_resource, "
+        "search_symbols, get_agent_context, and file dependency tools. Focus on entrypoints, "
+        f"core abstractions, and risky hubs.\n\nArea: {area}"
+    )
+
+
+@mcp.prompt()
+def find_change_impact(symbol_name: str) -> str:
+    """Prompt template for impact analysis."""
+    return (
+        "Analyze the impact of changing this symbol. Use get_symbol_details, find_usages, "
+        "get_impact_analysis, and get_agent_context. Return affected files, callers, tests, "
+        f"and confidence caveats.\n\nSymbol: {symbol_name}"
     )

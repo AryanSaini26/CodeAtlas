@@ -306,6 +306,57 @@ def test_audit_empty_db(tmp_path: Path) -> None:
     assert result.exit_code == 0
 
 
+def test_audit_sarif_output(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    output = tmp_path / "audit.sarif"
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(
+        cli,
+        ["audit", "--db", db_path, "--format", "sarif", "-o", str(output)],
+    )
+    assert result.exit_code == 0
+    data = __import__("json").loads(output.read_text())
+    assert data["version"] == "2.1.0"
+    assert data["runs"][0]["tool"]["driver"]["name"] == "CodeAtlas"
+
+
+def test_context_command_json(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(
+        cli,
+        ["context", "greet", "--db", db_path, "--budget", "512", "--json"],
+    )
+    assert result.exit_code == 0
+    data = __import__("json").loads(result.output)
+    assert data["query"] == "greet"
+    assert data["result_count"] >= 1
+    assert data["estimated_tokens"] <= 512
+
+
+def test_eval_command_writes_reports(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    db_path = str(tmp_path / "test.db")
+    suite = tmp_path / "suite.json"
+    suite.write_text('{"tasks":[{"query":"greet","expected_symbols":["greet"],"k":3}]}')
+    out_dir = tmp_path / "eval"
+    runner = CliRunner()
+    runner.invoke(cli, ["index", str(repo), "--db", db_path])
+    result = runner.invoke(
+        cli,
+        ["eval", "--suite", str(suite), "--db", db_path, "--out", str(out_dir)],
+    )
+    assert result.exit_code == 0
+    assert (out_dir / "report.json").exists()
+    assert (out_dir / "report.md").exists()
+    data = __import__("json").loads((out_dir / "report.json").read_text())
+    assert data["metrics"]["recall_at_k"] == 1.0
+
+
 # --- find-path command ---
 
 

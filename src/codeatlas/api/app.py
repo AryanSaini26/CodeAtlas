@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 try:
@@ -33,10 +35,18 @@ def create_app(
     """
     store = GraphStore(Path(db_path))
 
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        try:
+            yield
+        finally:
+            store.close()
+
     app = FastAPI(
         title="CodeAtlas API",
         version="1.0.0",
         description="HTTP/JSON interface over a CodeAtlas knowledge graph.",
+        lifespan=lifespan,
     )
 
     app.add_middleware(
@@ -47,15 +57,15 @@ def create_app(
         allow_headers=["*"],
     )
 
-    app.include_router(build_router(store, api_key=api_key), prefix="/api/v1")
+    eval_report_path = Path(db_path).parent / "eval" / "report.json"
+    app.include_router(
+        build_router(store, api_key=api_key, eval_report_path=eval_report_path),
+        prefix="/api/v1",
+    )
 
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "version": "1.0.0"}
-
-    @app.on_event("shutdown")
-    def _close_store() -> None:
-        store.close()
 
     if static_dir is not None:
         dist = Path(static_dir)

@@ -30,7 +30,7 @@ class Codeatlas < Formula
           return f"hello {name}"
     EOS
 
-    system bin/"codeatlas", "init", "--db", "#{testpath}/graph.db"
+    system bin/"codeatlas", "init", testpath
     system bin/"codeatlas", "index", "--db", "#{testpath}/graph.db", testpath
     stats = shell_output("#{bin}/codeatlas stats --db #{testpath}/graph.db")
     assert_match "greet", stats
