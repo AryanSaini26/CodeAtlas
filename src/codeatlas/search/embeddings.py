@@ -30,7 +30,7 @@ class SemanticIndex:
     def __init__(self, model_name: str = DEFAULT_MODEL) -> None:
         self._model_name = model_name
         self._model: object | None = None
-        self._index: faiss.IndexFlatIP | None = None
+        self._index: faiss.Index | None = None
         self._symbol_ids: list[str] = []
         self._dimension: int = 0
 
@@ -67,8 +67,9 @@ class SemanticIndex:
         embeddings = self._encode(texts)
         self._dimension = embeddings.shape[1]
 
-        self._index = faiss.IndexFlatIP(self._dimension)
-        self._index.add(embeddings)
+        index = faiss.IndexFlatIP(self._dimension)
+        index.add(embeddings)
+        self._index = index
 
         return len(self._symbol_ids)
 
@@ -77,11 +78,12 @@ class SemanticIndex:
 
         Returns list of (symbol, similarity_score) tuples.
         """
-        if self._index is None or self._index.ntotal == 0:
+        index = self._index
+        if index is None or index.ntotal == 0:
             return []
 
         query_embedding = self._encode([query])
-        scores, indices = self._index.search(query_embedding, min(limit, self._index.ntotal))
+        scores, indices = index.search(query_embedding, min(limit, index.ntotal))
 
         results: list[tuple[Symbol, float]] = []
         for score, idx in zip(scores[0], indices[0]):
@@ -114,11 +116,14 @@ class SemanticIndex:
         if not index_path.exists() or not ids_path.exists():
             return False
 
-        self._index = faiss.read_index(str(index_path))
-        self._symbol_ids = ids_path.read_text().strip().split("\n")
-        self._dimension = self._index.d
+        loaded_index = faiss.read_index(str(index_path))
+        self._index = loaded_index
+        ids_text = ids_path.read_text().strip()
+        self._symbol_ids = ids_text.split("\n") if ids_text else []
+        self._dimension = int(loaded_index.d)
         return True
 
     @property
     def size(self) -> int:
-        return self._index.ntotal if self._index else 0
+        index = self._index
+        return int(index.ntotal) if index is not None else 0
