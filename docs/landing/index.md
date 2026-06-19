@@ -17,7 +17,7 @@ AI coding agents waste most of their context window orienting themselves in a co
 | Semantic search | FAISS + MiniLM embeddings | Keyword grep only |
 | Centrality | PageRank (caller-weighted) | Degree-based "god nodes" |
 | MCP surface | 30 tools | 3–5 tools |
-| CLI surface | 35 subcommands | <10 |
+| CLI surface | 39 commands | <10 |
 | Interactive UI | React SPA + FastAPI | Static HTML export |
 | Incremental sync | watchdog + webhook + pre-commit | Full reindex each run |
 

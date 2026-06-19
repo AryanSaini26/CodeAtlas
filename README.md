@@ -25,7 +25,7 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 - **Persistent SQLite + FTS5 graph** — scales past 1M symbols, incrementally updated; not a flat `graph.json` re-serialized every run.
 - **True embedding-based semantic search** — FAISS + sentence-transformers, not just keyword matching. Hybrid mode blends FTS5 + vectors via reciprocal rank fusion.
 - **PageRank centrality** — caller-weighted importance, not degree-based "god node" heuristics. Plus label-propagation communities, git-churn hotspots, and coverage gaps.
-- **30 MCP tools, 35 CLI subcommands, 6 export formats** — the widest agent and terminal surface in the category.
+- **30 MCP tools, 39 CLI commands, 6 export formats** — the widest agent and terminal surface in the category.
 - **Full React web UI** — interactive force graph, search, symbol details, analysis tabs — all backed by a FastAPI layer. Launch with one command: `codeatlas ui`.
 - **24 languages via tree-sitter** — Python, TypeScript/TSX, Go, Rust, JavaScript, Java, Kotlin, C, C++, C#, Ruby, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
 
@@ -48,11 +48,17 @@ CodeAtlas ships with a reproducible AI-infra benchmark instead of only a feature
 - `codeatlas eval --compare` compares FTS/BM25, semantic, hybrid, PageRank, graph-neighborhood, and context-pack ranking paths with recall, precision, nDCG, MRR, latency, misses, and token-savings metrics.
 - `codeatlas agent-eval --dry-run` writes deterministic `results.json`, `report.md`, and `failures.json`; adding `--agent-adapter shell|codex|claude|aider|mock` plus live options runs an explicitly labeled A/B benchmark.
 - `codeatlas perf-report`, `codeatlas data-lineage`, and `codeatlas doctor --check ...` add production-style scale, lineage, and environment proof.
+- Hosted MVP foundation: `codeatlas hosted bootstrap`, `register-repo`, and `sync` create a local-dev team context gateway with bearer tokens, repo metadata, sync events, per-repo graph DBs, and a `/hosted` dashboard.
 - `codeatlas context <query> --mode fts|semantic|hybrid|pagerank --build-semantic --budget 2000 --json` returns agent-ready context packs with definitions, callers, callees, file summaries, confidence labels, and budget trimming.
 - `docs/ai-infra-case-study.md` explains architecture, tradeoffs, bottlenecks, failure modes, and how the benchmark changed implementation choices.
 - `docs/startup-roadmap.md` frames the commercial wedge as agent infrastructure: persistent team context, evals, security, and observability for any coding agent.
+- `docs/hosted-mvp.md` shows the local hosted gateway flow and the pieces intentionally stubbed before real OAuth, billing, and remote MCP routing.
 
 ```bash
+codeatlas hosted bootstrap --hosted-db .codeatlas/hosted.db
+codeatlas hosted register-repo --hosted-db .codeatlas/hosted.db --team default --path . --name codeatlas
+codeatlas hosted sync --hosted-db .codeatlas/hosted.db --repo codeatlas
+codeatlas ui --db .codeatlas/graph.db --hosted-db .codeatlas/hosted.db
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output benchmarks/results.json
 codeatlas bench-suite --repos benchmarks/repos.lock.yml --suite benchmarks/oss-eval-suite.json --out benchmarks/oss --build-semantic --require-semantic

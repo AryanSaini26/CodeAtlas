@@ -31,6 +31,20 @@ SQLite remains acceptable for the first hosted single-repo instances. The
 production migration path should be Postgres for users/teams/billing metadata
 and per-repo graph stores for isolation.
 
+The current MVP foundation is local-dev but product-shaped:
+
+- `codeatlas hosted bootstrap` creates a dev user, default team, and bearer
+  token.
+- `codeatlas hosted register-repo` stores repo metadata and assigns a
+  repo-specific graph DB.
+- `codeatlas hosted sync` indexes that repo and records sync events.
+- `codeatlas ui --hosted-db .codeatlas/hosted.db` exposes the `/hosted`
+  dashboard over the same FastAPI process.
+
+That gives the project a demoable hosted control plane before adding real
+GitHub OAuth, GitHub App installation, billing, and remote multi-repo MCP
+routing.
+
 ## Paid Wedge
 
 The paid feature is not "search my repo." It is proof and governance for AI

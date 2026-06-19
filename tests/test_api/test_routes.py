@@ -240,6 +240,62 @@ def test_health_always_open_even_with_key(keyed_client: TestClient) -> None:
     assert resp.status_code == 200
 
 
+def test_hosted_routes_require_bearer_auth(tmp_path: Path, db_path: Path) -> None:
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    resp = client.get("/api/hosted/v1/repos")
+    assert resp.status_code == 401
+
+
+def test_hosted_bootstrap_register_sync_and_context(tmp_path: Path, db_path: Path) -> None:
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / "app.py").write_text("def greet(name: str) -> str:\n    return f'hi {name}'\n")
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+
+    bootstrap = client.post("/api/hosted/v1/dev/bootstrap")
+    assert bootstrap.status_code == 200
+    token = bootstrap.json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    registered = client.post(
+        "/api/hosted/v1/repos",
+        headers=headers,
+        json={"team_slug": "default", "name": "fixture", "local_path": str(repo_path)},
+    )
+    assert registered.status_code == 200
+    repo = registered.json()["repo"]
+
+    synced = client.post(f"/api/hosted/v1/repos/{repo['id']}/sync", headers=headers)
+    assert synced.status_code == 200
+    assert synced.json()["event"]["status"] == "success"
+
+    stats = client.get(f"/api/hosted/v1/repos/{repo['id']}/stats", headers=headers)
+    assert stats.status_code == 200
+    assert stats.json()["stats"]["symbols"] >= 1
+
+    context = client.get(
+        f"/api/hosted/v1/repos/{repo['id']}/context",
+        headers=headers,
+        params={"q": "greet", "mode": "fts", "budget": 512},
+    )
+    assert context.status_code == 200
+    assert context.json()["result_count"] >= 1
+
+
+def test_hosted_repo_registration_rejects_missing_path(tmp_path: Path, db_path: Path) -> None:
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    token = client.post("/api/hosted/v1/dev/bootstrap").json()["token"]
+    resp = client.post(
+        "/api/hosted/v1/repos",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"team_slug": "default", "name": "missing", "local_path": str(tmp_path / "nope")},
+    )
+    assert resp.status_code == 400
+
+
 def test_create_app_import_message() -> None:
     """create_app should be importable without FastAPI only if fastapi is present."""
     # FastAPI is installed in this env — the import should succeed.

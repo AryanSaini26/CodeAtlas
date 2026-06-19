@@ -169,6 +169,43 @@ def test_lineage_impact_command_json(tmp_path: Path) -> None:
     assert "sql:query:model.sql" in result.output
 
 
+def test_hosted_cli_bootstrap_register_and_sync(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    repo = _make_repo(repo_root)
+    hosted_db = tmp_path / "hosted.db"
+    runner = CliRunner()
+
+    bootstrap = runner.invoke(cli, ["hosted", "bootstrap", "--hosted-db", str(hosted_db)])
+    assert bootstrap.exit_code == 0
+    assert "Bearer token" in bootstrap.output
+
+    registered = runner.invoke(
+        cli,
+        [
+            "hosted",
+            "register-repo",
+            "--hosted-db",
+            str(hosted_db),
+            "--team",
+            "default",
+            "--path",
+            str(repo),
+            "--name",
+            "fixture",
+        ],
+    )
+    assert registered.exit_code == 0
+    assert "Registered hosted repo" in registered.output
+
+    synced = runner.invoke(
+        cli,
+        ["hosted", "sync", "--hosted-db", str(hosted_db), "--repo", "fixture"],
+    )
+    assert synced.exit_code == 0
+    assert "Hosted repo sync complete" in synced.output
+
+
 def test_perf_report_with_local_fixture_repo(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()

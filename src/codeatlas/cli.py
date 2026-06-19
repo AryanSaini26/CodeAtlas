@@ -2318,10 +2318,122 @@ def serve(db: str, transport: str) -> None:
     mcp.run(transport=cast(Literal["stdio", "sse", "streamable-http"], transport))
 
 
+@cli.group()
+def hosted() -> None:
+    """Manage the local-dev hosted CodeAtlas control plane."""
+
+
+@hosted.command("bootstrap")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+@click.option("--email", default="dev@codeatlas.local", show_default=True)
+@click.option("--name", default="CodeAtlas Dev", show_default=True)
+@click.option("--team", "team_slug", default="default", show_default=True)
+@click.option("--team-name", default="Default Team", show_default=True)
+def hosted_bootstrap(
+    hosted_db: str,
+    email: str,
+    name: str,
+    team_slug: str,
+    team_name: str,
+) -> None:
+    """Create a dev user, team, and bearer token for local hosted demos."""
+    from codeatlas.hosted import HostedStore
+
+    store = HostedStore(Path(hosted_db))
+    try:
+        result = store.bootstrap_dev(
+            email=email,
+            name=name,
+            team_slug=team_slug,
+            team_name=team_name,
+        )
+    finally:
+        store.close()
+    console.print("[green]Hosted MVP bootstrap complete[/green]")
+    console.print(f"Team: [cyan]{result.team.slug}[/cyan] ({result.team.id})")
+    console.print(f"User: {result.user.email}")
+    console.print(f"Bearer token: [bold]{result.token}[/bold]")
+    console.print(
+        "Set this in the UI as codeatlas.hostedToken or pass it as Authorization: Bearer ..."
+    )
+
+
+@hosted.command("register-repo")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+@click.option("--team", "team_slug", default="default", show_default=True)
+@click.option(
+    "--path", "repo_path", default=".", show_default=True, type=click.Path(file_okay=False)
+)
+@click.option("--name", "repo_name", required=True, help="Hosted repo display/name slug")
+@click.option("--provider", default="local", show_default=True)
+@click.option("--provider-repo", default=None)
+@click.option("--default-branch", default=None)
+def hosted_register_repo(
+    hosted_db: str,
+    team_slug: str,
+    repo_path: str,
+    repo_name: str,
+    provider: str,
+    provider_repo: str | None,
+    default_branch: str | None,
+) -> None:
+    """Register a local path as a hosted-MVP repo."""
+    from codeatlas.hosted import HostedStore, RepoRegistration
+
+    store = HostedStore(Path(hosted_db))
+    try:
+        repo = store.register_repo(
+            RepoRegistration(
+                team_slug=team_slug,
+                name=repo_name,
+                local_path=Path(repo_path),
+                provider=provider,
+                provider_repo=provider_repo,
+                default_branch=default_branch,
+            )
+        )
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        store.close()
+    console.print("[green]Registered hosted repo[/green]")
+    console.print(f"Repo: [cyan]{repo.name}[/cyan] ({repo.id})")
+    console.print(f"Path: {repo.local_path}")
+    console.print(f"Graph DB: {repo.graph_db_path}")
+
+
+@hosted.command("sync")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+@click.option("--repo", "repo_id_or_name", required=True, help="Hosted repo id or name")
+def hosted_sync(hosted_db: str, repo_id_or_name: str) -> None:
+    """Index a registered hosted-MVP repo into its repo-specific graph DB."""
+    from codeatlas.hosted import HostedStore
+
+    store = HostedStore(Path(hosted_db))
+    try:
+        result = store.sync_repo(repo_id_or_name)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        store.close()
+    event = result.event
+    console.print("[green]Hosted repo sync complete[/green]")
+    console.print(f"Repo: [cyan]{result.repo.name}[/cyan] ({result.repo.id})")
+    console.print(
+        f"Parsed {event.parsed}, skipped {event.skipped}, errors {event.errors} "
+        f"in {event.duration_ms}ms"
+    )
+
+
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--host", default="127.0.0.1", show_default=True)
 @click.option("--port", default=8080, show_default=True, type=int)
+@click.option(
+    "--hosted-db",
+    default=None,
+    help="Mount hosted-MVP routes using this metadata DB (for example .codeatlas/hosted.db)",
+)
 @click.option(
     "--api-key",
     default=None,
@@ -2337,6 +2449,7 @@ def server(
     db: str,
     host: str,
     port: int,
+    hosted_db: str | None,
     api_key: str | None,
     allow_origins: tuple[str, ...],
 ) -> None:
@@ -2358,8 +2471,11 @@ def server(
         db_path=db,
         allow_origins=list(allow_origins) if allow_origins else None,
         api_key=api_key,
+        hosted_db_path=hosted_db,
     )
     console.print(f"[green]Starting CodeAtlas HTTP API[/green] on http://{host}:{port} (db: {db})")
+    if hosted_db:
+        console.print(f"[cyan]Hosted MVP routes mounted[/cyan] (metadata: {hosted_db})")
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 
@@ -2385,6 +2501,11 @@ def _find_frontend_dist() -> Path | None:
 @click.option("--host", default="127.0.0.1", show_default=True)
 @click.option("--port", default=8080, show_default=True, type=int)
 @click.option(
+    "--hosted-db",
+    default=None,
+    help="Mount hosted-MVP routes using this metadata DB (for example .codeatlas/hosted.db)",
+)
+@click.option(
     "--dist",
     default=None,
     type=click.Path(exists=True, file_okay=False),
@@ -2396,6 +2517,7 @@ def ui(
     db: str,
     host: str,
     port: int,
+    hosted_db: str | None,
     dist: str | None,
     no_browser: bool,
     api_key: str | None,
@@ -2418,10 +2540,17 @@ def ui(
             "Or pass --dist /path/to/frontend/dist"
         )
 
-    app = create_app(db_path=db, api_key=api_key, static_dir=static_dir)
+    app = create_app(
+        db_path=db,
+        api_key=api_key,
+        static_dir=static_dir,
+        hosted_db_path=hosted_db,
+    )
 
     url = f"http://{host}:{port}"
     console.print(f"[green]CodeAtlas UI[/green] on {url} (db: {db}, dist: {static_dir})")
+    if hosted_db:
+        console.print(f"[cyan]Hosted MVP dashboard enabled[/cyan] (metadata: {hosted_db})")
 
     if not no_browser:
         import threading

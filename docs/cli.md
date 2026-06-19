@@ -21,6 +21,9 @@ Every CodeAtlas CLI subcommand. Run `codeatlas <cmd> --help` for option details.
 | `codeatlas agent-eval --suite SUITE --repos REPOS --out DIR [--agent-adapter shell\|codex\|claude\|aider\|mock]` | Validate or run labeled agent outcome A/B tasks |
 | `codeatlas perf-report --repos REPOS --out DIR [--profile]` | Generate a recruiter-facing scale/performance report |
 | `codeatlas doctor [--db DB] [--check env,db,semantic,mcp,api,bench] [--json]` | Diagnose install, DB, semantic, API, MCP, and benchmark health |
+| `codeatlas hosted bootstrap --hosted-db DB` | Create a local-dev hosted user, team, and bearer token |
+| `codeatlas hosted register-repo --team TEAM --path PATH --name NAME` | Register a repo in the hosted metadata store |
+| `codeatlas hosted sync --repo NAME_OR_ID` | Index a hosted repo into its repo-specific graph DB |
 | `codeatlas list-files` | Enumerate files that would be indexed |
 
 ## Querying
@@ -62,6 +65,8 @@ Every CodeAtlas CLI subcommand. Run `codeatlas <cmd> --help` for option details.
 | Command | Purpose |
 |---|---|
 | `codeatlas serve` | Start the MCP server on stdio |
+| `codeatlas server --hosted-db DB` | Start the HTTP API with hosted-MVP routes mounted |
+| `codeatlas ui --hosted-db DB` | Start the web UI with the `/hosted` dashboard enabled |
 | `codeatlas watch` | Foreground file watcher |
 | `codeatlas webhook --port 8000` | GitHub webhook endpoint |
 | `codeatlas pre-commit install` | Install the git pre-commit hook |

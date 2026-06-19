@@ -15,6 +15,7 @@ const NAV: NavItem[] = [
   { to: "/search", label: "Search", icon: "search" },
   { to: "/analysis", label: "Analysis", icon: "analysis" },
   { to: "/diff", label: "Diff", icon: "diff" },
+  { to: "/hosted", label: "Hosted", icon: "mcp" },
   { to: "/settings", label: "Settings", icon: "settings" },
 ];
 

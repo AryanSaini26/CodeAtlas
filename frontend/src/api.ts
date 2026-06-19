@@ -1,5 +1,8 @@
 const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) ?? "/api/v1";
+const HOSTED_API_BASE =
+  (import.meta.env.VITE_HOSTED_API_BASE as string | undefined) ??
+  "/api/hosted/v1";
 const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 async function req<T>(path: string, params?: Record<string, unknown>): Promise<T> {
@@ -19,6 +22,40 @@ async function req<T>(path: string, params?: Record<string, unknown>): Promise<T
   if (!resp.ok) {
     const body = await resp.text();
     throw new Error(`API ${resp.status}: ${body}`);
+  }
+  return (await resp.json()) as T;
+}
+
+async function hostedReq<T>(
+  path: string,
+  params?: Record<string, unknown>,
+  init?: RequestInit,
+): Promise<T> {
+  const qs = params
+    ? "?" +
+      Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(
+          ([k, v]) =>
+            encodeURIComponent(k) + "=" + encodeURIComponent(String(v))
+        )
+        .join("&")
+    : "";
+  const token =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("codeatlas.hostedToken")
+      : null;
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (init?.body && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+  const resp = await fetch(HOSTED_API_BASE + path + qs, { ...init, headers });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Hosted API ${resp.status}: ${body}`);
   }
   return (await resp.json()) as T;
 }
@@ -149,6 +186,77 @@ export type ReindexResponse = {
   duration_ms: number;
 };
 
+export type HostedTeam = {
+  id: string;
+  slug: string;
+  name: string;
+  created_at: number;
+};
+
+export type HostedRepo = {
+  id: string;
+  team_id: string;
+  name: string;
+  local_path: string;
+  graph_db_path: string;
+  provider: string;
+  provider_repo?: string | null;
+  default_branch?: string | null;
+  last_commit_sha?: string | null;
+  last_indexed_at?: number | null;
+  last_sync_status: string;
+  last_error?: string | null;
+  created_at: number;
+  updated_at: number;
+};
+
+export type HostedSyncEvent = {
+  id: string;
+  repo_id: string;
+  status: string;
+  message: string;
+  parsed: number;
+  skipped: number;
+  errors: number;
+  duration_ms: number;
+  commit_sha?: string | null;
+  created_at: number;
+};
+
+export type HostedBootstrapResponse = {
+  user: { id: string; email: string; name: string; created_at: number };
+  team: HostedTeam;
+  token: string;
+  token_record: {
+    id: string;
+    subject_type: string;
+    subject_id: string;
+    name: string;
+    prefix: string;
+    scopes: string[];
+    created_at: number;
+  };
+};
+
+export type HostedContextResponse = {
+  query: string;
+  mode: string;
+  mode_effective: string;
+  estimated_tokens: number;
+  result_count: number;
+  results: Array<{
+    score: number;
+    symbol: {
+      id: string;
+      name: string;
+      qualified_name: string;
+      kind: string;
+      file: string;
+      line: number;
+    };
+  }>;
+};
+
 export const api = {
   stats: () => req<StatsResponse>("/stats"),
   graph: (params?: {
@@ -206,4 +314,61 @@ export const api = {
     return (await resp.json()) as ReindexResponse;
   },
   streamUrl: () => API_BASE + "/stream",
+};
+
+export const hostedApi = {
+  bootstrap: () =>
+    hostedReq<HostedBootstrapResponse>("/dev/bootstrap", undefined, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+  teams: () => hostedReq<{ teams: HostedTeam[] }>("/teams"),
+  repos: () => hostedReq<{ repos: HostedRepo[] }>("/repos"),
+  createRepo: (payload: {
+    team_slug: string;
+    name: string;
+    local_path: string;
+    provider?: string;
+    provider_repo?: string;
+    default_branch?: string;
+  }) =>
+    hostedReq<{ repo: HostedRepo }>("/repos", undefined, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  syncRepo: (repoId: string) =>
+    hostedReq<{ repo: HostedRepo; event: HostedSyncEvent }>(
+      `/repos/${encodeURIComponent(repoId)}/sync`,
+      undefined,
+      { method: "POST" },
+    ),
+  repoStats: (repoId: string) =>
+    hostedReq<{ repo: HostedRepo; stats: StatsResponse }>(
+      `/repos/${encodeURIComponent(repoId)}/stats`,
+    ),
+  syncEvents: (repoId: string) =>
+    hostedReq<{ events: HostedSyncEvent[] }>(
+      `/repos/${encodeURIComponent(repoId)}/sync-events`,
+    ),
+  context: (repoId: string, params: { q: string; budget?: number; mode?: string }) =>
+    hostedReq<HostedContextResponse>(
+      `/repos/${encodeURIComponent(repoId)}/context`,
+      params,
+    ),
+  connection: (repoId: string) =>
+    hostedReq<{
+      status: string;
+      context_endpoint: string;
+      auth_header: string;
+      mcp_note: string;
+      local_mcp_config: object;
+    }>(`/repos/${encodeURIComponent(repoId)}/connection`),
+  createRepoToken: (repoId: string) =>
+    hostedReq<{
+      token: string;
+      token_record: { prefix: string; scopes: string[]; name: string };
+    }>(`/repos/${encodeURIComponent(repoId)}/tokens`, undefined, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
 };

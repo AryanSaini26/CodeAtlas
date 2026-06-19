@@ -1,0 +1,269 @@
+"""FastAPI routes for the local-dev hosted CodeAtlas control plane."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Literal
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import BaseModel, Field
+
+from codeatlas.agent_context import build_context_pack
+from codeatlas.graph.store import GraphStore
+from codeatlas.hosted import (
+    HostedPrincipal,
+    HostedRepo,
+    HostedStore,
+    RepoRegistration,
+)
+
+
+class BootstrapRequest(BaseModel):
+    email: str = "dev@codeatlas.local"
+    name: str = "CodeAtlas Dev"
+    team_slug: str = "default"
+    team_name: str = "Default Team"
+
+
+class TeamCreateRequest(BaseModel):
+    slug: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+
+
+class RepoCreateRequest(BaseModel):
+    team_slug: str = "default"
+    name: str = Field(min_length=1)
+    local_path: str = Field(min_length=1)
+    provider: str = "local"
+    provider_repo: str | None = None
+    default_branch: str | None = None
+
+
+class TokenCreateRequest(BaseModel):
+    name: str = "repo token"
+    scopes: list[str] = Field(default_factory=lambda: ["context:read", "repo:sync"])
+
+
+def _bearer_token(header: str | None) -> str | None:
+    if not header:
+        return None
+    parts = header.split(" ", 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+    return parts[1].strip() or None
+
+
+def _require_repo_access(
+    hosted: HostedStore,
+    repo_id: str,
+    principal: HostedPrincipal,
+) -> HostedRepo:
+    try:
+        repo = hosted.get_repo(repo_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail={"error": str(exc)}) from exc
+    if not hosted.repo_accessible(repo, principal):
+        raise HTTPException(status_code=403, detail={"error": "repo token cannot access repo"})
+    return repo
+
+
+def build_hosted_router(hosted: HostedStore) -> APIRouter:
+    """Build hosted-MVP API routes.
+
+    ``/dev/bootstrap`` is intentionally open for local demos; every other route
+    requires ``Authorization: Bearer <token>``.
+    """
+
+    router = APIRouter()
+
+    async def principal_dep(
+        authorization: str | None = Header(default=None),
+    ) -> HostedPrincipal:
+        token = _bearer_token(authorization)
+        if token is None:
+            raise HTTPException(status_code=401, detail={"error": "missing bearer token"})
+        principal = hosted.verify_token(token)
+        if principal is None:
+            raise HTTPException(status_code=401, detail={"error": "invalid bearer token"})
+        return principal
+
+    @router.post("/dev/bootstrap")
+    async def dev_bootstrap(payload: BootstrapRequest | None = None) -> dict[str, Any]:
+        payload = payload or BootstrapRequest()
+        result = hosted.bootstrap_dev(
+            email=payload.email,
+            name=payload.name,
+            team_slug=payload.team_slug,
+            team_name=payload.team_name,
+        )
+        return result.model_dump()
+
+    @router.get("/me")
+    async def me(principal: HostedPrincipal = Depends(principal_dep)) -> dict[str, Any]:
+        return principal.model_dump()
+
+    @router.get("/teams")
+    async def teams(_: HostedPrincipal = Depends(principal_dep)) -> dict[str, Any]:
+        return {"teams": [team.model_dump() for team in hosted.list_teams()]}
+
+    @router.post("/teams")
+    async def create_team(
+        payload: TeamCreateRequest,
+        _: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        try:
+            team = hosted.create_team(slug=payload.slug, name=payload.name)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        return {"team": team.model_dump()}
+
+    @router.get("/repos")
+    async def repos(principal: HostedPrincipal = Depends(principal_dep)) -> dict[str, Any]:
+        repo_list = hosted.list_repos(team_id=principal.team_id)
+        if principal.repo_id:
+            repo_list = [repo for repo in repo_list if repo.id == principal.repo_id]
+        return {"repos": [repo.model_dump() for repo in repo_list]}
+
+    @router.post("/repos")
+    async def create_repo(
+        payload: RepoCreateRequest,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        if principal.token.subject_type != "team":
+            raise HTTPException(status_code=403, detail={"error": "team token required"})
+        try:
+            team = hosted.get_team(payload.team_slug)
+            if principal.team_id != team.id:
+                raise PermissionError("token cannot access team")
+            repo = hosted.register_repo(
+                RepoRegistration(
+                    team_slug=payload.team_slug,
+                    name=payload.name,
+                    local_path=Path(payload.local_path),
+                    provider=payload.provider,
+                    provider_repo=payload.provider_repo,
+                    default_branch=payload.default_branch,
+                )
+            )
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail={"error": str(exc)}) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        return {"repo": repo.model_dump()}
+
+    @router.get("/repos/{repo_id}")
+    async def get_repo(
+        repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        return {"repo": repo.model_dump()}
+
+    @router.post("/repos/{repo_id}/sync")
+    async def sync_repo(
+        repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        try:
+            result = hosted.sync_repo(repo.id)
+        except RuntimeError as exc:
+            fresh_repo = hosted.get_repo(repo.id)
+            events = hosted.list_sync_events(repo.id, limit=1)
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": str(exc),
+                    "repo": fresh_repo.model_dump(),
+                    "event": events[0].model_dump() if events else None,
+                },
+            ) from exc
+        return {"repo": result.repo.model_dump(), "event": result.event.model_dump()}
+
+    @router.get("/repos/{repo_id}/stats")
+    async def repo_stats(
+        repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        return {"repo": repo.model_dump(), "stats": hosted.repo_stats(repo.id)}
+
+    @router.get("/repos/{repo_id}/sync-events")
+    async def sync_events(
+        repo_id: str,
+        limit: int = Query(default=20, ge=1, le=100),
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        events = hosted.list_sync_events(repo.id, limit=limit)
+        return {"events": [event.model_dump() for event in events]}
+
+    @router.get("/repos/{repo_id}/context")
+    async def repo_context(
+        repo_id: str,
+        q: str = Query(..., min_length=1),
+        budget: int = Query(default=2000, ge=128, le=50000),
+        limit: int = Query(default=10, ge=1, le=100),
+        mode: Literal["fts", "semantic", "hybrid", "pagerank"] = "pagerank",
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        graph_db = Path(repo.graph_db_path)
+        if not graph_db.is_file():
+            raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
+        store = GraphStore(graph_db)
+        try:
+            return build_context_pack(
+                store,
+                q,
+                budget_tokens=budget,
+                limit=limit,
+                mode=mode,
+            )
+        finally:
+            store.close()
+
+    @router.post("/repos/{repo_id}/tokens")
+    async def repo_token(
+        repo_id: str,
+        payload: TokenCreateRequest,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        if principal.token.subject_type != "team":
+            raise HTTPException(status_code=403, detail={"error": "team token required"})
+        issued = hosted.create_token(
+            subject_type="repo",
+            subject_id=repo.id,
+            name=payload.name,
+            scopes=payload.scopes,
+        )
+        return issued.model_dump()
+
+    @router.get("/repos/{repo_id}/connection")
+    async def connection(
+        repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        return {
+            "repo": repo.model_dump(),
+            "status": "hosted_context_api_ready",
+            "context_endpoint": f"/api/hosted/v1/repos/{repo.id}/context",
+            "auth_header": "Authorization: Bearer <repo-or-team-token>",
+            "mcp_note": (
+                "This MVP exposes authenticated hosted context and sync APIs. "
+                "Dynamic multi-repo remote MCP routing is the next follow-up; "
+                "use `codeatlas serve --transport stdio` for local MCP today."
+            ),
+            "local_mcp_config": {
+                "mcpServers": {
+                    "codeatlas": {
+                        "command": "codeatlas",
+                        "args": ["serve", "--db", repo.graph_db_path],
+                    }
+                }
+            },
+        }
+
+    return router

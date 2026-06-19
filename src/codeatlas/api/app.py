@@ -25,6 +25,7 @@ def create_app(
     allow_origins: list[str] | None = None,
     api_key: str | None = None,
     static_dir: str | Path | None = None,
+    hosted_db_path: str | Path | None = None,
 ) -> FastAPI:
     """Build a FastAPI app backed by a ``GraphStore``.
 
@@ -34,6 +35,11 @@ def create_app(
     (``frontend/dist``) to serve the SPA from the same origin under ``/``.
     """
     store = GraphStore(Path(db_path))
+    hosted_store = None
+    if hosted_db_path is not None:
+        from codeatlas.hosted import HostedStore
+
+        hosted_store = HostedStore(Path(hosted_db_path))
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -41,6 +47,8 @@ def create_app(
             yield
         finally:
             store.close()
+            if hosted_store is not None:
+                hosted_store.close()
 
     app = FastAPI(
         title="CodeAtlas API",
@@ -62,6 +70,14 @@ def create_app(
         build_router(store, api_key=api_key, eval_report_path=eval_report_path),
         prefix="/api/v1",
     )
+    if hosted_store is not None:
+        from codeatlas.api.hosted_routes import build_hosted_router
+
+        app.include_router(
+            build_hosted_router(hosted_store),
+            prefix="/api/hosted/v1",
+            tags=["hosted"],
+        )
 
     @app.get("/health")
     def health() -> dict[str, str]:
