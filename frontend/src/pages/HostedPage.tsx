@@ -103,6 +103,20 @@ export default function HostedPage() {
     retry: false,
   });
 
+  const evalResult = useQuery({
+    queryKey: ["hosted", "eval", selectedRepo?.id],
+    queryFn: () => hostedApi.latestEval(selectedRepo!.id),
+    enabled: !!selectedRepo,
+    retry: false,
+  });
+
+  const runEval = useMutation({
+    mutationFn: (repo: HostedRepo) => hostedApi.runEval(repo.id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["hosted", "eval"] });
+    },
+  });
+
   const bootstrap = useMutation({
     mutationFn: () => hostedApi.bootstrap(),
     onSuccess: (data) => {
@@ -456,6 +470,63 @@ export default function HostedPage() {
                 <pre className="min-h-[180px] overflow-auto rounded-md border border-border bg-black/20 p-3 text-[11px] text-text-2">
                   {contextResult || "No preview yet."}
                 </pre>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Agent Retrieval Eval"
+                subtitle="Measured recall — not just a diagram"
+              />
+              <CardBody className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-text-3">
+                    Self-retrieval across modes on this repo&apos;s graph.
+                  </div>
+                  <Button
+                    onClick={() => selectedRepo && runEval.mutate(selectedRepo)}
+                    disabled={!selectedRepo || runEval.isPending}
+                  >
+                    <Icon name="refresh" size={12} /> {runEval.isPending ? "Running…" : "Run eval"}
+                  </Button>
+                </div>
+                {evalResult.data?.eval ? (
+                  <div className="overflow-auto">
+                    <table className="w-full text-[11px]">
+                      <thead className="text-text-3">
+                        <tr className="text-left">
+                          <th className="py-1 pr-3 font-medium">Mode</th>
+                          <th className="py-1 pr-3 font-medium">Recall@k</th>
+                          <th className="py-1 pr-3 font-medium">MRR</th>
+                          <th className="py-1 pr-3 font-medium">nDCG@k</th>
+                          <th className="py-1 font-medium">Ctx savings</th>
+                        </tr>
+                      </thead>
+                      <tbody className="font-mono text-text-2">
+                        {evalResult.data.eval.comparison.map((row) => (
+                          <tr key={row.mode} className="border-t border-border">
+                            <td className="py-1 pr-3">{row.mode}</td>
+                            <td className="py-1 pr-3">{row.recall_at_k.toFixed(3)}</td>
+                            <td className="py-1 pr-3">{row.mrr.toFixed(3)}</td>
+                            <td className="py-1 pr-3">{row.ndcg_at_k.toFixed(3)}</td>
+                            <td className="py-1">
+                              {(row.avg_context_savings * 100).toFixed(0)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="mt-2 text-[10px] text-text-4">
+                      {evalResult.data.eval.task_count} tasks ·{" "}
+                      {evalResult.data.eval.note}
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No eval yet"
+                    hint="Run an eval to measure retrieval quality for this repo."
+                  />
+                )}
               </CardBody>
             </Card>
 

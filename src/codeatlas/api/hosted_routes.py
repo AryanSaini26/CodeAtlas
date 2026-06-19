@@ -30,6 +30,7 @@ from codeatlas.hosted import (
     HostedStore,
     RepoRegistration,
 )
+from codeatlas.hosted_eval import run_repo_retrieval_eval
 from codeatlas.hosted_worker import SyncJobWorker
 from codeatlas.rate_limit import context_rate_limiter, webhook_rate_limiter
 
@@ -285,6 +286,30 @@ def build_hosted_router(
     ) -> dict[str, Any]:
         repo = _require_repo_access(hosted, repo_id, principal)
         return {"repo": repo.model_dump(), "stats": hosted.repo_stats(repo.id)}
+
+    @router.post("/repos/{repo_id}/eval")
+    async def run_repo_eval(
+        repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        graph_db = Path(repo.graph_db_path)
+        if not graph_db.is_file():
+            raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
+        try:
+            summary = run_repo_retrieval_eval(graph_db)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail={"error": str(exc)}) from exc
+        hosted.record_repo_eval(repo.id, summary)
+        return {"eval": summary}
+
+    @router.get("/repos/{repo_id}/eval")
+    async def latest_repo_eval(
+        repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        return {"eval": hosted.get_latest_repo_eval(repo.id)}
 
     @router.get("/repos/{repo_id}/sync-events")
     async def sync_events(

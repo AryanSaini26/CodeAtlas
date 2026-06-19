@@ -364,6 +364,24 @@ export const api = {
   streamUrl: () => API_BASE + "/stream",
 };
 
+export type HostedEvalRow = {
+  mode: string;
+  mode_effective?: string;
+  recall_at_k: number;
+  mrr: number;
+  ndcg_at_k: number;
+  avg_context_savings: number;
+  [key: string]: unknown;
+};
+
+export type HostedEvalSummary = {
+  kind: string;
+  task_count: number;
+  comparison: HostedEvalRow[];
+  generated_at: number;
+  note?: string;
+} | null;
+
 export const hostedOAuthLoginUrl = () => HOSTED_API_BASE + "/github/oauth/login";
 
 export const hostedApi = {
@@ -402,6 +420,14 @@ export const hostedApi = {
   syncEvents: (repoId: string) =>
     hostedReq<{ events: HostedSyncEvent[] }>(
       `/repos/${encodeURIComponent(repoId)}/sync-events`,
+    ),
+  latestEval: (repoId: string) =>
+    hostedReq<{ eval: HostedEvalSummary }>(`/repos/${encodeURIComponent(repoId)}/eval`),
+  runEval: (repoId: string) =>
+    hostedReq<{ eval: HostedEvalSummary }>(
+      `/repos/${encodeURIComponent(repoId)}/eval`,
+      undefined,
+      { method: "POST", body: JSON.stringify({}) },
     ),
   context: (repoId: string, params: { q: string; budget?: number; mode?: string }) =>
     hostedReq<HostedContextResponse>(

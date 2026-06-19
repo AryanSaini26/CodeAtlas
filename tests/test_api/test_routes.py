@@ -733,6 +733,32 @@ def test_hosted_github_oauth_login_and_callback(
     assert bad.status_code == 401
 
 
+def test_hosted_repo_eval_endpoint(tmp_path: Path, db_path: Path) -> None:
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / "app.py").write_text("def authenticate(user: str) -> str:\n    return user\n")
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    token = client.post("/api/hosted/v1/dev/bootstrap").json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    repo = client.post(
+        "/api/hosted/v1/repos",
+        headers=headers,
+        json={"team_slug": "default", "name": "r", "local_path": str(repo_path)},
+    ).json()["repo"]
+    client.post(f"/api/hosted/v1/repos/{repo['id']}/sync", headers=headers)
+
+    run = client.post(f"/api/hosted/v1/repos/{repo['id']}/eval", headers=headers)
+    assert run.status_code == 200
+    comparison = run.json()["eval"]["comparison"]
+    assert comparison
+    assert all("recall_at_k" in row for row in comparison)
+
+    latest = client.get(f"/api/hosted/v1/repos/{repo['id']}/eval", headers=headers)
+    assert latest.status_code == 200
+    assert latest.json()["eval"]["task_count"] >= 1
+
+
 def test_spa_fallback_serves_index_for_client_routes(tmp_path: Path, db_path: Path) -> None:
     dist = tmp_path / "dist"
     (dist / "assets").mkdir(parents=True)

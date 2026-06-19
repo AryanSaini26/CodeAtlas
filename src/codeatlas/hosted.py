@@ -373,8 +373,16 @@ class HostedStore:
                 ON sync_events(repo_id, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_sync_events_delivery
                 ON sync_events(repo_id, delivery_id);
+            CREATE TABLE IF NOT EXISTS repo_evals (
+                id TEXT PRIMARY KEY,
+                repo_id TEXT NOT NULL REFERENCES repos(id) ON DELETE CASCADE,
+                summary TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
             CREATE INDEX IF NOT EXISTS idx_github_repos_installation
                 ON github_repositories(installation_id);
+            CREATE INDEX IF NOT EXISTS idx_repo_evals_repo
+                ON repo_evals(repo_id, created_at DESC);
             """
         )
         self._ensure_column("repos", "provider_repo_id", "provider_repo_id TEXT")
@@ -1176,6 +1184,26 @@ class HostedStore:
             )
             raise RuntimeError(str(exc)) from exc
         return SyncResult(repo=self.get_repo(repo.id), event=event)
+
+    def record_repo_eval(self, repo_id: str, summary: dict[str, Any]) -> dict[str, Any]:
+        """Persist the latest retrieval-eval summary for a repo."""
+        eval_id = f"eval_{uuid.uuid4().hex}"
+        self._conn.execute(
+            "INSERT INTO repo_evals (id, repo_id, summary, created_at) VALUES (?, ?, ?, ?)",
+            (eval_id, repo_id, json.dumps(summary), _now_ms()),
+        )
+        self._conn.commit()
+        return summary
+
+    def get_latest_repo_eval(self, repo_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT summary FROM repo_evals WHERE repo_id = ? ORDER BY created_at DESC LIMIT 1",
+            (repo_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        data: dict[str, Any] = json.loads(str(row["summary"]))
+        return data
 
     def repo_stats(self, repo_id_or_name: str) -> dict[str, object]:
         repo = self.get_repo(repo_id_or_name)

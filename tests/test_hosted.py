@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from codeatlas.hosted import HostedStore, RepoRegistration, _hash_token, _verify_token_hash
+from codeatlas.hosted_eval import run_repo_retrieval_eval
 from codeatlas.hosted_worker import SyncJobWorker
 
 
@@ -234,6 +235,36 @@ def test_provision_github_login_is_idempotent(tmp_path: Path) -> None:
         # No public email -> a noreply fallback is synthesised.
         third = store.provision_github_login(github_id="99", login="NoEmail")
         assert third.user.email.endswith("@users.noreply.github.com")
+    finally:
+        store.close()
+
+
+def test_run_repo_retrieval_eval_and_persistence(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()
+        repo = store.register_repo(
+            RepoRegistration(
+                team_slug="default",
+                name="fixture",
+                local_path=_repo(tmp_path / "repo"),
+            )
+        )
+        store.run_sync_pipeline(repo.id)
+
+        summary = run_repo_retrieval_eval(repo.graph_db_path)
+        assert summary["kind"] == "self_retrieval"
+        assert summary["task_count"] >= 1
+        modes = {row["mode"] for row in summary["comparison"]}
+        assert {"fts", "bm25", "pagerank"} <= modes
+        assert all("recall_at_k" in row for row in summary["comparison"])
+
+        # Persistence round-trips the latest summary.
+        assert store.get_latest_repo_eval(repo.id) is None
+        store.record_repo_eval(repo.id, summary)
+        latest = store.get_latest_repo_eval(repo.id)
+        assert latest is not None
+        assert latest["task_count"] == summary["task_count"]
     finally:
         store.close()
 
