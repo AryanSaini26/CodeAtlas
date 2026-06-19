@@ -654,6 +654,117 @@ def _render_bench_suite_markdown(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+@cli.command("perf-report")
+@click.option("--repos", "repos_path", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("--out", required=True, type=click.Path(file_okay=False))
+@click.option("--profile", is_flag=True, help="Include runtime/platform metadata")
+@click.option("--json", "as_json", is_flag=True, help="Print JSON payload after writing artifacts")
+@click.option("--workers", default=1, show_default=True, type=int)
+@click.option(
+    "--cache-dir",
+    default=".codeatlas/bench-repos",
+    show_default=True,
+    type=click.Path(file_okay=False),
+)
+def perf_report(
+    repos_path: str,
+    out: str,
+    profile: bool,
+    as_json: bool,
+    workers: int,
+    cache_dir: str,
+) -> None:
+    """Render a recruiter-facing scale/performance report for pinned repos."""
+    repos = _load_bench_repos(Path(repos_path))
+    output = Path(out)
+    output.mkdir(parents=True, exist_ok=True)
+    reports = []
+    for spec in repos:
+        repo_path = _materialize_bench_repo(spec, Path(cache_dir))
+        report = _benchmark_repo(
+            str(repo_path),
+            workers=workers,
+            quiet=True,
+            profile=profile,
+            repo_filter=str(spec["name"]),
+        )
+        report["repo_name"] = spec["name"]
+        report["repo_commit"] = spec.get("commit", spec.get("ref", "unknown"))
+        reports.append(report)
+    payload = _render_perf_payload(repos_path, reports, profile=profile)
+    (output / "results.json").write_text(_json.dumps(payload, indent=2) + "\n")
+    (output / "report.md").write_text(_render_perf_markdown(payload) + "\n")
+    if as_json:
+        click.echo(_json.dumps(payload, indent=2))
+    else:
+        console.print(f"[green]Performance report written to {output}[/green]")
+
+
+def _render_perf_payload(
+    repos_path: str, reports: list[dict[str, Any]], *, profile: bool
+) -> dict[str, Any]:
+    total_elapsed = sum(float(report["elapsed_seconds"]) for report in reports)
+    total_files = sum(int(report["files"]) for report in reports)
+    total_symbols = sum(int(report["symbols"]) for report in reports)
+    total_relationships = sum(int(report["relationships"]) for report in reports)
+    total_loc = sum(int(report["loc"]) for report in reports)
+    payload: dict[str, Any] = {
+        "repos_file": repos_path,
+        "repo_count": len(reports),
+        "totals": {
+            "files": total_files,
+            "symbols": total_symbols,
+            "relationships": total_relationships,
+            "loc": total_loc,
+            "elapsed_seconds": round(total_elapsed, 3),
+            "files_per_sec": round(total_files / total_elapsed, 1) if total_elapsed else 0.0,
+            "symbols_per_sec": round(total_symbols / total_elapsed, 1) if total_elapsed else 0.0,
+            "relationships_per_sec": round(total_relationships / total_elapsed, 1)
+            if total_elapsed
+            else 0.0,
+        },
+        "repos": reports,
+    }
+    if profile:
+        payload["profile"] = _profile_payload()
+    return payload
+
+
+def _render_perf_markdown(payload: dict[str, Any]) -> str:
+    totals = payload["totals"]
+    lines = [
+        "# CodeAtlas Scale And Systems Report",
+        "",
+        "## Aggregate",
+        "",
+        "| Metric | Value |",
+        "|--------|-------|",
+        f"| Repos | {payload['repo_count']} |",
+        f"| Files | {totals['files']:,} |",
+        f"| Symbols | {totals['symbols']:,} |",
+        f"| Relationships | {totals['relationships']:,} |",
+        f"| LOC | {totals['loc']:,} |",
+        f"| Wall time | {totals['elapsed_seconds']:.3f}s |",
+        f"| Files/sec | {totals['files_per_sec']:,.1f} |",
+        f"| Symbols/sec | {totals['symbols_per_sec']:,.1f} |",
+        f"| Relationships/sec | {totals['relationships_per_sec']:,.1f} |",
+        "",
+        "## Repositories",
+        "",
+        "| Repo | Commit | Files | Symbols | Relationships | LOC | Time | Symbols/sec |",
+        "|------|--------|-------|---------|---------------|-----|------|-------------|",
+    ]
+    for report in payload["repos"]:
+        lines.append(
+            f"| `{report['repo_name']}` | `{str(report['repo_commit'])[:12]}` | "
+            f"{report['files']:,} | {report['symbols']:,} | {report['relationships']:,} | "
+            f"{report['loc']:,} | {report['elapsed_seconds']:.3f}s | "
+            f"{report['symbols_per_sec']:,.1f} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
 @cli.command("agent-eval")
 @click.option("--suite", required=True, type=click.Path(exists=True, dir_okay=False))
 @click.option("--repos", "repos_path", required=True, type=click.Path(exists=True, dir_okay=False))
@@ -667,9 +778,23 @@ def _render_bench_suite_markdown(payload: dict[str, Any]) -> str:
 )
 @click.option("--dry-run", is_flag=True, help="Validate and write planned artifacts only")
 @click.option(
+    "--agent-adapter",
+    type=click.Choice(["shell", "codex", "claude", "aider", "mock"]),
+    default="shell",
+    show_default=True,
+    help="Live-agent adapter. External adapters are only used when not in dry-run mode.",
+)
+@click.option(
     "--agent-command",
     default=None,
     help="Generic live-agent command. Receives CODEATLAS_* environment variables.",
+)
+@click.option(
+    "--sandbox",
+    type=click.Choice(["none", "docker"]),
+    default="none",
+    show_default=True,
+    help="Safety label for live runs. Docker execution is reserved for manual live-agent runs.",
 )
 @click.option(
     "--compare-baseline",
@@ -690,7 +815,9 @@ def agent_eval_cmd(
     out: str,
     context_mode: str,
     dry_run: bool,
+    agent_adapter: str,
     agent_command: str | None,
+    sandbox: str,
     compare_baseline: bool,
     cache_dir: str,
     as_json: bool,
@@ -698,7 +825,7 @@ def agent_eval_cmd(
     """Run deterministic or live A/B agent outcome evaluation."""
     from codeatlas.agent_eval import run_agent_eval
 
-    effective_dry_run = dry_run or agent_command is None
+    effective_dry_run = dry_run or (agent_adapter == "shell" and agent_command is None)
     try:
         payload = run_agent_eval(
             suite_path=suite,
@@ -707,6 +834,8 @@ def agent_eval_cmd(
             context_mode=context_mode,  # type: ignore[arg-type]
             dry_run=effective_dry_run,
             agent_command=agent_command,
+            agent_adapter=agent_adapter,  # type: ignore[arg-type]
+            sandbox=sandbox,  # type: ignore[arg-type]
             compare_baseline=compare_baseline,
             cache_dir=cache_dir,
         )
@@ -732,10 +861,17 @@ def _count_loc(files: list[Path]) -> int:
 
 
 @cli.command()
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option(
+    "--check",
+    default="all",
+    show_default=True,
+    help="Comma-separated checks: env,db,semantic,mcp,api,bench or all",
+)
 @click.option("--json", "as_json", is_flag=True, help="Emit results as JSON")
-def doctor(as_json: bool) -> None:
+def doctor(db: str, check: str, as_json: bool) -> None:
     """Diagnose install health: Python, SQLite/FTS5, parsers, and optional deps."""
-    checks = _run_doctor_checks()
+    checks = _run_doctor_checks(Path(db), check)
     if as_json:
         click.echo(
             _json.dumps(
@@ -759,54 +895,87 @@ def doctor(as_json: bool) -> None:
         raise click.exceptions.Exit(1)
 
 
-def _run_doctor_checks() -> list[tuple[str, str, str]]:
+def _run_doctor_checks(db_path: Path, selected: str = "all") -> list[tuple[str, str, str]]:
     import sqlite3
     import sys
 
     results: list[tuple[str, str, str]] = []
+    requested = {part.strip() for part in selected.split(",") if part.strip()}
+    if not requested or "all" in requested:
+        requested = {"env", "db", "semantic", "mcp", "api", "bench"}
 
-    py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-    py_status = "ok" if sys.version_info >= (3, 11) else "error"
-    py_detail = py_version if py_status == "ok" else f"{py_version} (need ≥3.11)"
-    results.append(("Python", py_status, py_detail))
+    if "env" in requested:
+        py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        py_status = "ok" if sys.version_info >= (3, 11) else "error"
+        py_detail = py_version if py_status == "ok" else f"{py_version} (need >=3.11)"
+        results.append(("Python", py_status, py_detail))
 
-    sqlite_version = sqlite3.sqlite_version
-    try:
-        conn = sqlite3.connect(":memory:")
-        conn.execute("CREATE VIRTUAL TABLE t USING fts5(x)")
-        conn.close()
-        results.append(("SQLite + FTS5", "ok", sqlite_version))
-    except sqlite3.OperationalError:
-        results.append(("SQLite + FTS5", "error", f"{sqlite_version} (FTS5 not compiled in)"))
+        sqlite_version = sqlite3.sqlite_version
+        try:
+            conn = sqlite3.connect(":memory:")
+            conn.execute("CREATE VIRTUAL TABLE t USING fts5(x)")
+            conn.close()
+            results.append(("SQLite + FTS5", "ok", sqlite_version))
+        except sqlite3.OperationalError:
+            results.append(("SQLite + FTS5", "error", f"{sqlite_version} (FTS5 not compiled in)"))
 
-    try:
-        from codeatlas.parsers import ParserRegistry
+        try:
+            from codeatlas.parsers import ParserRegistry
 
-        reg = ParserRegistry()
-        unique_parsers = {type(p).__name__ for p in reg._parsers.values()}
-        extensions = len(reg._parsers)
-        results.append(
-            (
-                "Tree-sitter parsers",
-                "ok",
-                f"{len(unique_parsers)} languages, {extensions} file extensions",
+            reg = ParserRegistry()
+            unique_parsers = {type(p).__name__ for p in reg._parsers.values()}
+            extensions = len(reg._parsers)
+            results.append(
+                (
+                    "Tree-sitter parsers",
+                    "ok",
+                    f"{len(unique_parsers)} languages, {extensions} file extensions",
+                )
             )
-        )
-    except Exception as exc:  # pragma: no cover - defensive
-        results.append(("Tree-sitter parsers", "error", str(exc)))
+        except Exception as exc:  # pragma: no cover - defensive
+            results.append(("Tree-sitter parsers", "error", str(exc)))
 
-    for mod, label in (
-        ("faiss", "FAISS (semantic search)"),
-        ("sentence_transformers", "sentence-transformers (embeddings)"),
-        ("watchdog", "watchdog (file watcher)"),
-        ("fastapi", "FastAPI (HTTP server)"),
-        ("uvicorn", "Uvicorn (ASGI server)"),
-    ):
+    if "db" in requested:
+        if db_path.exists():
+            try:
+                store = GraphStore(db_path)
+                stats = store.get_stats()
+                store.close()
+                results.append(
+                    (
+                        "Graph DB",
+                        "ok",
+                        f"{stats['files']} files, {stats['symbols']} symbols, {stats['relationships']} relationships",
+                    )
+                )
+            except Exception as exc:
+                results.append(("Graph DB", "error", str(exc)))
+        else:
+            results.append(("Graph DB", "warn", f"{db_path} does not exist; run codeatlas index"))
+
+    optional_modules = []
+    if "semantic" in requested:
+        optional_modules.extend(
+            [
+                ("faiss", "FAISS (semantic search)"),
+                ("sentence_transformers", "sentence-transformers"),
+            ]
+        )
+    if "env" in requested:
+        optional_modules.append(("watchdog", "watchdog (file watcher)"))
+    if "api" in requested:
+        optional_modules.extend([("fastapi", "FastAPI (HTTP server)"), ("uvicorn", "Uvicorn")])
+    if "mcp" in requested:
+        optional_modules.append(("mcp", "MCP server"))
+    if "bench" in requested:
+        optional_modules.append(("build", "Python package build"))
+
+    for mod, label in optional_modules:
         try:
             __import__(mod)
             results.append((label, "ok", "installed"))
         except ImportError:
-            results.append((label, "warn", f"optional — pip install {mod}"))
+            results.append((label, "warn", f"optional dependency missing: {mod}"))
 
     return results
 
@@ -1114,7 +1283,17 @@ def query(
 @click.option("--limit", default=10, show_default=True, help="Maximum ranked symbols")
 @click.option(
     "--mode",
-    type=click.Choice(["fts", "semantic", "hybrid", "pagerank"]),
+    type=click.Choice(
+        [
+            "fts",
+            "bm25",
+            "semantic",
+            "hybrid",
+            "pagerank",
+            "graph-neighborhood",
+            "oracle-ablation",
+        ]
+    ),
     default="pagerank",
     show_default=True,
     help="Retrieval/ranking mode",
@@ -1336,6 +1515,58 @@ def export(
         console.print(f"[green]Exported to {output}[/green]")
     else:
         console.print(result)
+
+
+@cli.command("data-lineage")
+@click.option("--repo", "repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json", "openlineage"]),
+    default="text",
+    show_default=True,
+)
+@click.option("-o", "--output", default=None, type=click.Path(), help="Write output to a file")
+def data_lineage(repo_path: str, output_format: str, output: str | None) -> None:
+    """Extract static dbt/Airflow/SQL lineage from a repository."""
+    from codeatlas.data_lineage import build_lineage_graph, export_openlineage, render_lineage_text
+
+    graph = build_lineage_graph(repo_path)
+    if output_format == "json":
+        rendered = _json.dumps(graph, indent=2)
+    elif output_format == "openlineage":
+        rendered = _json.dumps(export_openlineage(graph), indent=2)
+    else:
+        rendered = render_lineage_text(graph)
+    if output:
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        Path(output).write_text(rendered + "\n")
+        console.print(f"[green]Data lineage written to {output}[/green]")
+    else:
+        click.echo(rendered)
+
+
+@cli.command("lineage-impact")
+@click.argument("dataset_or_model")
+@click.option("--repo", "repo_path", default=".", type=click.Path(exists=True, file_okay=False))
+@click.option("--json", "as_json", is_flag=True, help="Output JSON")
+def lineage_impact_cmd(dataset_or_model: str, repo_path: str, as_json: bool) -> None:
+    """Show downstream data-pipeline impact for a dataset, model, DAG, or task."""
+    from codeatlas.data_lineage import build_lineage_graph, lineage_impact
+
+    result = lineage_impact(build_lineage_graph(repo_path), dataset_or_model)
+    if as_json:
+        click.echo(_json.dumps(result, indent=2))
+        return
+    table = Table(title="CodeAtlas lineage impact", title_style="bold cyan")
+    table.add_column("Field", style="dim")
+    table.add_column("Value")
+    table.add_row("Query", dataset_or_model)
+    table.add_row("Matched", ", ".join(result["matched"]) or "none")
+    table.add_row("Downstream", str(result["downstream_count"]))
+    console.print(table)
+    for item in result["downstream"]:
+        console.print(f"  - {item}")
 
 
 @cli.command()

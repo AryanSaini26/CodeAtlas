@@ -33,6 +33,11 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 
 CodeAtlas ships with a reproducible AI-infra benchmark instead of only a feature list:
 
+- Flagship proof report: `benchmarks/flagship-report.md` ties together retrieval quality, deterministic agent-outcome A/B, scale/perf, and data-lineage proof.
+- Retrieval V2 report: 30 deterministic local tasks, context-pack best mode, 1.000 recall@k and 1.000 MRR, plus precision@k, nDCG@k, useful context density, edit-localization recall, and failure classes.
+- Agent outcome report: `benchmarks/agent-live/report.md` runs a clearly labeled `mock_agent` A/B benchmark where the CodeAtlas-context variant passes verification and the prompt-only baseline fails.
+- Scale report: `benchmarks/perf/report.md` indexes 3 local repos/fixtures with 481 files, 11,077 symbols, 33,036 relationships, and ~4,856 symbols/sec on the committed local run.
+- Data lineage report: `benchmarks/data-lineage/report.md` extracts dbt + Airflow + SQL lineage and exports OpenLineage-shaped JSON.
 - Latest committed local smoke report: 154 files, 3,371 symbols, 10,837 relationships, 1.000 symbol recall@k, 0.978 MRR, ~27% context savings, and ~978 symbols/sec on an Apple Silicon dev machine.
 - Latest committed OSS suite report: 3 pinned repos, 314 files, 7,581 symbols, 21,443 relationships, 0.778 file recall@k, 0.476 multi-symbol recall@k, 0.578 MRR, and ~60% context savings.
 - The committed OSS run intentionally labels semantic/hybrid as fallback; publish semantic comparisons with `--build-semantic --require-semantic` so fallback numbers cannot be mistaken for vector-search results.
@@ -40,16 +45,22 @@ CodeAtlas ships with a reproducible AI-infra benchmark instead of only a feature
 - `benchmarks/eval-suite.json` contains 30 golden retrieval tasks across symbol lookup, impact analysis, dependency tracing, architecture questions, context-pack retrieval, and SQL lineage.
 - `benchmarks/oss-eval-suite.json` adds 45 deterministic real-repo tasks across pinned `requests`, `click`, and `rich` commits in `benchmarks/repos.lock.yml`.
 - `benchmarks/agent-suite.json` defines optional live-agent A/B tasks that compare prompt-only baseline runs against CodeAtlas context-pack runs; CI uses `--dry-run` so no paid LLM or network clone is required.
-- `codeatlas eval --compare` compares FTS, semantic, hybrid, PageRank-boosted, and context-pack ranking paths with symbol recall@k, file recall@k, MRR, latency, misses, and token-savings metrics.
-- `codeatlas agent-eval --dry-run` writes deterministic `results.json`, `report.md`, and `failures.json`; adding `--agent-command "<cmd>" --compare-baseline` runs a live generic-agent A/B benchmark.
+- `codeatlas eval --compare` compares FTS/BM25, semantic, hybrid, PageRank, graph-neighborhood, and context-pack ranking paths with recall, precision, nDCG, MRR, latency, misses, and token-savings metrics.
+- `codeatlas agent-eval --dry-run` writes deterministic `results.json`, `report.md`, and `failures.json`; adding `--agent-adapter shell|codex|claude|aider|mock` plus live options runs an explicitly labeled A/B benchmark.
+- `codeatlas perf-report`, `codeatlas data-lineage`, and `codeatlas doctor --check ...` add production-style scale, lineage, and environment proof.
 - `codeatlas context <query> --mode fts|semantic|hybrid|pagerank --build-semantic --budget 2000 --json` returns agent-ready context packs with definitions, callers, callees, file summaries, confidence labels, and budget trimming.
 - `docs/ai-infra-case-study.md` explains architecture, tradeoffs, bottlenecks, failure modes, and how the benchmark changed implementation choices.
+- `docs/startup-roadmap.md` frames the commercial wedge as agent infrastructure: persistent team context, evals, security, and observability for any coding agent.
 
 ```bash
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output benchmarks/results.json
 codeatlas bench-suite --repos benchmarks/repos.lock.yml --suite benchmarks/oss-eval-suite.json --out benchmarks/oss --build-semantic --require-semantic
 codeatlas agent-eval --suite benchmarks/agent-suite.json --repos benchmarks/repos.lock.yml --out benchmarks/agent --dry-run
+codeatlas eval --suite benchmarks/eval-suite.json --db .codeatlas/graph.db --out benchmarks/retrieval-v2 --compare
+codeatlas perf-report --repos benchmarks/local-repos.json --out benchmarks/perf --profile
+codeatlas agent-eval --suite benchmarks/local-agent-suite.json --repos benchmarks/local-repos.json --out benchmarks/agent-live --agent-adapter mock --compare-baseline
+codeatlas data-lineage --repo examples/data-pipeline --format openlineage -o benchmarks/data-lineage/openlineage.json
 ```
 
 ## Features
@@ -292,7 +303,12 @@ switches between community-coloring and kind-coloring.
 | `codeatlas report [path]` | Generate a full health report (cycles, dead code, hotspots, gaps) |
 | `codeatlas report [path] --json` | Output health report as JSON |
 | `codeatlas agent-eval --suite S --repos R --out D --dry-run` | Validate agent outcome tasks and write deterministic artifacts |
-| `codeatlas agent-eval --suite S --repos R --out D --agent-command "<cmd>" --compare-baseline` | Run prompt-only vs CodeAtlas-context live-agent A/B evaluation |
+| `codeatlas agent-eval --suite S --repos R --out D --agent-adapter mock --compare-baseline` | Run deterministic mock-agent A/B evaluation |
+| `codeatlas agent-eval --suite S --repos R --out D --agent-adapter shell --agent-command "<cmd>" --compare-baseline` | Run prompt-only vs CodeAtlas-context live-agent A/B evaluation |
+| `codeatlas perf-report --repos R --out D --profile` | Generate a scale/systems performance report |
+| `codeatlas doctor --db DB --check semantic,mcp,api,bench` | Validate environment, graph DB, and optional infra |
+| `codeatlas data-lineage --repo PATH --format openlineage` | Extract dbt/Airflow/SQL lineage and export OpenLineage-shaped JSON |
+| `codeatlas lineage-impact <dataset-or-model>` | Trace downstream data-pipeline impact |
 | `codeatlas pre-commit` | Add a CodeAtlas incremental-index hook to `.pre-commit-config.yaml` |
 | `codeatlas impact [path]` | Analyze impact of current git changes on the graph |
 | `codeatlas export` | Export graph in DOT or JSON format |

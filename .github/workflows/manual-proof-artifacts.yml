@@ -1,0 +1,47 @@
+name: Manual Proof Artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  proof-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -e ".[mcp,api,webhook,dev]" faiss-cpu
+
+      - name: Build local graph
+        run: codeatlas index . --db .codeatlas/graph.db
+
+      - name: Retrieval V2 report
+        run: codeatlas eval --suite benchmarks/eval-suite.json --db .codeatlas/graph.db --out benchmarks/retrieval-v2 --compare
+
+      - name: Scale/perf report
+        run: codeatlas perf-report --repos benchmarks/local-repos.json --out benchmarks/perf --profile
+
+      - name: Mock agent outcome report
+        run: codeatlas agent-eval --suite benchmarks/local-agent-suite.json --repos benchmarks/local-repos.json --out benchmarks/agent-live --agent-adapter mock --compare-baseline
+
+      - name: Data-lineage reports
+        run: |
+          codeatlas data-lineage --repo examples/data-pipeline --format text -o benchmarks/data-lineage/report.md
+          codeatlas data-lineage --repo examples/data-pipeline --format json -o benchmarks/data-lineage/results.json
+          codeatlas data-lineage --repo examples/data-pipeline --format openlineage -o benchmarks/data-lineage/openlineage.json
+
+      - name: Upload proof artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeatlas-proof-artifacts
+          path: |
+            benchmarks/retrieval-v2
+            benchmarks/perf
+            benchmarks/agent-live
+            benchmarks/data-lineage
+            benchmarks/flagship-report.md
+            benchmarks/flagship-report.json

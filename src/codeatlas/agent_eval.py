@@ -29,6 +29,8 @@ AGENT_TASK_TYPES = frozenset(
     {"bug_fix", "test_update", "impact_analysis", "architecture_question", "context_retrieval"}
 )
 AgentVariant = Literal["baseline", "codeatlas_context"]
+AgentAdapter = Literal["shell", "codex", "claude", "aider", "mock"]
+AgentSandbox = Literal["none", "docker"]
 
 
 def load_agent_suite(path: str | Path) -> list[dict[str, Any]]:
@@ -47,8 +49,12 @@ def load_agent_suite(path: str | Path) -> list[dict[str, Any]]:
         task_type = str(task.get("task_type", "")).strip()
         prompt = str(task.get("prompt", "")).strip()
         verify_command = str(task.get("verify_command", "")).strip()
+        setup_command = str(task.get("setup_command", "")).strip()
         expected_symbols = task.get("expected_symbols", [])
         expected_files = task.get("expected_files", [])
+        expected_tests = task.get("expected_tests", [])
+        expected_patch = task.get("expected_patch", [])
+        tags = task.get("tags", [])
         if not task_id:
             raise ValueError(f"task {idx} is missing id")
         if not repo:
@@ -63,6 +69,12 @@ def load_agent_suite(path: str | Path) -> list[dict[str, Any]]:
             raise ValueError(f"task {task_id} expected_symbols must be a list")
         if not isinstance(expected_files, list):
             raise ValueError(f"task {task_id} expected_files must be a list")
+        if not isinstance(expected_tests, list):
+            raise ValueError(f"task {task_id} expected_tests must be a list")
+        if not isinstance(expected_patch, list):
+            raise ValueError(f"task {task_id} expected_patch must be a list")
+        if not isinstance(tags, list):
+            raise ValueError(f"task {task_id} tags must be a list")
         if not expected_symbols and not expected_files:
             raise ValueError(f"task {task_id} must include expected_symbols or expected_files")
         normalized.append(
@@ -73,9 +85,14 @@ def load_agent_suite(path: str | Path) -> list[dict[str, Any]]:
                 "prompt": prompt,
                 "expected_symbols": [str(item) for item in expected_symbols],
                 "expected_files": [str(item) for item in expected_files],
+                "expected_tests": [str(item) for item in expected_tests],
+                "expected_patch": [str(item) for item in expected_patch],
+                "setup_command": setup_command or None,
                 "verify_command": verify_command,
                 "timeout_seconds": int(task.get("timeout_seconds", 120)),
                 "budget": int(task.get("budget", 2000)),
+                "difficulty": str(task.get("difficulty", "unknown")),
+                "tags": [str(item) for item in tags],
                 "notes": task.get("notes"),
             }
         )
@@ -129,8 +146,11 @@ def run_shell_command(
     cwd: Path,
     env: dict[str, str],
     timeout_seconds: int,
+    sandbox: AgentSandbox = "none",
 ) -> dict[str, Any]:
     """Run a shell command with captured output and timeout metadata."""
+    if sandbox == "docker":
+        return _run_docker_command(command, cwd=cwd, env=env, timeout_seconds=timeout_seconds)
     started = time.monotonic()
     try:
         completed = subprocess.run(
@@ -164,6 +184,94 @@ def run_shell_command(
         }
 
 
+def _run_docker_command(
+    command: str,
+    *,
+    cwd: Path,
+    env: dict[str, str],
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    """Run a command in a minimal Docker sandbox with CodeAtlas env allowlisting."""
+    started = time.monotonic()
+    output_dir = Path(env.get("CODEATLAS_OUTPUT_DIR", cwd)).resolve()
+    context_path = env.get("CODEATLAS_CONTEXT_PATH", "")
+    docker_env = {key: value for key, value in env.items() if key.startswith("CODEATLAS_")}
+    docker_env["CODEATLAS_REPO_DIR"] = "/repo"
+    docker_env["CODEATLAS_OUTPUT_DIR"] = "/out"
+    if context_path:
+        docker_env["CODEATLAS_CONTEXT_PATH"] = f"/out/{Path(context_path).name}"
+    image = env.get("CODEATLAS_DOCKER_IMAGE", "python:3.13-slim")
+    args = [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "-v",
+        f"{cwd.resolve()}:/repo",
+        "-v",
+        f"{output_dir}:/out",
+        "-w",
+        "/repo",
+    ]
+    for key, value in sorted(docker_env.items()):
+        args.extend(["-e", f"{key}={value}"])
+    args.extend([image, "sh", "-lc", command])
+    try:
+        completed = subprocess.run(
+            args,
+            text=True,
+            capture_output=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+        elapsed = time.monotonic() - started
+        return {
+            "command": command,
+            "sandbox_command": "docker run ...",
+            "returncode": completed.returncode,
+            "timed_out": False,
+            "runtime_seconds": round(elapsed, 3),
+            "stdout": completed.stdout[-4000:],
+            "stderr": completed.stderr[-4000:],
+        }
+    except subprocess.TimeoutExpired as exc:
+        elapsed = time.monotonic() - started
+        return {
+            "command": command,
+            "sandbox_command": "docker run ...",
+            "returncode": None,
+            "timed_out": True,
+            "runtime_seconds": round(elapsed, 3),
+            "stdout": (exc.stdout or "")[-4000:] if isinstance(exc.stdout, str) else "",
+            "stderr": (exc.stderr or "")[-4000:] if isinstance(exc.stderr, str) else "",
+        }
+
+
+def resolve_agent_command(adapter: AgentAdapter, agent_command: str | None) -> str:
+    """Resolve a live-agent adapter into a shell command.
+
+    External agent adapters are intentionally opt-in: callers must choose the
+    adapter, and non-mock adapters may still override the command explicitly.
+    """
+    if agent_command:
+        return agent_command
+    if adapter == "mock":
+        return (
+            "python3 -c "
+            '"import os; from pathlib import Path; '
+            "p=os.environ.get('CODEATLAS_CONTEXT_PATH'); "
+            "Path('codeatlas_mock_solved.txt').write_text('context') if p else None\""
+        )
+    if adapter == "codex":
+        return 'codex exec "$CODEATLAS_TASK_PROMPT"'
+    if adapter == "claude":
+        return 'claude -p "$CODEATLAS_TASK_PROMPT"'
+    if adapter == "aider":
+        return 'aider --yes --message "$CODEATLAS_TASK_PROMPT"'
+    raise ValueError("--agent-command is required when --agent-adapter shell is used")
+
+
 def run_agent_eval(
     *,
     suite_path: str | Path,
@@ -172,6 +280,8 @@ def run_agent_eval(
     context_mode: ContextMode = "pagerank",
     dry_run: bool = True,
     agent_command: str | None = None,
+    agent_adapter: AgentAdapter = "shell",
+    sandbox: AgentSandbox = "none",
     compare_baseline: bool = False,
     cache_dir: str | Path = ".codeatlas/bench-repos",
 ) -> dict[str, Any]:
@@ -187,7 +297,9 @@ def run_agent_eval(
     output_root = Path(out_dir)
     output_root.mkdir(parents=True, exist_ok=True)
 
-    if dry_run or not agent_command:
+    resolved_command = None if dry_run else resolve_agent_command(agent_adapter, agent_command)
+
+    if dry_run or not resolved_command:
         payload = _dry_run_payload(
             suite_path=suite_path,
             repos_path=repos_path,
@@ -196,6 +308,8 @@ def run_agent_eval(
             context_mode=context_mode,
             compare_baseline=compare_baseline,
             agent_command=agent_command,
+            agent_adapter=agent_adapter,
+            sandbox=sandbox,
         )
     else:
         payload = _live_payload(
@@ -203,7 +317,9 @@ def run_agent_eval(
             repo_by_name=repo_by_name,
             output_root=output_root,
             context_mode=context_mode,
-            agent_command=agent_command,
+            agent_command=resolved_command,
+            agent_adapter=agent_adapter,
+            sandbox=sandbox,
             compare_baseline=compare_baseline,
             cache_dir=Path(cache_dir),
             suite_path=suite_path,
@@ -230,6 +346,8 @@ def render_agent_eval_markdown(payload: dict[str, Any]) -> str:
         f"| Mode | {'dry-run' if payload['dry_run'] else 'live'} |",
         f"| Tasks | {payload['task_count']} |",
         f"| Context mode | `{payload['context_mode']}` |",
+        f"| Agent adapter | `{payload.get('agent_adapter', 'shell')}` |",
+        f"| Safety label | `{payload.get('safety_label', 'dry_run')}` |",
         f"| Live variants | {metrics['live_variant_count']} |",
         f"| Solve rate | {_fmt_optional_pct(metrics['solve_rate'])} |",
         f"| Verification pass rate | {_fmt_optional_pct(metrics['verification_pass_rate'])} |",
@@ -253,8 +371,8 @@ def render_agent_eval_markdown(payload: dict[str, Any]) -> str:
         [
             "## Tasks",
             "",
-            "| Task | Repo | Type | Expected symbols | Expected files | Variants |",
-            "|------|------|------|------------------|----------------|----------|",
+            "| Task | Repo | Type | Difficulty | Expected symbols | Expected files | Variants |",
+            "|------|------|------|------------|------------------|----------------|----------|",
         ]
     )
     for task in payload["tasks"]:
@@ -265,7 +383,8 @@ def render_agent_eval_markdown(payload: dict[str, Any]) -> str:
         expected_files = ", ".join(f"`{f}`" for f in task["expected_files"]) or "_none_"
         lines.append(
             f"| `{task['id']}` | `{task['repo']}` | `{task['task_type']}` | "
-            f"{expected_symbols} | {expected_files} | {variants or '_none_'} |"
+            f"`{task.get('difficulty', 'unknown')}` | {expected_symbols} | {expected_files} | "
+            f"{variants or '_none_'} |"
         )
     failures = _collect_failures(payload)
     lines.extend(["", "## Failure Analysis", ""])
@@ -352,6 +471,8 @@ def _dry_run_payload(
     context_mode: ContextMode,
     compare_baseline: bool,
     agent_command: str | None,
+    agent_adapter: AgentAdapter,
+    sandbox: AgentSandbox,
 ) -> dict[str, Any]:
     variants: list[AgentVariant] = (
         ["baseline", "codeatlas_context"] if compare_baseline else ["codeatlas_context"]
@@ -369,6 +490,11 @@ def _dry_run_payload(
                     "runtime_seconds": 0.0,
                     "context_tokens": 0,
                     "context_savings": 0.0,
+                    "prompt_tokens": estimate_prompt_tokens(task["prompt"]),
+                    "total_tokens": estimate_prompt_tokens(task["prompt"]),
+                    "estimated_cost_usd": 0.0,
+                    "changed_files": [],
+                    "expected_patch_recall": 0.0,
                     "failure_reason": None,
                 }
                 for variant in variants
@@ -381,7 +507,10 @@ def _dry_run_payload(
         "repos_file": str(repos_path),
         "repos": [_repo_public_fields(repo) for repo in repos],
         "dry_run": True,
+        "safety_label": "dry_run",
         "agent_command_provided": bool(agent_command),
+        "agent_adapter": agent_adapter,
+        "sandbox": sandbox,
         "compare_baseline": compare_baseline,
         "context_mode": context_mode,
         "task_count": len(task_results),
@@ -397,6 +526,8 @@ def _live_payload(
     output_root: Path,
     context_mode: ContextMode,
     agent_command: str,
+    agent_adapter: AgentAdapter,
+    sandbox: AgentSandbox,
     compare_baseline: bool,
     cache_dir: Path,
     suite_path: str | Path,
@@ -411,7 +542,7 @@ def _live_payload(
             variants: list[AgentVariant] = (
                 ["baseline", "codeatlas_context"] if compare_baseline else ["codeatlas_context"]
             )
-            variant_results = []
+            variant_results: list[dict[str, Any]] = []
             retrieval_symbol_recall = 0.0
             retrieval_file_recall = 0.0
             for variant in variants:
@@ -419,6 +550,43 @@ def _live_payload(
                 output_dir = output_root / "runs" / task["id"] / variant
                 output_dir.mkdir(parents=True, exist_ok=True)
                 _copy_repo(source_repo, variant_root)
+                trace_path = output_dir / "trace.jsonl"
+                trace_path.unlink(missing_ok=True)
+                _write_trace(
+                    trace_path,
+                    "variant_start",
+                    {"task_id": task["id"], "variant": variant, "sandbox": sandbox},
+                )
+                if task["setup_command"]:
+                    setup_result = run_shell_command(
+                        task["setup_command"],
+                        cwd=variant_root,
+                        env=os.environ.copy(),
+                        timeout_seconds=task["timeout_seconds"],
+                        sandbox=sandbox,
+                    )
+                    _write_trace(trace_path, "setup", setup_result)
+                    if setup_result["returncode"] not in (0, None) or setup_result["timed_out"]:
+                        variant_results.append(
+                            {
+                                "variant": variant,
+                                "status": "completed",
+                                "verification_passed": False,
+                                "runtime_seconds": float(setup_result["runtime_seconds"]),
+                                "context_tokens": 0,
+                                "context_savings": 0.0,
+                                "prompt_tokens": estimate_prompt_tokens(task["prompt"]),
+                                "total_tokens": estimate_prompt_tokens(task["prompt"]),
+                                "estimated_cost_usd": 0.0,
+                                "changed_files": [],
+                                "expected_patch_recall": 0.0,
+                                "trace_path": str(trace_path),
+                                "failure_reason": "setup command failed",
+                                "setup": setup_result,
+                            }
+                        )
+                        continue
+                before_hashes = _snapshot_files(variant_root)
                 context_path: Path | None = None
                 context_tokens = 0
                 context_savings = 0.0
@@ -439,6 +607,16 @@ def _live_payload(
                     hit_files = list(dict.fromkeys(hit_files))
                     retrieval_symbol_recall = _recall_symbols(hits, task["expected_symbols"])
                     retrieval_file_recall = _recall_files(hit_files, task["expected_files"])
+                    _write_trace(
+                        trace_path,
+                        "context_pack",
+                        {
+                            "context_tokens": context_tokens,
+                            "context_savings": context_savings,
+                            "symbol_recall": retrieval_symbol_recall,
+                            "file_recall": retrieval_file_recall,
+                        },
+                    )
 
                 env = build_agent_env(
                     task_prompt=task["prompt"],
@@ -452,15 +630,22 @@ def _live_payload(
                     cwd=variant_root,
                     env=env,
                     timeout_seconds=task["timeout_seconds"],
+                    sandbox=sandbox,
                 )
+                _write_trace(trace_path, "agent", agent_result)
                 verify_result = run_shell_command(
                     task["verify_command"],
                     cwd=variant_root,
                     env=env,
                     timeout_seconds=task["timeout_seconds"],
+                    sandbox=sandbox,
                 )
+                _write_trace(trace_path, "verify", verify_result)
+                changed_files = _changed_files(before_hashes, _snapshot_files(variant_root))
+                patch_recall = _recall_files(changed_files, task["expected_patch"])
                 passed = verify_result["returncode"] == 0 and not verify_result["timed_out"]
                 failure_reason = _variant_failure_reason(agent_result, verify_result, passed)
+                prompt_tokens = estimate_prompt_tokens(task["prompt"])
                 variant_results.append(
                     {
                         "variant": variant,
@@ -473,6 +658,12 @@ def _live_payload(
                         ),
                         "context_tokens": context_tokens,
                         "context_savings": context_savings,
+                        "prompt_tokens": prompt_tokens,
+                        "total_tokens": prompt_tokens + context_tokens,
+                        "estimated_cost_usd": 0.0,
+                        "changed_files": changed_files,
+                        "expected_patch_recall": round(patch_recall, 6),
+                        "trace_path": str(trace_path),
                         "failure_reason": failure_reason,
                         "agent": agent_result,
                         "verify": verify_result,
@@ -492,7 +683,12 @@ def _live_payload(
         "repos_file": str(repos_path),
         "repos": [_repo_public_fields(repo) for repo in repo_by_name.values()],
         "dry_run": False,
+        "safety_label": "mock_agent"
+        if agent_adapter == "mock"
+        else ("live_agent_sandboxed" if sandbox == "docker" else "live_agent_unsandboxed"),
         "agent_command_provided": True,
+        "agent_adapter": agent_adapter,
+        "sandbox": sandbox,
         "compare_baseline": compare_baseline,
         "context_mode": context_mode,
         "task_count": len(task_results),
@@ -564,11 +760,52 @@ def _task_public_fields(task: dict[str, Any]) -> dict[str, Any]:
         "prompt": task["prompt"],
         "expected_symbols": task["expected_symbols"],
         "expected_files": task["expected_files"],
+        "expected_tests": task["expected_tests"],
+        "expected_patch": task["expected_patch"],
+        "setup_command": task["setup_command"],
         "verify_command": task["verify_command"],
         "timeout_seconds": task["timeout_seconds"],
         "budget": task["budget"],
+        "difficulty": task["difficulty"],
+        "tags": task["tags"],
         "notes": task["notes"],
     }
+
+
+def estimate_prompt_tokens(text: str) -> int:
+    return max(1, (len(text) + 3) // 4)
+
+
+def _snapshot_files(root: Path) -> dict[str, tuple[int, int]]:
+    snapshot: dict[str, tuple[int, int]] = {}
+    for path in root.rglob("*"):
+        if not path.is_file() or ".git" in path.parts or ".codeatlas" in path.parts:
+            continue
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        snapshot[str(path.relative_to(root))] = (stat.st_size, stat.st_mtime_ns)
+    return snapshot
+
+
+def _changed_files(
+    before: dict[str, tuple[int, int]], after: dict[str, tuple[int, int]]
+) -> list[str]:
+    changed = []
+    for path, value in sorted(after.items()):
+        if before.get(path) != value:
+            changed.append(path)
+    for path in sorted(set(before) - set(after)):
+        changed.append(path)
+    return changed
+
+
+def _write_trace(path: Path, event: str, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    row = {"ts": time.time(), "event": event, **payload}
+    with path.open("a") as fh:
+        fh.write(json.dumps(row, sort_keys=True) + "\n")
 
 
 def _repo_public_fields(repo: dict[str, Any]) -> dict[str, Any]:

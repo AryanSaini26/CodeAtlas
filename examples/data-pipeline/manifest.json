@@ -1,0 +1,42 @@
+{
+  "nodes": {
+    "model.shop.orders": {
+      "name": "orders",
+      "resource_type": "model",
+      "original_file_path": "models/orders.sql",
+      "depends_on": {
+        "nodes": ["source.shop.raw_orders"]
+      }
+    },
+    "model.shop.customer_ltv": {
+      "name": "customer_ltv",
+      "resource_type": "model",
+      "original_file_path": "models/customer_ltv.sql",
+      "depends_on": {
+        "nodes": ["model.shop.orders", "source.shop.raw_customers"]
+      }
+    }
+  },
+  "sources": {
+    "source.shop.raw_orders": {
+      "name": "raw_orders",
+      "resource_type": "source"
+    },
+    "source.shop.raw_customers": {
+      "name": "raw_customers",
+      "resource_type": "source"
+    }
+  },
+  "exposures": {
+    "exposure.shop.exec_dashboard": {
+      "name": "exec_dashboard",
+      "resource_type": "exposure",
+      "depends_on": {
+        "nodes": ["model.shop.customer_ltv"]
+      },
+      "owner": {
+        "name": "analytics"
+      }
+    }
+  }
+}

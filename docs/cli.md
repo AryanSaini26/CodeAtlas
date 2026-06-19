@@ -18,8 +18,9 @@ Every CodeAtlas CLI subcommand. Run `codeatlas <cmd> --help` for option details.
 | `codeatlas index [PATH] [--workers N] [--watch]` | Parse + ingest into graph |
 | `codeatlas bench [PATH] [--workers N] [--json] [--eval-suite SUITE] [--build-semantic]` | Benchmark indexing throughput and optional eval quality |
 | `codeatlas bench-suite --repos REPOS --suite SUITE --out DIR` | Run pinned multi-repo benchmark/eval suite |
-| `codeatlas agent-eval --suite SUITE --repos REPOS --out DIR [--dry-run]` | Validate or run agent outcome A/B tasks |
-| `codeatlas doctor [--json]` | Diagnose install: Python, SQLite/FTS5, parsers, optional deps |
+| `codeatlas agent-eval --suite SUITE --repos REPOS --out DIR [--agent-adapter shell\|codex\|claude\|aider\|mock]` | Validate or run labeled agent outcome A/B tasks |
+| `codeatlas perf-report --repos REPOS --out DIR [--profile]` | Generate a recruiter-facing scale/performance report |
+| `codeatlas doctor [--db DB] [--check env,db,semantic,mcp,api,bench] [--json]` | Diagnose install, DB, semantic, API, MCP, and benchmark health |
 | `codeatlas list-files` | Enumerate files that would be indexed |
 
 ## Querying
@@ -29,6 +30,8 @@ Every CodeAtlas CLI subcommand. Run `codeatlas <cmd> --help` for option details.
 | `codeatlas query <text> [--kind K] [--file F] [--semantic] [--hybrid]` | Search symbols (FTS / semantic / hybrid) |
 | `codeatlas context <text> [--mode MODE] [--budget N] [--json]` | Build a token-budgeted context pack |
 | `codeatlas eval --suite SUITE [--compare] [--build-semantic]` | Run deterministic retrieval/context evals |
+| `codeatlas data-lineage --repo PATH [--format text\|json\|openlineage]` | Extract static dbt/Airflow/SQL lineage |
+| `codeatlas lineage-impact <dataset-or-model> [--repo PATH]` | Show downstream data-lineage impact |
 | `codeatlas show <symbol>` | Print full details for a symbol |
 | `codeatlas find-path <src> <dst>` | Shortest path between two symbols |
 | `codeatlas find-usages <symbol>` | Incoming edges (callers, importers) |

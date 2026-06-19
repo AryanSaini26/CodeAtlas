@@ -1,0 +1,4 @@
+{"event": "variant_start", "sandbox": "none", "task_id": "local-greet-context", "ts": 1781829817.8980448, "variant": "codeatlas_context"}
+{"context_savings": 0.0, "context_tokens": 212, "event": "context_pack", "file_recall": 1.0, "symbol_recall": 1.0, "ts": 1781829817.909121}
+{"command": "python3 -c \"import os; from pathlib import Path; p=os.environ.get('CODEATLAS_CONTEXT_PATH'); Path('codeatlas_mock_solved.txt').write_text('context') if p else None\"", "event": "agent", "returncode": 0, "runtime_seconds": 0.03, "stderr": "", "stdout": "", "timed_out": false, "ts": 1781829817.938983}
+{"command": "python3 -c \"from pathlib import Path; assert Path('codeatlas_mock_solved.txt').exists()\"", "event": "verify", "returncode": 0, "runtime_seconds": 0.028, "stderr": "", "stdout": "", "timed_out": false, "ts": 1781829817.967249}

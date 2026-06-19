@@ -1,0 +1,141 @@
+{
+  "suite": "benchmarks/local-agent-suite.json",
+  "repos_file": "benchmarks/local-repos.json",
+  "repos": [
+    {
+      "name": "agent-fixture",
+      "url": null,
+      "path": "examples/agent-fixture",
+      "commit": null
+    },
+    {
+      "name": "data-pipeline",
+      "url": null,
+      "path": "examples/data-pipeline",
+      "commit": null
+    },
+    {
+      "name": "codeatlas",
+      "url": null,
+      "path": ".",
+      "commit": null
+    }
+  ],
+  "dry_run": false,
+  "safety_label": "mock_agent",
+  "agent_command_provided": true,
+  "agent_adapter": "mock",
+  "sandbox": "none",
+  "compare_baseline": true,
+  "context_mode": "pagerank",
+  "task_count": 1,
+  "metrics": {
+    "solve_rate": 1.0,
+    "verification_pass_rate": 0.5,
+    "avg_runtime_seconds": 0.0895,
+    "context_tokens": 212.0,
+    "context_savings": 0.0,
+    "retrieval_symbol_recall": 1.0,
+    "retrieval_file_recall": 1.0,
+    "baseline_vs_context_delta": 1.0,
+    "baseline_solve_rate": 0.0,
+    "context_solve_rate": 1.0,
+    "live_variant_count": 2
+  },
+  "tasks": [
+    {
+      "id": "local-greet-context",
+      "repo": "agent-fixture",
+      "task_type": "bug_fix",
+      "prompt": "greet",
+      "expected_symbols": [
+        "greet"
+      ],
+      "expected_files": [
+        "main.py"
+      ],
+      "expected_tests": [],
+      "expected_patch": [
+        "codeatlas_mock_solved.txt"
+      ],
+      "setup_command": null,
+      "verify_command": "python3 -c \"from pathlib import Path; assert Path('codeatlas_mock_solved.txt').exists()\"",
+      "timeout_seconds": 30,
+      "budget": 512,
+      "difficulty": "smoke",
+      "tags": [
+        "mock-agent",
+        "context-pack"
+      ],
+      "notes": null,
+      "retrieval_symbol_recall": 1.0,
+      "retrieval_file_recall": 1.0,
+      "variants": [
+        {
+          "variant": "baseline",
+          "status": "completed",
+          "verification_passed": false,
+          "runtime_seconds": 0.121,
+          "context_tokens": 0,
+          "context_savings": 0.0,
+          "prompt_tokens": 2,
+          "total_tokens": 2,
+          "estimated_cost_usd": 0.0,
+          "changed_files": [],
+          "expected_patch_recall": 0.0,
+          "trace_path": "benchmarks/agent-live/runs/local-greet-context/baseline/trace.jsonl",
+          "failure_reason": "verify command exited 1",
+          "agent": {
+            "command": "python3 -c \"import os; from pathlib import Path; p=os.environ.get('CODEATLAS_CONTEXT_PATH'); Path('codeatlas_mock_solved.txt').write_text('context') if p else None\"",
+            "returncode": 0,
+            "timed_out": false,
+            "runtime_seconds": 0.07,
+            "stdout": "",
+            "stderr": ""
+          },
+          "verify": {
+            "command": "python3 -c \"from pathlib import Path; assert Path('codeatlas_mock_solved.txt').exists()\"",
+            "returncode": 1,
+            "timed_out": false,
+            "runtime_seconds": 0.051,
+            "stdout": "",
+            "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    from pathlib import Path; assert Path('codeatlas_mock_solved.txt').exists()\n                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\nAssertionError\n"
+          }
+        },
+        {
+          "variant": "codeatlas_context",
+          "status": "completed",
+          "verification_passed": true,
+          "runtime_seconds": 0.058,
+          "context_tokens": 212,
+          "context_savings": 0.0,
+          "prompt_tokens": 2,
+          "total_tokens": 214,
+          "estimated_cost_usd": 0.0,
+          "changed_files": [
+            "codeatlas_mock_solved.txt"
+          ],
+          "expected_patch_recall": 1.0,
+          "trace_path": "benchmarks/agent-live/runs/local-greet-context/codeatlas_context/trace.jsonl",
+          "failure_reason": null,
+          "agent": {
+            "command": "python3 -c \"import os; from pathlib import Path; p=os.environ.get('CODEATLAS_CONTEXT_PATH'); Path('codeatlas_mock_solved.txt').write_text('context') if p else None\"",
+            "returncode": 0,
+            "timed_out": false,
+            "runtime_seconds": 0.03,
+            "stdout": "",
+            "stderr": ""
+          },
+          "verify": {
+            "command": "python3 -c \"from pathlib import Path; assert Path('codeatlas_mock_solved.txt').exists()\"",
+            "returncode": 0,
+            "timed_out": false,
+            "runtime_seconds": 0.028,
+            "stdout": "",
+            "stderr": ""
+          }
+        }
+      ]
+    }
+  ]
+}

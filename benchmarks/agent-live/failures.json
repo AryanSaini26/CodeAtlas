@@ -1,0 +1,8 @@
+[
+  {
+    "task_id": "local-greet-context",
+    "repo": "agent-fixture",
+    "variant": "baseline",
+    "reason": "verify command exited 1"
+  }
+]

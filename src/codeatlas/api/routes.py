@@ -347,4 +347,22 @@ def build_router(
             )
         return cast(dict[str, Any], json.loads(path.read_text()))
 
+    @router.get("/reports/{report_name}")
+    async def generated_report(report_name: str) -> dict[str, Any]:
+        allowed = {
+            "agent": Path("benchmarks/agent/results.json"),
+            "agent-live": Path("benchmarks/agent-live/results.json"),
+            "perf": Path("benchmarks/perf/results.json"),
+            "retrieval-v2": Path("benchmarks/retrieval-v2/report.json"),
+            "flagship": Path("benchmarks/flagship-report.json"),
+        }
+        path = allowed.get(report_name)
+        if path is None:
+            raise HTTPException(status_code=404, detail={"error": f"unknown report {report_name}"})
+        if not path.is_file():
+            raise HTTPException(
+                status_code=404, detail={"error": f"report {report_name} not found"}
+            )
+        return cast(dict[str, Any], json.loads(path.read_text()))
+
     return router

@@ -3,19 +3,31 @@
 from __future__ import annotations
 
 import json
+import math
 import time
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from codeatlas.agent_context import VALID_CONTEXT_MODES, ContextMode, build_context_pack
 from codeatlas.graph.store import GraphStore
 
-EvalMode = Literal["fts", "pagerank", "semantic", "hybrid", "context-pack"]
-DEFAULT_EVAL_MODES: tuple[EvalMode, ...] = (
+EvalMode = Literal[
     "fts",
+    "bm25",
     "pagerank",
     "semantic",
     "hybrid",
+    "graph-neighborhood",
+    "oracle-ablation",
+    "context-pack",
+]
+DEFAULT_EVAL_MODES: tuple[EvalMode, ...] = (
+    "fts",
+    "bm25",
+    "pagerank",
+    "semantic",
+    "hybrid",
+    "graph-neighborhood",
     "context-pack",
 )
 VALID_TASK_TYPES = frozenset(
@@ -39,7 +51,7 @@ def load_suite(path: str | Path) -> list[dict[str, Any]]:
 
     New real-repo task fields:
     id, repo, task_type, query, expected_symbols, expected_files, seed_symbol,
-    k, budget, notes.
+    hard_negatives, expected_edit_files, k, budget, notes.
     """
     raw = json.loads(Path(path).read_text())
     tasks = raw.get("tasks", raw) if isinstance(raw, dict) else raw
@@ -52,6 +64,8 @@ def load_suite(path: str | Path) -> list[dict[str, Any]]:
         query = str(task.get("query", "")).strip()
         expected = task.get("expected_symbols", task.get("expected", []))
         expected_files = task.get("expected_files", [])
+        hard_negatives = task.get("hard_negatives", [])
+        expected_edit_files = task.get("expected_edit_files", task.get("expected_patch", []))
         task_type = str(task.get("task_type", "retrieval"))
         if not query:
             raise ValueError(f"task {i} is missing a non-empty query")
@@ -61,6 +75,10 @@ def load_suite(path: str | Path) -> list[dict[str, Any]]:
             raise ValueError(f"task {i} expected_symbols must be a list")
         if not isinstance(expected_files, list):
             raise ValueError(f"task {i} expected_files must be a list")
+        if not isinstance(hard_negatives, list):
+            raise ValueError(f"task {i} hard_negatives must be a list")
+        if not isinstance(expected_edit_files, list):
+            raise ValueError(f"task {i} expected_edit_files must be a list")
         if not expected and not expected_files:
             raise ValueError(f"task {i} must include expected_symbols or expected_files")
         normalized.append(
@@ -72,6 +90,8 @@ def load_suite(path: str | Path) -> list[dict[str, Any]]:
                 "query": query,
                 "expected_symbols": [str(e) for e in expected],
                 "expected_files": [str(e) for e in expected_files],
+                "hard_negatives": [str(e) for e in hard_negatives],
+                "expected_edit_files": [str(e) for e in expected_edit_files],
                 "seed_symbol": task.get("seed_symbol"),
                 "k": int(task.get("k", 5)),
                 "budget": int(task.get("budget", 0)) if task.get("budget") is not None else None,
@@ -112,7 +132,35 @@ def _first_match_rank(
 
 
 def _context_mode(mode: EvalMode) -> ContextMode:
-    return "pagerank" if mode == "context-pack" else mode
+    if mode in {"context-pack", "graph-neighborhood", "oracle-ablation"}:
+        return "pagerank"
+    if mode == "bm25":
+        return "fts"
+    return cast(ContextMode, mode)
+
+
+def _precision(hits: list[str], expected: list[str], *, file_mode: bool = False) -> float:
+    if not hits:
+        return 0.0
+    matcher = _file_matches if file_mode else _hit_matches
+    matched = sum(1 for hit in hits if matcher(hit, expected))
+    return matched / len(hits)
+
+
+def _ndcg(hits: list[str], expected: list[str], *, file_mode: bool = False) -> float:
+    if not hits or not expected:
+        return 0.0
+    matcher = _file_matches if file_mode else _hit_matches
+    dcg = 0.0
+    matched_expected: set[str] = set()
+    for idx, hit in enumerate(hits, 1):
+        matched = next((exp for exp in expected if matcher(hit, [exp])), None)
+        if matched is not None and matched not in matched_expected:
+            matched_expected.add(matched)
+            dcg += 1.0 / math.log2(idx + 1)
+    ideal_count = min(len(expected), len(hits))
+    idcg = sum(1.0 / math.log2(idx + 1) for idx in range(1, ideal_count + 1))
+    return 0.0 if idcg == 0 else dcg / idcg
 
 
 def _likely_failure_reason(
@@ -136,6 +184,18 @@ def _likely_failure_reason(
     return "matched"
 
 
+def _failure_class(reason: str) -> str:
+    if "fallback" in reason or "semantic index" in reason:
+        return "stale_or_missing_index"
+    if "symbol" in reason:
+        return "ranking_gap"
+    if "file" in reason:
+        return "edit_localization_gap"
+    if "outside top-k" in reason:
+        return "insufficient_budget"
+    return "matched"
+
+
 def run_eval_suite(
     store: GraphStore,
     suite_path: str | Path,
@@ -145,7 +205,13 @@ def run_eval_suite(
     semantic_index: Any | None = None,
     repo_filter: str | None = None,
 ) -> dict[str, Any]:
-    valid_eval_modes = (*VALID_CONTEXT_MODES, "context-pack")
+    valid_eval_modes = (
+        *VALID_CONTEXT_MODES,
+        "bm25",
+        "graph-neighborhood",
+        "oracle-ablation",
+        "context-pack",
+    )
     if mode not in valid_eval_modes:
         valid = ", ".join(valid_eval_modes)
         raise ValueError(f"mode must be one of: {valid}")
@@ -158,6 +224,10 @@ def run_eval_suite(
     total_symbol_recall = 0.0
     total_file_recall = 0.0
     total_rr = 0.0
+    total_precision = 0.0
+    total_ndcg = 0.0
+    total_edit_recall = 0.0
+    total_density = 0.0
     total_savings = 0.0
     effective_modes: set[str] = set()
     misses_by_category: dict[str, int] = {}
@@ -186,6 +256,16 @@ def run_eval_suite(
         hit_files = list(dict.fromkeys(hit_files))
         symbol_recall = _recall(hits, task["expected_symbols"])
         file_recall = _recall(hit_files, task["expected_files"], file_mode=True)
+        precision = max(
+            _precision(hits[:task_k], task["expected_symbols"]),
+            _precision(hit_files[:task_k], task["expected_files"], file_mode=True),
+        )
+        ndcg = max(
+            _ndcg(hits[:task_k], task["expected_symbols"]),
+            _ndcg(hit_files[:task_k], task["expected_files"], file_mode=True),
+        )
+        edit_recall = _recall(hit_files, task["expected_edit_files"], file_mode=True)
+        useful_context_density = precision
         first_match = _first_match_rank(hits, task["expected_symbols"])
         if first_match is None:
             first_match = _first_match_rank(hit_files, task["expected_files"], file_mode=True)
@@ -193,6 +273,10 @@ def run_eval_suite(
         total_symbol_recall += symbol_recall
         total_file_recall += file_recall
         total_rr += reciprocal_rank
+        total_precision += precision
+        total_ndcg += ndcg
+        total_edit_recall += edit_recall
+        total_density += useful_context_density
         total_savings += float(pack["context_savings"])
         reason = _likely_failure_reason(
             mode_effective=mode_effective,
@@ -221,6 +305,7 @@ def run_eval_suite(
                     "hits": hits[:task_k],
                     "hit_files": hit_files[:task_k],
                     "reason": reason,
+                    "failure_class": _failure_class(reason),
                 }
             )
         task_results.append(
@@ -234,15 +319,22 @@ def run_eval_suite(
                 "mode_effective": mode_effective,
                 "expected_symbols": task["expected_symbols"],
                 "expected_files": task["expected_files"],
+                "hard_negatives": task["hard_negatives"],
+                "expected_edit_files": task["expected_edit_files"],
                 "hits": hits,
                 "hit_files": hit_files,
                 "recall_at_k": symbol_recall,
                 "symbol_recall_at_k": round(symbol_recall, 6),
                 "file_recall_at_k": round(file_recall, 6),
+                "precision_at_k": round(precision, 6),
+                "ndcg_at_k": round(ndcg, 6),
+                "edit_localization_recall": round(edit_recall, 6),
+                "useful_context_density": round(useful_context_density, 6),
                 "reciprocal_rank": round(reciprocal_rank, 6),
                 "latency_ms": round(latency_ms, 3),
                 "context_savings": pack["context_savings"],
                 "failure_reason": reason,
+                "failure_class": _failure_class(reason),
             }
         )
 
@@ -259,6 +351,10 @@ def run_eval_suite(
             "symbol_recall_at_k": round(total_symbol_recall / n, 6) if n else 0.0,
             "file_recall_at_k": round(total_file_recall / n, 6) if n else 0.0,
             "mrr": round(total_rr / n, 6) if n else 0.0,
+            "precision_at_k": round(total_precision / n, 6) if n else 0.0,
+            "ndcg_at_k": round(total_ndcg / n, 6) if n else 0.0,
+            "edit_localization_recall": round(total_edit_recall / n, 6) if n else 0.0,
+            "useful_context_density": round(total_density / n, 6) if n else 0.0,
             "avg_latency_ms": round(total_latency / n, 3) if n else 0.0,
             "avg_context_savings": round(total_savings / n, 4) if n else 0.0,
             "indexed_files": stats["files"],
@@ -329,6 +425,10 @@ def render_eval_markdown(report: dict[str, Any]) -> str:
         f"| Effective mode | `{report.get('mode_effective', report.get('mode', 'pagerank'))}` |",
         f"| Recall@k | {metrics['recall_at_k']:.3f} |",
         f"| File recall@k | {metrics['file_recall_at_k']:.3f} |",
+        f"| Precision@k | {metrics['precision_at_k']:.3f} |",
+        f"| nDCG@k | {metrics['ndcg_at_k']:.3f} |",
+        f"| Edit localization recall | {metrics['edit_localization_recall']:.3f} |",
+        f"| Useful context density | {metrics['useful_context_density']:.3f} |",
         f"| MRR | {metrics['mrr']:.3f} |",
         f"| Avg latency | {metrics['avg_latency_ms']:.2f} ms |",
         f"| Avg context savings | {metrics['avg_context_savings']:.2%} |",
@@ -360,13 +460,15 @@ def _render_comparison_markdown(report: dict[str, Any]) -> str:
         "",
         "## Mode Comparison",
         "",
-        "| Mode | Effective | Symbol recall@k | File recall@k | MRR | Avg latency | Context savings | Misses |",
-        "|------|-----------|-----------------|---------------|-----|-------------|-----------------|--------|",
+        "| Mode | Effective | Symbol recall@k | File recall@k | Precision@k | nDCG@k | Edit loc | Density | MRR | Avg latency | Context savings | Misses |",
+        "|------|-----------|-----------------|---------------|-------------|--------|----------|---------|-----|-------------|-----------------|--------|",
     ]
     for row in report["comparison"]:
         lines.append(
             f"| `{row['mode']}` | `{row['mode_effective']}` | "
             f"{row['symbol_recall_at_k']:.3f} | {row['file_recall_at_k']:.3f} | "
+            f"{row['precision_at_k']:.3f} | {row['ndcg_at_k']:.3f} | "
+            f"{row['edit_localization_recall']:.3f} | {row['useful_context_density']:.3f} | "
             f"{row['mrr']:.3f} | {row['avg_latency_ms']:.2f} ms | "
             f"{row['avg_context_savings']:.2%} | {row['miss_count']} |"
         )
@@ -401,7 +503,7 @@ def _render_comparison_markdown(report: dict[str, Any]) -> str:
             any_misses = True
             lines.append(
                 f"| `{mode}` | `{miss['id']}` | `{miss['repo']}` | `{miss['task_type']}` | "
-                f"`{miss['query']}` | {miss['reason']} |"
+                f"`{miss['query']}` | {miss['failure_class']}: {miss['reason']} |"
             )
     if not any_misses:
         lines.append("| _none_ | _none_ | _none_ | _none_ | _none_ | All tasks matched |")

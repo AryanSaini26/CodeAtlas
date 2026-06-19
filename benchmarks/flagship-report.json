@@ -1,0 +1,30 @@
+{
+  "agent_outcome": {
+    "artifact": "benchmarks/agent-live/report.md",
+    "adapter": "mock",
+    "safety_label": "mock_agent",
+    "context_solve_rate": 1.0,
+    "baseline_vs_context_delta": 1.0
+  },
+  "retrieval_quality": {
+    "artifact": "benchmarks/retrieval-v2/report.md",
+    "tasks": 30,
+    "best_mode": "context-pack",
+    "best_recall_at_k": 1.0,
+    "best_mrr": 1.0
+  },
+  "scale_systems": {
+    "artifact": "benchmarks/perf/report.md",
+    "repos": 3,
+    "files": 481,
+    "symbols": 11077,
+    "relationships": 33036,
+    "symbols_per_sec": 4856.2
+  },
+  "data_lineage": {
+    "artifact": "benchmarks/data-lineage/report.md",
+    "nodes": 14,
+    "edges": 11,
+    "openlineage": "benchmarks/data-lineage/openlineage.json"
+  }
+}

@@ -101,6 +101,23 @@ verification pass rate, runtime, context tokens, retrieval recall, and the
 baseline-vs-context delta. CodeAtlas only claims agent improvement when both
 variants actually ran.
 
+The upgraded harness also supports issue-to-edit metadata: setup commands,
+expected patch files, expected tests, difficulty, tags, token/cost fields, and
+per-variant JSONL traces. Adapters are explicit (`shell`, `codex`, `claude`,
+`aider`, `mock`) and reports carry safety labels such as `dry_run`,
+`mock_agent`, `live_agent_unsandboxed`, and `live_agent_sandboxed`.
+
+The committed local proof artifact is:
+
+```bash
+codeatlas agent-eval \
+  --suite benchmarks/local-agent-suite.json \
+  --repos benchmarks/local-repos.json \
+  --out benchmarks/agent-live \
+  --agent-adapter mock \
+  --compare-baseline
+```
+
 ## Retrieval Modes
 
 `codeatlas context` supports:
@@ -115,6 +132,27 @@ variants actually ran.
 This gives recruiters and reviewers a concrete comparison story: the project
 does not simply claim "graph search"; it measures graph-aware retrieval against
 naive keyword search.
+
+Retrieval V2 adds hard-negative-aware suite fields and reports precision@k,
+nDCG@k, edit-localization recall, useful context density, and failure classes.
+The comparison table includes FTS/BM25, PageRank, semantic, hybrid,
+graph-neighborhood, and context-pack rows. Semantic and hybrid rows remain
+honest about fallback behavior unless generated with `--build-semantic
+--require-semantic`.
+
+## Scale And Systems Proof
+
+`codeatlas perf-report` renders a single scale artifact from pinned or local
+repos:
+
+```bash
+codeatlas perf-report --repos benchmarks/local-repos.json --out benchmarks/perf --profile
+```
+
+The report includes files, symbols, relationships, LOC, wall time, files/sec,
+symbols/sec, and relationships/sec. `codeatlas doctor --check
+env,db,semantic,mcp,api,bench` checks the local environment, graph DB,
+semantic-search dependencies, MCP/API dependencies, and benchmark tooling.
 
 ## Tradeoffs
 
@@ -173,6 +211,15 @@ This matters for data engineering and ML infrastructure roles: the project can
 explain how a code-intelligence graph generalizes to tables, models, DAG tasks,
 and downstream consumers.
 
+The data bridge now includes static extraction for dbt manifest resources,
+Airflow DAG/task metadata, SQL reads/writes, downstream impact, and
+OpenLineage-shaped export:
+
+```bash
+codeatlas data-lineage --repo examples/data-pipeline --format openlineage
+codeatlas lineage-impact raw_orders --repo examples/data-pipeline --json
+```
+
 ## What Changed After Profiling
 
 The benchmark/eval path pushed the project toward proof over breadth:
@@ -182,6 +229,9 @@ The benchmark/eval path pushed the project toward proof over breadth:
   artifact.
 - `codeatlas agent-eval` separates deterministic dry-run validation from
   optional live-agent A/B outcome measurement.
+- `codeatlas perf-report` packages scale numbers into one artifact.
+- `codeatlas data-lineage` shows the graph can represent code and data-pipeline
+  impact with the same mental model.
 - Context packs expose both requested and effective mode, making optional
   semantic dependencies auditable.
 - README now points to one reproduction command instead of unsupported claims.

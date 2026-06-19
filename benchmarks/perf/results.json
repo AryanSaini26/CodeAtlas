@@ -1,0 +1,86 @@
+{
+  "repos_file": "benchmarks/local-repos.json",
+  "repo_count": 3,
+  "totals": {
+    "files": 481,
+    "symbols": 11077,
+    "relationships": 33036,
+    "loc": 127697,
+    "elapsed_seconds": 2.281,
+    "files_per_sec": 210.9,
+    "symbols_per_sec": 4856.2,
+    "relationships_per_sec": 14483.1
+  },
+  "repos": [
+    {
+      "repo": "examples/agent-fixture",
+      "workers": 1,
+      "files": 1,
+      "symbols": 1,
+      "relationships": 0,
+      "loc": 2,
+      "elapsed_seconds": 0.003,
+      "files_per_sec": 345.1,
+      "symbols_per_sec": 345.1,
+      "loc_per_sec": 690.2,
+      "profile": {
+        "timestamp_utc": "2026-06-19T00:33:54.987826+00:00",
+        "python": "3.12.12",
+        "platform": "macOS-26.5.1-arm64-arm-64bit",
+        "machine": "arm64",
+        "processor": "arm"
+      },
+      "repo_name": "agent-fixture",
+      "repo_commit": "unknown"
+    },
+    {
+      "repo": "examples/data-pipeline",
+      "workers": 1,
+      "files": 3,
+      "symbols": 3,
+      "relationships": 1,
+      "loc": 20,
+      "elapsed_seconds": 0.002,
+      "files_per_sec": 1339.7,
+      "symbols_per_sec": 1339.7,
+      "loc_per_sec": 8931.4,
+      "profile": {
+        "timestamp_utc": "2026-06-19T00:33:55.013765+00:00",
+        "python": "3.12.12",
+        "platform": "macOS-26.5.1-arm64-arm-64bit",
+        "machine": "arm64",
+        "processor": "arm"
+      },
+      "repo_name": "data-pipeline",
+      "repo_commit": "unknown"
+    },
+    {
+      "repo": ".",
+      "workers": 1,
+      "files": 477,
+      "symbols": 11073,
+      "relationships": 33035,
+      "loc": 127675,
+      "elapsed_seconds": 2.276,
+      "files_per_sec": 209.6,
+      "symbols_per_sec": 4864.6,
+      "loc_per_sec": 56089.8,
+      "profile": {
+        "timestamp_utc": "2026-06-19T00:33:58.172799+00:00",
+        "python": "3.12.12",
+        "platform": "macOS-26.5.1-arm64-arm-64bit",
+        "machine": "arm64",
+        "processor": "arm"
+      },
+      "repo_name": "codeatlas",
+      "repo_commit": "unknown"
+    }
+  ],
+  "profile": {
+    "timestamp_utc": "2026-06-19T00:33:58.172962+00:00",
+    "python": "3.12.12",
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "machine": "arm64",
+    "processor": "arm"
+  }
+}

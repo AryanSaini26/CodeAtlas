@@ -1,0 +1,196 @@
+{
+  "producer": "codeatlas",
+  "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json",
+  "events": [
+    {
+      "eventType": "JOB",
+      "job": {
+        "namespace": "codeatlas.static",
+        "name": "airflow:task:build_customer_ltv",
+        "facets": {
+          "sourceCodeLocation": {
+            "_producer": "codeatlas",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SourceCodeLocationJobFacet.json",
+            "type": "git",
+            "url": "examples/data-pipeline/dags/orders.py"
+          }
+        }
+      },
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "eventType": "JOB",
+      "job": {
+        "namespace": "codeatlas.static",
+        "name": "airflow:task:extract_orders",
+        "facets": {
+          "sourceCodeLocation": {
+            "_producer": "codeatlas",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SourceCodeLocationJobFacet.json",
+            "type": "git",
+            "url": "examples/data-pipeline/dags/orders.py"
+          }
+        }
+      },
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "eventType": "JOB",
+      "job": {
+        "namespace": "codeatlas.static",
+        "name": "dbt:model:customer_ltv",
+        "facets": {
+          "sourceCodeLocation": {
+            "_producer": "codeatlas",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SourceCodeLocationJobFacet.json",
+            "type": "git",
+            "url": "models/customer_ltv.sql"
+          }
+        }
+      },
+      "inputs": [
+        {
+          "namespace": "codeatlas.static",
+          "name": "dbt:model:orders",
+          "facets": {
+            "schema": {
+              "fields": []
+            }
+          }
+        },
+        {
+          "namespace": "codeatlas.static",
+          "name": "dbt:source:raw_customers",
+          "facets": {
+            "schema": {
+              "fields": []
+            }
+          }
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "eventType": "JOB",
+      "job": {
+        "namespace": "codeatlas.static",
+        "name": "dbt:model:orders",
+        "facets": {
+          "sourceCodeLocation": {
+            "_producer": "codeatlas",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SourceCodeLocationJobFacet.json",
+            "type": "git",
+            "url": "models/orders.sql"
+          }
+        }
+      },
+      "inputs": [
+        {
+          "namespace": "codeatlas.static",
+          "name": "dbt:source:raw_orders",
+          "facets": {
+            "schema": {
+              "fields": []
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "namespace": "codeatlas.static",
+          "name": "dbt:model:customer_ltv",
+          "facets": {
+            "schema": {
+              "fields": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "eventType": "JOB",
+      "job": {
+        "namespace": "codeatlas.static",
+        "name": "sql:query:models/customer_ltv.sql",
+        "facets": {
+          "sourceCodeLocation": {
+            "_producer": "codeatlas",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SourceCodeLocationJobFacet.json",
+            "type": "git",
+            "url": "examples/data-pipeline/models/customer_ltv.sql"
+          }
+        }
+      },
+      "inputs": [
+        {
+          "namespace": "codeatlas.static",
+          "name": "sql:table:marts.orders",
+          "facets": {
+            "schema": {
+              "fields": []
+            }
+          }
+        },
+        {
+          "namespace": "codeatlas.static",
+          "name": "sql:table:raw.customers",
+          "facets": {
+            "schema": {
+              "fields": []
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "namespace": "codeatlas.static",
+          "name": "sql:table:marts.customer_ltv",
+          "facets": {
+            "schema": {
+              "fields": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "eventType": "JOB",
+      "job": {
+        "namespace": "codeatlas.static",
+        "name": "sql:query:models/orders.sql",
+        "facets": {
+          "sourceCodeLocation": {
+            "_producer": "codeatlas",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SourceCodeLocationJobFacet.json",
+            "type": "git",
+            "url": "examples/data-pipeline/models/orders.sql"
+          }
+        }
+      },
+      "inputs": [
+        {
+          "namespace": "codeatlas.static",
+          "name": "sql:table:raw.orders",
+          "facets": {
+            "schema": {
+              "fields": []
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "namespace": "codeatlas.static",
+          "name": "sql:table:marts.orders",
+          "facets": {
+            "schema": {
+              "fields": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

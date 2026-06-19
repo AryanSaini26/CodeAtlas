@@ -1,0 +1,18 @@
+{
+  "tasks": [
+    {
+      "id": "local-greet-context",
+      "repo": "agent-fixture",
+      "task_type": "bug_fix",
+      "prompt": "greet",
+      "expected_symbols": ["greet"],
+      "expected_files": ["main.py"],
+      "expected_patch": ["codeatlas_mock_solved.txt"],
+      "verify_command": "python3 -c \"from pathlib import Path; assert Path('codeatlas_mock_solved.txt').exists()\"",
+      "timeout_seconds": 30,
+      "budget": 512,
+      "difficulty": "smoke",
+      "tags": ["mock-agent", "context-pack"]
+    }
+  ]
+}

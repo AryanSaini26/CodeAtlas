@@ -1,0 +1,16 @@
+{
+  "repos": [
+    {
+      "name": "agent-fixture",
+      "path": "examples/agent-fixture"
+    },
+    {
+      "name": "data-pipeline",
+      "path": "examples/data-pipeline"
+    },
+    {
+      "name": "codeatlas",
+      "path": "."
+    }
+  ]
+}

@@ -139,6 +139,52 @@ def test_export_json(tmp_path: Path) -> None:
     assert "nodes" in content
 
 
+def test_doctor_accepts_db_and_check_options(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["doctor", "--db", str(tmp_path / "missing.db"), "--check", "env,db", "--json"],
+    )
+    assert result.exit_code == 0
+    assert "Python" in result.output
+    assert "Graph DB" in result.output
+
+
+def test_data_lineage_command_json(tmp_path: Path) -> None:
+    (tmp_path / "model.sql").write_text("create table marts.users as select * from raw.users")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["data-lineage", "--repo", str(tmp_path), "--format", "json"])
+    assert result.exit_code == 0
+    assert "sql:table:marts.users" in result.output
+
+
+def test_lineage_impact_command_json(tmp_path: Path) -> None:
+    (tmp_path / "model.sql").write_text("create table marts.users as select * from raw.users")
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["lineage-impact", "raw.users", "--repo", str(tmp_path), "--json"],
+    )
+    assert result.exit_code == 0
+    assert "sql:query:model.sql" in result.output
+
+
+def test_perf_report_with_local_fixture_repo(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    repo = _make_repo(repo_root)
+    repos = tmp_path / "repos.json"
+    repos.write_text(
+        '{"repos": [{"name": "fixture", "path": "' + str(repo).replace('"', '\\"') + '"}]}'
+    )
+    out = tmp_path / "perf"
+    runner = CliRunner()
+    result = runner.invoke(cli, ["perf-report", "--repos", str(repos), "--out", str(out)])
+    assert result.exit_code == 0
+    assert (out / "results.json").exists()
+    assert (out / "report.md").exists()
+
+
 def test_export_stdout(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     db_path = str(tmp_path / "test.db")
@@ -391,13 +437,16 @@ def test_eval_command_writes_reports(tmp_path: Path) -> None:
     assert "comparison" in data
     assert {row["mode"] for row in data["comparison"]} == {
         "fts",
+        "bm25",
         "pagerank",
         "semantic",
         "hybrid",
+        "graph-neighborhood",
         "context-pack",
     }
     assert data["modes"]["pagerank"]["metrics"]["recall_at_k"] == 1.0
     assert "file_recall_at_k" in data["modes"]["pagerank"]["metrics"]
+    assert "ndcg_at_k" in data["modes"]["pagerank"]["metrics"]
 
 
 def test_eval_command_json_single_mode(tmp_path: Path) -> None:

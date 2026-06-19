@@ -1,0 +1,137 @@
+{
+  "repo": "examples/data-pipeline",
+  "node_count": 14,
+  "edge_count": 11,
+  "nodes": [
+    {
+      "id": "airflow:dag:daily_orders",
+      "kind": "airflow_dag",
+      "file": "examples/data-pipeline/dags/orders.py"
+    },
+    {
+      "id": "airflow:task:build_customer_ltv",
+      "kind": "airflow_task",
+      "file": "examples/data-pipeline/dags/orders.py"
+    },
+    {
+      "id": "airflow:task:extract_orders",
+      "kind": "airflow_task",
+      "file": "examples/data-pipeline/dags/orders.py"
+    },
+    {
+      "id": "dbt:exposure:exec_dashboard",
+      "kind": "dbt_exposure",
+      "file": null,
+      "owner": {
+        "name": "analytics"
+      }
+    },
+    {
+      "id": "dbt:model:customer_ltv",
+      "kind": "dbt_model",
+      "file": "models/customer_ltv.sql",
+      "owner": null
+    },
+    {
+      "id": "dbt:model:orders",
+      "kind": "dbt_model",
+      "file": "models/orders.sql",
+      "owner": null
+    },
+    {
+      "id": "dbt:source:raw_customers",
+      "kind": "dbt_source",
+      "file": null,
+      "owner": null
+    },
+    {
+      "id": "dbt:source:raw_orders",
+      "kind": "dbt_source",
+      "file": null,
+      "owner": null
+    },
+    {
+      "id": "sql:query:models/customer_ltv.sql",
+      "kind": "sql_query",
+      "file": "examples/data-pipeline/models/customer_ltv.sql"
+    },
+    {
+      "id": "sql:query:models/orders.sql",
+      "kind": "sql_query",
+      "file": "examples/data-pipeline/models/orders.sql"
+    },
+    {
+      "id": "sql:table:marts.customer_ltv",
+      "kind": "sql_table"
+    },
+    {
+      "id": "sql:table:marts.orders",
+      "kind": "sql_table"
+    },
+    {
+      "id": "sql:table:raw.customers",
+      "kind": "sql_table"
+    },
+    {
+      "id": "sql:table:raw.orders",
+      "kind": "sql_table"
+    }
+  ],
+  "edges": [
+    {
+      "source": "airflow:dag:daily_orders",
+      "target": "airflow:task:build_customer_ltv",
+      "kind": "contains"
+    },
+    {
+      "source": "airflow:dag:daily_orders",
+      "target": "airflow:task:extract_orders",
+      "kind": "contains"
+    },
+    {
+      "source": "dbt:model:customer_ltv",
+      "target": "dbt:exposure:exec_dashboard",
+      "kind": "depends_on"
+    },
+    {
+      "source": "dbt:model:orders",
+      "target": "dbt:model:customer_ltv",
+      "kind": "depends_on"
+    },
+    {
+      "source": "dbt:source:raw_customers",
+      "target": "dbt:model:customer_ltv",
+      "kind": "depends_on"
+    },
+    {
+      "source": "dbt:source:raw_orders",
+      "target": "dbt:model:orders",
+      "kind": "depends_on"
+    },
+    {
+      "source": "sql:query:models/customer_ltv.sql",
+      "target": "sql:table:marts.customer_ltv",
+      "kind": "writes"
+    },
+    {
+      "source": "sql:query:models/orders.sql",
+      "target": "sql:table:marts.orders",
+      "kind": "writes"
+    },
+    {
+      "source": "sql:table:marts.orders",
+      "target": "sql:query:models/customer_ltv.sql",
+      "kind": "reads"
+    },
+    {
+      "source": "sql:table:raw.customers",
+      "target": "sql:query:models/customer_ltv.sql",
+      "kind": "reads"
+    },
+    {
+      "source": "sql:table:raw.orders",
+      "target": "sql:query:models/orders.sql",
+      "kind": "reads"
+    }
+  ]
+}
