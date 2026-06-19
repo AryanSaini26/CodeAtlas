@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   hostedApi,
@@ -213,7 +214,10 @@ export default function HostedPage() {
         <div>
           <h1 className="font-head text-[18px] font-bold text-text-1">Stratum Gateway</h1>
           <div className="mt-1 text-[12px] text-text-3">
-            Hosted team context · powered by the CodeAtlas engine
+            Hosted team context · powered by the CodeAtlas engine ·{" "}
+            <Link to="/welcome" className="text-cyan hover:underline">
+              What is Stratum?
+            </Link>
           </div>
         </div>
         <div className="flex items-center gap-2">

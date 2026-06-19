@@ -7,6 +7,7 @@ import SymbolPage from "./pages/SymbolPage";
 import DiffPage from "./pages/DiffPage";
 import SettingsPage from "./pages/SettingsPage";
 import HostedPage from "./pages/HostedPage";
+import LandingPage from "./pages/LandingPage";
 import { Layout } from "./components/Layout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/analysis" element={<AnalysisPage />} />
           <Route path="/diff" element={<DiffPage />} />
           <Route path="/hosted" element={<HostedPage />} />
+          <Route path="/welcome" element={<LandingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/symbol/:id" element={<SymbolPage />} />
         </Routes>
