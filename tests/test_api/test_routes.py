@@ -508,6 +508,64 @@ def test_hosted_webhook_async_clone_index_and_context(
     assert "security" in context.json()
 
 
+def test_hosted_webhook_rate_limited(
+    tmp_path: Path,
+    db_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # One request per installation, no refill, so the second is rejected.
+    monkeypatch.setenv("STRATUM_WEBHOOK_RATE_CAPACITY", "1")
+    monkeypatch.setenv("STRATUM_WEBHOOK_RATE_REFILL", "0")
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    payload = {"installation": {"id": 555}, "zen": "ping"}
+
+    first = client.post(
+        "/api/hosted/v1/github/webhook",
+        json=payload,
+        headers={"X-GitHub-Event": "ping", "X-GitHub-Delivery": "d1"},
+    )
+    assert first.status_code == 200
+
+    second = client.post(
+        "/api/hosted/v1/github/webhook",
+        json=payload,
+        headers={"X-GitHub-Event": "ping", "X-GitHub-Delivery": "d2"},
+    )
+    assert second.status_code == 429
+    assert second.headers["Retry-After"] == "1"
+
+
+def test_hosted_context_rate_limited(
+    tmp_path: Path,
+    db_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("STRATUM_MCP_RATE_CAPACITY", "1")
+    monkeypatch.setenv("STRATUM_MCP_RATE_REFILL", "0")
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / "app.py").write_text("def login(u):\n    return u\n")
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    token = client.post("/api/hosted/v1/dev/bootstrap").json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    repo = client.post(
+        "/api/hosted/v1/repos",
+        headers=headers,
+        json={"team_slug": "default", "name": "r", "local_path": str(repo_path)},
+    ).json()["repo"]
+    client.post(f"/api/hosted/v1/repos/{repo['id']}/sync", headers=headers)
+
+    params = {"q": "login", "mode": "fts"}
+    first = client.get(f"/api/hosted/v1/repos/{repo['id']}/context", headers=headers, params=params)
+    assert first.status_code == 200
+    second = client.get(
+        f"/api/hosted/v1/repos/{repo['id']}/context", headers=headers, params=params
+    )
+    assert second.status_code == 429
+
+
 def test_hosted_github_webhook_rejects_invalid_signature(
     tmp_path: Path,
     db_path: Path,

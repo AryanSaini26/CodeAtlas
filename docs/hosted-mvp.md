@@ -163,6 +163,23 @@ Status of the four pre-Phase-1 hardening gaps (each closed in code with tests):
   `clone_url` into the managed `checkouts/` tree; local-path registration is
   reserved for `hosted register-repo` dev mode.
 
+## Background Sync and Rate Limiting
+
+Push webhooks return immediately after queuing work on an in-process background
+worker (`SyncJobWorker`, a single-threaded pool), so GitHub never times out a
+slow clone/index and redelivers it. Each repo walks a sync lifecycle —
+`never -> pending -> cloning -> indexing -> ready/failed` — surfaced on the
+dashboard (with `last_error` on failure), which auto-polls while a sync is in
+flight. The worker refreshes the working tree before indexing, so a push
+indexes the just-pushed commit.
+
+The public webhook endpoint (per installation) and the remote MCP / context
+endpoints (per token + repo) are protected by an in-memory token-bucket rate
+limiter. Limits are tunable via `STRATUM_WEBHOOK_RATE_CAPACITY`/`_REFILL` and
+`STRATUM_MCP_RATE_CAPACITY`/`_REFILL`; over-limit requests get `429` with a
+`Retry-After` header. This is per-process (one deployment at MVP scale), not a
+distributed limiter.
+
 ## Intentional Stubs
 
 - GitHub OAuth is still represented by local dev bootstrap and bearer tokens.
@@ -178,6 +195,6 @@ Status of the four pre-Phase-1 hardening gaps (each closed in code with tests):
 ## Next Step
 
 The natural follow-up is production GitHub onboarding: OAuth login,
-background sync workers, remote streamable MCP transport, and team/member
-administration. (JWT-to-installation-token exchange is now implemented — see
-the Verified section above.)
+self-serve signup, a public landing page, and a live public deployment
+(`STRATUM_PUBLIC_URL`). JWT-to-installation-token exchange, background sync
+workers, and endpoint rate limiting are implemented — see the sections above.

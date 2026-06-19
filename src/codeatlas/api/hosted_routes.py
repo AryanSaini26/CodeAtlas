@@ -25,6 +25,7 @@ from codeatlas.hosted import (
     RepoRegistration,
 )
 from codeatlas.hosted_worker import SyncJobWorker
+from codeatlas.rate_limit import context_rate_limiter, webhook_rate_limiter
 
 
 class BootstrapRequest(BaseModel):
@@ -138,6 +139,16 @@ def build_hosted_router(
     """
 
     router = APIRouter()
+    _webhook_limiter = webhook_rate_limiter()
+    _context_limiter = context_rate_limiter()
+
+    def _enforce_rate_limit(limiter: Any, key: str) -> None:
+        if not limiter.allow(key):
+            raise HTTPException(
+                status_code=429,
+                detail={"error": "rate limit exceeded"},
+                headers={"Retry-After": str(limiter.retry_after_seconds())},
+            )
 
     async def principal_dep(
         authorization: str | None = Header(default=None),
@@ -278,6 +289,7 @@ def build_hosted_router(
         principal: HostedPrincipal = Depends(principal_dep),
     ) -> dict[str, Any]:
         repo = _require_repo_access(hosted, repo_id, principal)
+        _enforce_rate_limit(_context_limiter, f"ctx:{principal.token.id}:{repo.id}")
         graph_db = Path(repo.graph_db_path)
         if not graph_db.is_file():
             raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
@@ -304,6 +316,7 @@ def build_hosted_router(
     ) -> dict[str, Any]:
         repo = _require_repo_access(hosted, repo_id, principal)
         _validate_repo_audience(repo, x_stratum_audience)
+        _enforce_rate_limit(_context_limiter, f"mcp:{principal.token.id}:{repo.id}")
         graph_db = Path(repo.graph_db_path)
         if not graph_db.is_file():
             raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
@@ -572,6 +585,16 @@ def build_hosted_router(
             raise HTTPException(status_code=401, detail={"error": "invalid GitHub signature"})
         try:
             payload = parse_webhook_payload(raw)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        installation = payload.get("installation")
+        installation_id = (
+            str(installation.get("id"))
+            if isinstance(installation, dict) and installation.get("id") is not None
+            else "anonymous"
+        )
+        _enforce_rate_limit(_webhook_limiter, f"webhook:{installation_id}")
+        try:
             result = process_github_webhook(
                 hosted,
                 event=x_github_event or "unknown",
