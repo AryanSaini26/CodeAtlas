@@ -211,6 +211,33 @@ def test_github_installation_repo_activation_and_delivery_sync(tmp_path: Path) -
         store.close()
 
 
+def test_provision_github_login_is_idempotent(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        first = store.provision_github_login(
+            github_id="42", login="Aryan", email="a@e.com", name="Aryan Saini"
+        )
+        principal = store.verify_token(first.token)
+        assert principal is not None
+        assert principal.team_id == first.team.id
+        assert first.team.slug == "gh-aryan"
+
+        # A second sign-in reuses the same user + team but mints a fresh token;
+        # the previous token stays valid (we can't re-show a hashed token).
+        second = store.provision_github_login(github_id="42", login="Aryan", email="a@e.com")
+        assert second.user.id == first.user.id
+        assert second.team.id == first.team.id
+        assert second.token != first.token
+        assert store.verify_token(second.token) is not None
+        assert store.verify_token(first.token) is not None
+
+        # No public email -> a noreply fallback is synthesised.
+        third = store.provision_github_login(github_id="99", login="NoEmail")
+        assert third.user.email.endswith("@users.noreply.github.com")
+    finally:
+        store.close()
+
+
 def test_run_sync_pipeline_sets_ready_status(tmp_path: Path) -> None:
     store = HostedStore(tmp_path / "hosted.db")
     try:

@@ -11,6 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from pydantic import BaseModel
@@ -28,6 +29,7 @@ class GitHubAppConfig(BaseModel):
     public_url: str | None = None
     installation_token: str | None = None
     api_base: str = "https://api.github.com"
+    oauth_base: str = "https://github.com"
     repos_fixture_path: str | None = None
 
     @property
@@ -81,6 +83,7 @@ def load_github_app_config() -> GitHubAppConfig:
         public_url=os.environ.get("STRATUM_PUBLIC_URL"),
         installation_token=os.environ.get("STRATUM_GITHUB_INSTALLATION_TOKEN"),
         api_base=os.environ.get("STRATUM_GITHUB_API_BASE", "https://api.github.com"),
+        oauth_base=os.environ.get("STRATUM_GITHUB_OAUTH_BASE", "https://github.com"),
         repos_fixture_path=os.environ.get("STRATUM_GITHUB_REPOS_FIXTURE"),
     )
 
@@ -417,4 +420,117 @@ def process_github_webhook(
         delivery_id=delivery_id,
         status="ignored",
         message=f"event {event!r} recorded without sync",
+    )
+
+
+class GitHubOAuthUser(BaseModel):
+    github_id: str
+    login: str
+    email: str | None = None
+    name: str | None = None
+
+
+def build_oauth_authorize_url(
+    config: GitHubAppConfig,
+    *,
+    state: str,
+    redirect_uri: str,
+) -> str:
+    """Build the GitHub 'Sign in with GitHub' authorize URL for the dashboard."""
+    params = {
+        "client_id": config.client_id or "",
+        "redirect_uri": redirect_uri,
+        "scope": "read:user user:email",
+        "state": state,
+        "allow_signup": "true",
+    }
+    return f"{config.oauth_base.rstrip('/')}/login/oauth/authorize?{urlencode(params)}"
+
+
+def exchange_oauth_code(
+    config: GitHubAppConfig,
+    *,
+    code: str,
+    redirect_uri: str,
+) -> str:
+    """Exchange an OAuth ``code`` for a user access token."""
+    data = urlencode(
+        {
+            "client_id": config.client_id or "",
+            "client_secret": config.client_secret or "",
+            "code": code,
+            "redirect_uri": redirect_uri,
+        }
+    ).encode("utf-8")
+    request = Request(
+        f"{config.oauth_base.rstrip('/')}/login/oauth/access_token",
+        data=data,
+        method="POST",
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            raw = response.read().decode("utf-8")
+    except HTTPError as exc:
+        raise RuntimeError(f"GitHub OAuth token exchange failed: HTTP {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"GitHub OAuth token exchange failed: {exc.reason}") from exc
+    payload = json.loads(raw)
+    token = payload.get("access_token")
+    if not isinstance(token, str) or not token:
+        # GitHub returns 200 with an "error" field on bad codes.
+        detail = payload.get("error_description") or payload.get("error") or "no access_token"
+        raise RuntimeError(f"GitHub OAuth token exchange failed: {detail}")
+    return token
+
+
+def _github_get(url: str, access_token: str) -> Any:
+    request = Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {access_token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "Stratum",
+        },
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        raise RuntimeError(f"GitHub API call failed: HTTP {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"GitHub API call failed: {exc.reason}") from exc
+
+
+def fetch_github_user(
+    access_token: str, *, api_base: str = "https://api.github.com"
+) -> GitHubOAuthUser:
+    """Fetch the authenticated user's profile (and a verified email if needed)."""
+    base = api_base.rstrip("/")
+    profile = _github_get(f"{base}/user", access_token)
+    if not isinstance(profile, dict) or profile.get("id") is None or not profile.get("login"):
+        raise RuntimeError("GitHub user response was missing id/login")
+    email = profile.get("email")
+    if not email:
+        # Public email may be hidden; pick the primary verified address.
+        emails = _github_get(f"{base}/user/emails", access_token)
+        if isinstance(emails, list):
+            primary = next(
+                (
+                    e.get("email")
+                    for e in emails
+                    if isinstance(e, dict) and e.get("primary") and e.get("verified")
+                ),
+                None,
+            )
+            email = primary
+    return GitHubOAuthUser(
+        github_id=str(profile["id"]),
+        login=str(profile["login"]),
+        email=str(email) if email else None,
+        name=str(profile["name"]) if profile.get("name") else None,
     )

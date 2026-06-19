@@ -678,6 +678,83 @@ def test_hosted_github_refresh_clone_sync_and_remote_mcp(
     assert mcp.json()["result"]["security"]["status"] == "blocked"
 
 
+def test_hosted_github_oauth_login_and_callback(
+    tmp_path: Path,
+    db_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from urllib.parse import parse_qs, urlparse
+
+    from codeatlas.github_app import GitHubOAuthUser
+
+    monkeypatch.setenv("STRATUM_GITHUB_CLIENT_ID", "Iv1.test")
+    monkeypatch.setenv("STRATUM_GITHUB_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("STRATUM_PUBLIC_URL", "https://stratum.example")
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+
+    # Login redirects to GitHub with a CSRF state.
+    login = client.get("/api/hosted/v1/github/oauth/login", follow_redirects=False)
+    assert login.status_code == 307
+    location = login.headers["location"]
+    assert "github.com/login/oauth/authorize" in location
+    state = parse_qs(urlparse(location).query)["state"][0]
+
+    # Mock only the GitHub boundary (token exchange + user fetch).
+    monkeypatch.setattr(
+        "codeatlas.api.hosted_routes.exchange_oauth_code",
+        lambda config, *, code, redirect_uri: "gho_token",
+    )
+    monkeypatch.setattr(
+        "codeatlas.api.hosted_routes.fetch_github_user",
+        lambda token, *, api_base: GitHubOAuthUser(
+            github_id="42", login="Aryan", email="a@e.com", name="Aryan"
+        ),
+    )
+
+    callback = client.get(
+        f"/api/hosted/v1/github/oauth/callback?code=abc&state={state}",
+        follow_redirects=False,
+    )
+    assert callback.status_code == 303
+    dest = callback.headers["location"]
+    assert dest.startswith("https://stratum.example/hosted#token=")
+    token = dest.split("#token=")[1]
+
+    # The minted token authenticates against the hosted API.
+    me = client.get("/api/hosted/v1/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200
+
+    # A bad/replayed state is rejected.
+    bad = client.get(
+        "/api/hosted/v1/github/oauth/callback?code=abc&state=nope",
+        follow_redirects=False,
+    )
+    assert bad.status_code == 401
+
+
+def test_spa_fallback_serves_index_for_client_routes(tmp_path: Path, db_path: Path) -> None:
+    dist = tmp_path / "dist"
+    (dist / "assets").mkdir(parents=True)
+    (dist / "index.html").write_text("<!doctype html><title>SPA</title>")
+    (dist / "assets" / "app.js").write_text("console.log(1)")
+    app = create_app(db_path=db_path, static_dir=dist)
+    client = TestClient(app)
+
+    # Client-side route falls back to index.html instead of 404.
+    hosted = client.get("/hosted")
+    assert hosted.status_code == 200
+    assert "SPA" in hosted.text
+    # Real asset is served.
+    asset = client.get("/assets/app.js")
+    assert asset.status_code == 200
+    assert "console.log" in asset.text
+    # Root serves index; API routes are not shadowed by the fallback.
+    assert "SPA" in client.get("/").text
+    assert client.get("/health").status_code == 200
+    assert client.get("/api/v1/stats").status_code == 200
+
+
 def test_create_app_import_message() -> None:
     """create_app should be importable without FastAPI only if fastapi is present."""
     # FastAPI is installed in this env — the import should succeed.

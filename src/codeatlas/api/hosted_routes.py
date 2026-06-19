@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import secrets
+import time
 from pathlib import Path
 from typing import Any, Literal, cast
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from codeatlas.agent_context import build_context_pack
 from codeatlas.context_security import scan_context_pack
 from codeatlas.github_app import (
+    build_oauth_authorize_url,
+    exchange_oauth_code,
+    fetch_github_user,
     load_github_app_config,
     parse_webhook_payload,
     process_github_webhook,
@@ -141,6 +147,17 @@ def build_hosted_router(
     router = APIRouter()
     _webhook_limiter = webhook_rate_limiter()
     _context_limiter = context_rate_limiter()
+    # OAuth CSRF states: state -> expiry epoch seconds (in-process, single deploy).
+    _oauth_states: dict[str, float] = {}
+
+    def _oauth_redirect_uri(config: Any) -> str:
+        base = (config.public_url or "").rstrip("/")
+        if not base:
+            raise HTTPException(
+                status_code=500,
+                detail={"error": "STRATUM_PUBLIC_URL must be set for GitHub OAuth"},
+            )
+        return f"{base}/api/hosted/v1/github/oauth/callback"
 
     def _enforce_rate_limit(limiter: Any, key: str) -> None:
         if not limiter.allow(key):
@@ -571,6 +588,53 @@ def build_hosted_router(
         except Exception as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
         return {"repo": result.repo.model_dump(), "event": result.event.model_dump()}
+
+    @router.get("/github/oauth/login")
+    async def github_oauth_login() -> RedirectResponse:
+        config = load_github_app_config()
+        if not config.oauth_configured:
+            raise HTTPException(status_code=400, detail={"error": "GitHub OAuth is not configured"})
+        # Drop expired states so the in-memory store can't grow unbounded.
+        now = time.time()
+        for stale in [s for s, exp in _oauth_states.items() if exp < now]:
+            _oauth_states.pop(stale, None)
+        state = secrets.token_urlsafe(24)
+        _oauth_states[state] = now + 600
+        url = build_oauth_authorize_url(
+            config, state=state, redirect_uri=_oauth_redirect_uri(config)
+        )
+        return RedirectResponse(url, status_code=307)
+
+    @router.get("/github/oauth/callback")
+    async def github_oauth_callback(
+        code: str | None = None,
+        state: str | None = None,
+    ) -> RedirectResponse:
+        config = load_github_app_config()
+        if not config.oauth_configured:
+            raise HTTPException(status_code=400, detail={"error": "GitHub OAuth is not configured"})
+        if not code or not state:
+            raise HTTPException(status_code=400, detail={"error": "missing code or state"})
+        expiry = _oauth_states.pop(state, None)
+        if expiry is None or expiry < time.time():
+            raise HTTPException(status_code=401, detail={"error": "invalid or expired state"})
+        try:
+            access_token = exchange_oauth_code(
+                config, code=code, redirect_uri=_oauth_redirect_uri(config)
+            )
+            gh_user = fetch_github_user(access_token, api_base=config.api_base)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        result = hosted.provision_github_login(
+            github_id=gh_user.github_id,
+            login=gh_user.login,
+            email=gh_user.email,
+            name=gh_user.name,
+        )
+        # Hand the token to the SPA via the URL fragment (never sent to the server
+        # or logged); the dashboard reads it on load and stores it.
+        base = (config.public_url or "").rstrip("/")
+        return RedirectResponse(f"{base}/hosted#token={result.token}", status_code=303)
 
     @router.post("/github/webhook")
     async def github_webhook(

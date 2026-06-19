@@ -443,6 +443,45 @@ class HostedStore:
         self._conn.commit()
         return self.get_team(team_id)
 
+    def provision_github_login(
+        self,
+        *,
+        github_id: str,
+        login: str,
+        email: str | None = None,
+        name: str | None = None,
+    ) -> BootstrapResult:
+        """Idempotently create a user + team for a GitHub OAuth sign-in and issue
+        a fresh team token. Each login mints a new token (old ones stay valid
+        until revoked) since stored hashes can't be reversed to re-show a token.
+        """
+        now = _now_ms()
+        safe_login = login.strip().lower()
+        resolved_email = email or f"{github_id}+{safe_login}@users.noreply.github.com"
+        resolved_name = name or login
+        user_id = self._upsert_user(email=resolved_email, name=resolved_name, created_at=now)
+        team_id = self._upsert_team(slug=f"gh-{safe_login}", name=login, created_at=now)
+        self._conn.execute(
+            """
+            INSERT OR IGNORE INTO memberships (user_id, team_id, role, created_at)
+            VALUES (?, ?, 'owner', ?)
+            """,
+            (user_id, team_id, now),
+        )
+        self._conn.commit()
+        issued = self.create_token(
+            subject_type="team",
+            subject_id=team_id,
+            name="github sign-in",
+            scopes=["hosted:read", "hosted:write", "repo:sync", "context:read"],
+        )
+        return BootstrapResult(
+            user=self.get_user(user_id),
+            team=self.get_team(team_id),
+            token=issued.token,
+            token_record=issued.token_record,
+        )
+
     def get_user(self, user_id: str) -> HostedUser:
         row = self._conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if row is None:

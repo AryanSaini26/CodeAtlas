@@ -12,6 +12,9 @@ from pathlib import Path
 from codeatlas.github_app import (
     GitHubAppConfig,
     InstallationToken,
+    build_oauth_authorize_url,
+    exchange_oauth_code,
+    fetch_github_user,
     load_github_app_config,
     load_github_repositories,
     mint_installation_token,
@@ -249,3 +252,64 @@ def test_push_webhook_dedupes_redelivered_delivery_id(tmp_path: Path) -> None:
         assert len(synced) == 1
     finally:
         store.close()
+
+
+def test_build_oauth_authorize_url() -> None:
+    config = GitHubAppConfig(client_id="cid", client_secret="sec")
+    url = build_oauth_authorize_url(config, state="xyz", redirect_uri="https://s.example/cb")
+    assert url.startswith("https://github.com/login/oauth/authorize?")
+    assert "client_id=cid" in url
+    assert "state=xyz" in url
+    assert "redirect_uri=https%3A%2F%2Fs.example%2Fcb" in url
+
+
+def test_exchange_oauth_code_returns_token(monkeypatch) -> None:
+    config = GitHubAppConfig(client_id="cid", client_secret="sec")
+    monkeypatch.setattr(
+        "codeatlas.github_app.urlopen",
+        lambda req, timeout=15: _FakeResponse(json.dumps({"access_token": "gho_x"}).encode()),
+    )
+    assert exchange_oauth_code(config, code="c", redirect_uri="https://s/cb") == "gho_x"
+
+
+def test_exchange_oauth_code_rejects_error_response(monkeypatch) -> None:
+    config = GitHubAppConfig(client_id="cid", client_secret="sec")
+    monkeypatch.setattr(
+        "codeatlas.github_app.urlopen",
+        lambda req, timeout=15: _FakeResponse(
+            json.dumps({"error": "bad_verification_code"}).encode()
+        ),
+    )
+    try:
+        exchange_oauth_code(config, code="c", redirect_uri="https://s/cb")
+    except RuntimeError as exc:
+        assert "bad_verification_code" in str(exc)
+    else:
+        raise AssertionError("expected a bad code to fail")
+
+
+def test_fetch_github_user_uses_profile_email(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "codeatlas.github_app.urlopen",
+        lambda req, timeout=15: _FakeResponse(
+            json.dumps({"id": 42, "login": "Aryan", "name": "A", "email": "a@e.com"}).encode()
+        ),
+    )
+    user = fetch_github_user("tok")
+    assert user.github_id == "42"
+    assert user.login == "Aryan"
+    assert user.email == "a@e.com"
+
+
+def test_fetch_github_user_falls_back_to_primary_verified_email(monkeypatch) -> None:
+    responses = iter(
+        [
+            _FakeResponse(json.dumps({"id": 7, "login": "NoEmail", "email": None}).encode()),
+            _FakeResponse(
+                json.dumps([{"email": "p@e.com", "primary": True, "verified": True}]).encode()
+            ),
+        ]
+    )
+    monkeypatch.setattr("codeatlas.github_app.urlopen", lambda req, timeout=15: next(responses))
+    user = fetch_github_user("tok")
+    assert user.email == "p@e.com"

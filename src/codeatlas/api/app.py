@@ -90,22 +90,27 @@ def create_app(
         return {"status": "ok", "version": "1.0.0"}
 
     if static_dir is not None:
-        dist = Path(static_dir)
+        dist = Path(static_dir).resolve()
         if not dist.is_dir():
             raise FileNotFoundError(
                 f"Static directory {dist} does not exist. "
                 "Run 'cd frontend && npm install && npm run build' first."
             )
         index_path = dist / "index.html"
+        assets_dir = dist / "assets"
+        if assets_dir.is_dir():
+            app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
-        @app.get("/", include_in_schema=False)
-        async def _index() -> FileResponse:
+        # SPA fallback: serve a real file when one exists under dist, otherwise
+        # return index.html so client-side routes (/hosted, deep links, the OAuth
+        # redirect target) load instead of 404-ing. Registered after the API
+        # routers, so it only catches unmatched paths.
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def _spa(full_path: str) -> FileResponse:
+            if full_path:
+                candidate = (dist / full_path).resolve()
+                if candidate.is_file() and dist in candidate.parents:
+                    return FileResponse(candidate)
             return FileResponse(index_path)
-
-        app.mount(
-            "/",
-            StaticFiles(directory=str(dist), html=True),
-            name="ui",
-        )
 
     return app

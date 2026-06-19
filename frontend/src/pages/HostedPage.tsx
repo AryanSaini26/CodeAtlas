@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   hostedApi,
+  hostedOAuthLoginUrl,
   type HostedGitHubInstallation,
   type HostedGitHubRepository,
   type HostedRepo,
@@ -192,6 +193,20 @@ export default function HostedPage() {
     void qc.invalidateQueries({ queryKey: ["hosted"] });
   };
 
+  // After "Sign in with GitHub", the callback redirects to /hosted#token=...
+  // Capture it, store it, and clean the URL so the token isn't left in history.
+  useEffect(() => {
+    const hash = window.location.hash;
+    const match = hash.match(/[#&]token=([^&]+)/);
+    if (match) {
+      const token = decodeURIComponent(match[1]);
+      localStorage.setItem("codeatlas.hostedToken", token);
+      setTokenInput(token);
+      window.history.replaceState(null, "", window.location.pathname);
+      void qc.invalidateQueries({ queryKey: ["hosted"] });
+    }
+  }, [qc]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -202,6 +217,11 @@ export default function HostedPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {githubApp.data?.oauth_configured ? (
+            <Button onClick={() => (window.location.href = hostedOAuthLoginUrl())}>
+              <Icon name="mcp" size={13} /> Sign in with GitHub
+            </Button>
+          ) : null}
           <Input
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
@@ -211,7 +231,7 @@ export default function HostedPage() {
           <Button variant="ghost" onClick={persistToken}>
             <Icon name="check" size={13} /> Use token
           </Button>
-          <Button onClick={() => bootstrap.mutate()} disabled={bootstrap.isPending}>
+          <Button variant="ghost" onClick={() => bootstrap.mutate()} disabled={bootstrap.isPending}>
             <Icon name="mcp" size={13} /> Bootstrap
           </Button>
         </div>

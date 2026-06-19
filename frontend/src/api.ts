@@ -364,6 +364,8 @@ export const api = {
   streamUrl: () => API_BASE + "/stream",
 };
 
+export const hostedOAuthLoginUrl = () => HOSTED_API_BASE + "/github/oauth/login";
+
 export const hostedApi = {
   bootstrap: () =>
     hostedReq<HostedBootstrapResponse>("/dev/bootstrap", undefined, {
