@@ -101,5 +101,8 @@ Pulls latest, reinstalls, rebuilds the SPA, restarts the service.
 
 - Logs: `journalctl -u stratum -f` (app), `journalctl -u caddy -f` (TLS/proxy).
 - Service: `systemctl status stratum`. It restarts on crash automatically.
+- Signup/activation metrics: `codeatlas hosted metrics --hosted-db
+  /var/lib/stratum/hosted.db` (or set `STRATUM_ADMIN_TOKEN` and
+  `curl -H "X-Stratum-Admin: <token>" https://<domain>/api/hosted/v1/metrics`).
 - The background sync worker is in-process (single VM, single process — right for
   this scale). Scaling out later means moving the queue out of process.

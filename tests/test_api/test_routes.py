@@ -759,6 +759,32 @@ def test_hosted_repo_eval_endpoint(tmp_path: Path, db_path: Path) -> None:
     assert latest.json()["eval"]["task_count"] >= 1
 
 
+def test_hosted_metrics_endpoint_admin_gated(
+    tmp_path: Path,
+    db_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Disabled when no admin token is configured.
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    assert client.get("/api/hosted/v1/metrics").status_code == 404
+
+    # Enabled + gated when STRATUM_ADMIN_TOKEN is set.
+    monkeypatch.setenv("STRATUM_ADMIN_TOKEN", "s3cret")
+    app2 = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted2.db")
+    client2 = TestClient(app2)
+    client2.post("/api/hosted/v1/dev/bootstrap")
+
+    assert client2.get("/api/hosted/v1/metrics").status_code == 401
+    assert (
+        client2.get("/api/hosted/v1/metrics", headers={"X-Stratum-Admin": "wrong"}).status_code
+        == 401
+    )
+    ok = client2.get("/api/hosted/v1/metrics", headers={"X-Stratum-Admin": "s3cret"})
+    assert ok.status_code == 200
+    assert ok.json()["users"] >= 1
+
+
 def test_hosted_repo_lineage_endpoint(tmp_path: Path, db_path: Path) -> None:
     repo_path = tmp_path / "repo"
     repo_path.mkdir()

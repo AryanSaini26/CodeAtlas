@@ -1185,6 +1185,32 @@ class HostedStore:
             raise RuntimeError(str(exc)) from exc
         return SyncResult(repo=self.get_repo(repo.id), event=event)
 
+    def metrics(self) -> dict[str, Any]:
+        """Crude signup/activation metrics for tracking from day one.
+
+        Activation = a repo that has had at least one successful sync.
+        """
+
+        def count(sql: str) -> int:
+            return int(self._conn.execute(sql).fetchone()[0])
+
+        users = count("SELECT COUNT(*) FROM users")
+        repos = count("SELECT COUNT(*) FROM repos")
+        activated = count(
+            "SELECT COUNT(DISTINCT repo_id) FROM sync_events WHERE status = 'success'"
+        )
+        return {
+            "users": users,
+            "teams": count("SELECT COUNT(*) FROM teams"),
+            "repos": repos,
+            "activated_repos": activated,
+            "ready_repos": count("SELECT COUNT(*) FROM repos WHERE last_sync_status = 'ready'"),
+            "successful_syncs": count("SELECT COUNT(*) FROM sync_events WHERE status = 'success'"),
+            "failed_syncs": count("SELECT COUNT(*) FROM sync_events WHERE status = 'error'"),
+            "github_installations": count("SELECT COUNT(*) FROM github_installations"),
+            "activation_rate": round(activated / repos, 4) if repos else 0.0,
+        }
+
     def record_repo_eval(self, repo_id: str, summary: dict[str, Any]) -> dict[str, Any]:
         """Persist the latest retrieval-eval summary for a repo."""
         eval_id = f"eval_{uuid.uuid4().hex}"

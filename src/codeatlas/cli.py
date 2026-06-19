@@ -2425,6 +2425,28 @@ def hosted_sync(hosted_db: str, repo_id_or_name: str) -> None:
     )
 
 
+@hosted.command("metrics")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def hosted_metrics(hosted_db: str, as_json: bool) -> None:
+    """Show signup/activation metrics from the hosted control-plane DB."""
+    import json as _json
+
+    from codeatlas.hosted import HostedStore
+
+    store = HostedStore(Path(hosted_db))
+    try:
+        data = store.metrics()
+    finally:
+        store.close()
+    if as_json:
+        click.echo(_json.dumps(data, indent=2))
+        return
+    console.print("[green]Stratum hosted metrics[/green]")
+    for key, value in data.items():
+        console.print(f"  {key.replace('_', ' ')}: [cyan]{value}[/cyan]")
+
+
 @hosted.group("github")
 def hosted_github() -> None:
     """Manage Stratum GitHub App metadata and webhook sync."""

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import secrets
 import time
 from pathlib import Path
@@ -194,6 +195,19 @@ def build_hosted_router(
     @router.get("/me")
     async def me(principal: HostedPrincipal = Depends(principal_dep)) -> dict[str, Any]:
         return principal.model_dump()
+
+    @router.get("/metrics")
+    async def metrics(
+        x_stratum_admin: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        # Admin-only: disabled unless STRATUM_ADMIN_TOKEN is set, to avoid
+        # leaking aggregate usage on a public endpoint.
+        admin_token = os.environ.get("STRATUM_ADMIN_TOKEN")
+        if not admin_token:
+            raise HTTPException(status_code=404, detail={"error": "metrics endpoint disabled"})
+        if not x_stratum_admin or not secrets.compare_digest(x_stratum_admin, admin_token):
+            raise HTTPException(status_code=401, detail={"error": "admin token required"})
+        return hosted.metrics()
 
     @router.get("/teams")
     async def teams(_: HostedPrincipal = Depends(principal_dep)) -> dict[str, Any]:

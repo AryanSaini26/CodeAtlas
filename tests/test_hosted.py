@@ -239,6 +239,33 @@ def test_provision_github_login_is_idempotent(tmp_path: Path) -> None:
         store.close()
 
 
+def test_metrics_counts_signups_and_activation(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()
+        repo = store.register_repo(
+            RepoRegistration(
+                team_slug="default",
+                name="fixture",
+                local_path=_repo(tmp_path / "repo"),
+            )
+        )
+        before = store.metrics()
+        assert before["users"] == 1
+        assert before["repos"] == 1
+        assert before["activated_repos"] == 0  # no successful sync yet
+        assert before["activation_rate"] == 0.0
+
+        store.run_sync_pipeline(repo.id)
+        after = store.metrics()
+        assert after["activated_repos"] == 1
+        assert after["ready_repos"] == 1
+        assert after["successful_syncs"] >= 1
+        assert after["activation_rate"] == 1.0
+    finally:
+        store.close()
+
+
 def test_run_repo_retrieval_eval_and_persistence(tmp_path: Path) -> None:
     store = HostedStore(tmp_path / "hosted.db")
     try:
