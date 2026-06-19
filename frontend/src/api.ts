@@ -382,6 +382,14 @@ export type HostedEvalSummary = {
   note?: string;
 } | null;
 
+export type HostedLineageGraph = {
+  repo: string;
+  node_count: number;
+  edge_count: number;
+  nodes: { id: string; kind: string }[];
+  edges: { source: string; target: string; kind: string }[];
+};
+
 export const hostedOAuthLoginUrl = () => HOSTED_API_BASE + "/github/oauth/login";
 
 export const hostedApi = {
@@ -423,6 +431,8 @@ export const hostedApi = {
     ),
   latestEval: (repoId: string) =>
     hostedReq<{ eval: HostedEvalSummary }>(`/repos/${encodeURIComponent(repoId)}/eval`),
+  lineage: (repoId: string) =>
+    hostedReq<{ lineage: HostedLineageGraph }>(`/repos/${encodeURIComponent(repoId)}/lineage`),
   runEval: (repoId: string) =>
     hostedReq<{ eval: HostedEvalSummary }>(
       `/repos/${encodeURIComponent(repoId)}/eval`,

@@ -117,6 +117,13 @@ export default function HostedPage() {
     },
   });
 
+  const lineage = useQuery({
+    queryKey: ["hosted", "lineage", selectedRepo?.id],
+    queryFn: () => hostedApi.lineage(selectedRepo!.id),
+    enabled: !!selectedRepo,
+    retry: false,
+  });
+
   const bootstrap = useMutation({
     mutationFn: () => hostedApi.bootstrap(),
     onSuccess: (data) => {
@@ -525,6 +532,37 @@ export default function HostedPage() {
                   <EmptyState
                     title="No eval yet"
                     hint="Run an eval to measure retrieval quality for this repo."
+                  />
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Data Lineage"
+                subtitle="dbt / Airflow / SQL — surfaced, not just exported"
+              />
+              <CardBody>
+                {lineage.data?.lineage && lineage.data.lineage.node_count > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex gap-2">
+                      <Badge tone="violet">{lineage.data.lineage.node_count} datasets</Badge>
+                      <Badge tone="cyan">{lineage.data.lineage.edge_count} edges</Badge>
+                    </div>
+                    <div className="max-h-[200px] overflow-auto font-mono text-[11px] text-text-2">
+                      {lineage.data.lineage.edges.slice(0, 40).map((edge, i) => (
+                        <div key={i} className="border-b border-border py-1">
+                          <span className="text-text-3">{edge.source}</span>
+                          <span className="px-1 text-text-4">—{edge.kind}→</span>
+                          <span>{edge.target}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No data lineage detected"
+                    hint="Add dbt models, Airflow DAGs, or .sql files to see lineage here."
                   />
                 )}
               </CardBody>

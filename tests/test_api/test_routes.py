@@ -759,6 +759,32 @@ def test_hosted_repo_eval_endpoint(tmp_path: Path, db_path: Path) -> None:
     assert latest.json()["eval"]["task_count"] >= 1
 
 
+def test_hosted_repo_lineage_endpoint(tmp_path: Path, db_path: Path) -> None:
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / "app.py").write_text("def f():\n    return 1\n")
+    (repo_path / "model.sql").write_text(
+        "create table sales as select * from raw_orders join customers on 1=1;\n"
+    )
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    token = client.post("/api/hosted/v1/dev/bootstrap").json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    repo = client.post(
+        "/api/hosted/v1/repos",
+        headers=headers,
+        json={"team_slug": "default", "name": "r", "local_path": str(repo_path)},
+    ).json()["repo"]
+
+    lineage = client.get(f"/api/hosted/v1/repos/{repo['id']}/lineage", headers=headers)
+    assert lineage.status_code == 200
+    graph = lineage.json()["lineage"]
+    node_ids = {n["id"] for n in graph["nodes"]}
+    assert "sql:table:sales" in node_ids
+    assert "sql:table:raw_orders" in node_ids
+    assert graph["edge_count"] >= 2
+
+
 def test_spa_fallback_serves_index_for_client_routes(tmp_path: Path, db_path: Path) -> None:
     dist = tmp_path / "dist"
     (dist / "assets").mkdir(parents=True)

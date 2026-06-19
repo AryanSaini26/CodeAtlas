@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from codeatlas.agent_context import build_context_pack
 from codeatlas.context_security import scan_context_pack
+from codeatlas.data_lineage import build_lineage_graph
 from codeatlas.github_app import (
     build_oauth_authorize_url,
     exchange_oauth_code,
@@ -310,6 +311,17 @@ def build_hosted_router(
     ) -> dict[str, Any]:
         repo = _require_repo_access(hosted, repo_id, principal)
         return {"eval": hosted.get_latest_repo_eval(repo.id)}
+
+    @router.get("/repos/{repo_id}/lineage")
+    async def repo_lineage(
+        repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        root = Path(repo.local_path)
+        if not root.is_dir():
+            raise HTTPException(status_code=409, detail={"error": "repo has no local checkout"})
+        return {"lineage": build_lineage_graph(root)}
 
     @router.get("/repos/{repo_id}/sync-events")
     async def sync_events(
