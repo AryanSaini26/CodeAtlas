@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { hostedApi, type HostedRepo } from "../api";
+import {
+  hostedApi,
+  type HostedGitHubInstallation,
+  type HostedGitHubRepository,
+  type HostedRepo,
+} from "../api";
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Input } from "../components/ui";
 import { Icon } from "../components/Icon";
 
@@ -27,6 +32,14 @@ export default function HostedPage() {
   const [contextQuery, setContextQuery] = useState("auth flow");
   const [contextResult, setContextResult] = useState<string>("");
   const [connectionText, setConnectionText] = useState("");
+  const [selectedInstallationId, setSelectedInstallationId] = useState<string | null>(null);
+  const [githubLocalPath, setGithubLocalPath] = useState(".");
+
+  const githubApp = useQuery({
+    queryKey: ["hosted", "github", "app"],
+    queryFn: () => hostedApi.githubApp(),
+    retry: false,
+  });
 
   const repos = useQuery({
     queryKey: ["hosted", "repos", tokenInput],
@@ -39,6 +52,26 @@ export default function HostedPage() {
     queryFn: () => hostedApi.teams(),
     retry: false,
     enabled: !!tokenInput,
+  });
+  const installations = useQuery({
+    queryKey: ["hosted", "github", "installations", tokenInput],
+    queryFn: () => hostedApi.githubInstallations(),
+    retry: false,
+    enabled: !!tokenInput,
+  });
+
+  const selectedInstallation = useMemo(() => {
+    const list = installations.data?.installations ?? [];
+    return (
+      list.find((installation) => installation.id === selectedInstallationId) ?? list[0] ?? null
+    );
+  }, [installations.data?.installations, selectedInstallationId]);
+
+  const githubRepos = useQuery({
+    queryKey: ["hosted", "github", "repos", selectedInstallation?.id],
+    queryFn: () => hostedApi.githubRepos(selectedInstallation!.id),
+    retry: false,
+    enabled: !!selectedInstallation,
   });
 
   const selectedRepo = useMemo(() => {
@@ -89,6 +122,17 @@ export default function HostedPage() {
       void qc.invalidateQueries({ queryKey: ["hosted"] });
     },
   });
+  const activateGithubRepo = useMutation({
+    mutationFn: (repo: HostedGitHubRepository) =>
+      hostedApi.activateGithubRepo(repo.provider_repo_id, {
+        local_path: githubLocalPath,
+        hosted_name: repo.full_name,
+      }),
+    onSuccess: (data) => {
+      setSelectedRepoId(data.repo.id);
+      void qc.invalidateQueries({ queryKey: ["hosted"] });
+    },
+  });
 
   const previewContext = useMutation({
     mutationFn: (repo: HostedRepo) =>
@@ -130,9 +174,9 @@ export default function HostedPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-head text-[18px] font-bold text-text-1">Hosted Gateway</h1>
+          <h1 className="font-head text-[18px] font-bold text-text-1">Stratum Gateway</h1>
           <div className="mt-1 text-[12px] text-text-3">
-            Team context control plane · local-dev mode
+            Hosted team context · powered by the CodeAtlas engine
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -162,48 +206,116 @@ export default function HostedPage() {
       ) : null}
 
       <div className="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-4">
-        <Card>
-          <CardHeader title="Repos" subtitle={teams.data?.teams[0]?.name ?? "No team loaded"} />
-          <CardBody className="flex flex-col gap-3">
-            <div className="grid grid-cols-1 gap-2">
-              <Input value={repoName} onChange={(e) => setRepoName(e.target.value)} />
-              <Input value={repoPath} onChange={(e) => setRepoPath(e.target.value)} />
-              <Button
-                onClick={() => registerRepo.mutate()}
-                disabled={!tokenInput || registerRepo.isPending}
-              >
-                <Icon name="check" size={13} /> Register repo
-              </Button>
-            </div>
-            <div className="flex flex-col gap-2">
-              {(repos.data?.repos ?? []).map((repo) => (
-                <button
-                  type="button"
-                  key={repo.id}
-                  onClick={() => setSelectedRepoId(repo.id)}
-                  className={`text-left rounded-md border px-3 py-2 transition-colors ${
-                    selectedRepo?.id === repo.id
-                      ? "border-cyan/50 bg-cyan/10"
-                      : "border-border bg-white/[0.02] hover:bg-white/[0.04]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-text-1">{repo.name}</span>
-                    <Badge tone={statusTone(repo.last_sync_status)}>
-                      {repo.last_sync_status}
-                    </Badge>
+        <div className="flex flex-col gap-4 min-w-0">
+          <Card>
+            <CardHeader
+              title="GitHub App"
+              subtitle={
+                githubApp.data?.configured
+                  ? "App credentials detected"
+                  : "Dev metadata mode; credentials not set"
+              }
+            />
+            <CardBody className="flex flex-col gap-3">
+              <div className="grid grid-cols-3 gap-2">
+                <StatusPill label="App" on={!!githubApp.data?.configured} />
+                <StatusPill label="OAuth" on={!!githubApp.data?.oauth_configured} />
+                <StatusPill label="Webhook" on={!!githubApp.data?.webhook_configured} />
+              </div>
+              <div className="font-mono text-[10px] text-text-4">
+                {githubApp.data?.public_url ?? "STRATUM_PUBLIC_URL not set"}
+              </div>
+              <div className="flex flex-col gap-2">
+                {(installations.data?.installations ?? []).map((installation) => (
+                  <InstallationButton
+                    key={installation.id}
+                    installation={installation}
+                    active={selectedInstallation?.id === installation.id}
+                    onClick={() => setSelectedInstallationId(installation.id)}
+                  />
+                ))}
+                {tokenInput && installations.data?.installations.length === 0 ? (
+                  <EmptyState title="No installations" hint="Use webhook-test or API setup." />
+                ) : null}
+              </div>
+              {selectedInstallation ? (
+                <div className="flex flex-col gap-2">
+                  <Input
+                    value={githubLocalPath}
+                    onChange={(e) => setGithubLocalPath(e.target.value)}
+                    placeholder="Local checkout path for activation"
+                  />
+                  <div className="max-h-[220px] overflow-auto rounded-md border border-border">
+                    {(githubRepos.data?.repositories ?? []).map((repo) => (
+                      <button
+                        type="button"
+                        key={repo.id}
+                        onClick={() => activateGithubRepo.mutate(repo)}
+                        className="flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-white/[0.04]"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-[12px] text-text-1">
+                            {repo.full_name}
+                          </span>
+                          <span className="block truncate font-mono text-[10px] text-text-4">
+                            {repo.last_webhook_event ?? "no webhook"} ·{" "}
+                            {repo.activated_repo_id ? "active" : "inactive"}
+                          </span>
+                        </span>
+                        <Badge tone={repo.activated_repo_id ? "success" : "warn"}>
+                          {repo.activated_repo_id ? "active" : "activate"}
+                        </Badge>
+                      </button>
+                    ))}
                   </div>
-                  <div className="mt-1 truncate font-mono text-[10px] text-text-4">
-                    {repo.local_path}
-                  </div>
-                </button>
-              ))}
-              {tokenInput && repos.data?.repos.length === 0 ? (
-                <EmptyState title="No repos registered" hint="Register a local path." />
+                </div>
               ) : null}
-            </div>
-          </CardBody>
-        </Card>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="Repos" subtitle={teams.data?.teams[0]?.name ?? "No team loaded"} />
+            <CardBody className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 gap-2">
+                <Input value={repoName} onChange={(e) => setRepoName(e.target.value)} />
+                <Input value={repoPath} onChange={(e) => setRepoPath(e.target.value)} />
+                <Button
+                  onClick={() => registerRepo.mutate()}
+                  disabled={!tokenInput || registerRepo.isPending}
+                >
+                  <Icon name="check" size={13} /> Register repo
+                </Button>
+              </div>
+              <div className="flex flex-col gap-2">
+                {(repos.data?.repos ?? []).map((repo) => (
+                  <button
+                    type="button"
+                    key={repo.id}
+                    onClick={() => setSelectedRepoId(repo.id)}
+                    className={`text-left rounded-md border px-3 py-2 transition-colors ${
+                      selectedRepo?.id === repo.id
+                        ? "border-cyan/50 bg-cyan/10"
+                        : "border-border bg-white/[0.02] hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-text-1">{repo.name}</span>
+                      <Badge tone={statusTone(repo.last_sync_status)}>
+                        {repo.last_sync_status}
+                      </Badge>
+                    </div>
+                    <div className="mt-1 truncate font-mono text-[10px] text-text-4">
+                      {repo.provider === "github" ? repo.provider_repo : repo.local_path}
+                    </div>
+                  </button>
+                ))}
+                {tokenInput && repos.data?.repos.length === 0 ? (
+                  <EmptyState title="No repos registered" hint="Register or activate a repo." />
+                ) : null}
+              </div>
+            </CardBody>
+          </Card>
+        </div>
 
         <div className="flex flex-col gap-4 min-w-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -243,6 +355,7 @@ export default function HostedPage() {
                   <Field label="Last indexed" value={fmtTime(selectedRepo.last_indexed_at)} />
                   <Field label="Last commit" value={selectedRepo.last_commit_sha ?? "unknown"} />
                   <Field label="Provider" value={selectedRepo.provider} />
+                  <Field label="Provider repo" value={selectedRepo.provider_repo ?? "local"} />
                   <Field label="Status" value={selectedRepo.last_sync_status} />
                   {selectedRepo.last_error ? (
                     <div className="md:col-span-2 text-bad">{selectedRepo.last_error}</div>
@@ -319,6 +432,43 @@ export default function HostedPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function StatusPill({ label, on }: { label: string; on: boolean }) {
+  return (
+    <div className="rounded-md border border-border bg-white/[0.02] px-2 py-2">
+      <div className="text-[10px] uppercase tracking-[0.06em] text-text-4">{label}</div>
+      <Badge tone={on ? "success" : "warn"}>{on ? "ready" : "stub"}</Badge>
+    </div>
+  );
+}
+
+function InstallationButton({
+  installation,
+  active,
+  onClick,
+}: {
+  installation: HostedGitHubInstallation;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left rounded-md border px-3 py-2 transition-colors ${
+        active ? "border-cyan/50 bg-cyan/10" : "border-border bg-white/[0.02] hover:bg-white/[0.04]"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium text-text-1">{installation.account_login}</span>
+        <Badge tone="cyan">{installation.account_type}</Badge>
+      </div>
+      <div className="mt-1 truncate font-mono text-[10px] text-text-4">
+        installation {installation.installation_id}
+      </div>
+    </button>
   );
 }
 

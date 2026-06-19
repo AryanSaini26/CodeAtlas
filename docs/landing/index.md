@@ -1,17 +1,17 @@
-# CodeAtlas — code knowledge graphs for AI agents
+# Stratum — persistent context infrastructure for AI agents
 
-> Tree-sitter parsers, a persistent SQLite + FTS5 graph, FAISS semantic search, PageRank centrality, and a 30-tool MCP surface. Installs in one `pip install`. Ships with a React web UI.
+> Hosted team context powered by the CodeAtlas engine: tree-sitter parsers, a persistent SQLite + FTS5 graph, FAISS semantic search, PageRank centrality, GitHub App sync foundation, and a 30-tool MCP surface.
 
 <!-- hero screencast (recorded before launch; see docs/assets/README.md) -->
 ![hero](../assets/hero.svg)
 
 ## Why it exists
 
-AI coding agents waste most of their context window orienting themselves in a codebase. CodeAtlas gives them a pre-built structural and semantic index so they can navigate intelligently from the first token — no repeated greps, no hallucinated call chains.
+AI coding agents waste most of their context window orienting themselves in a codebase. Stratum gives teams a persistent CodeAtlas-backed structural and semantic index so agents can navigate intelligently from the first token — no repeated greps, no hallucinated call chains.
 
 ## What makes it different
 
-| | CodeAtlas | Typical alternatives |
+| | Stratum / CodeAtlas | Typical alternatives |
 |---|---|---|
 | Storage | Persistent SQLite + FTS5 (1M+ symbols) | Flat `graph.json` re-serialized every run |
 | Semantic search | FAISS + MiniLM embeddings | Keyword grep only |
@@ -26,7 +26,7 @@ AI coding agents waste most of their context window orienting themselves in a co
 ```bash
 pip install codeatlas
 codeatlas index /path/to/repo
-codeatlas ui                       # API + web UI on :8080
+stratum ui                         # API + web UI on :8080
 ```
 
 Point Claude Code at `codeatlas serve` to hand agents 30 MCP tools over the same graph:

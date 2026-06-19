@@ -1,11 +1,12 @@
-# CodeAtlas
+# Stratum / CodeAtlas
 
-> **Real-time code knowledge graphs for AI coding agents.**
+> **Hosted team context for AI coding agents, powered by real-time CodeAtlas knowledge graphs.**
 
-CodeAtlas parses your codebase with tree-sitter, materializes it into a persistent SQLite graph, and exposes it to agents via the Model Context Protocol. Agents stop reading files by name and start querying a real graph — call chains, PageRank centrality, test coverage gaps, dependency cycles, hotspots, and more.
+Stratum is the hosted gateway product; CodeAtlas is the open-source engine and compatible CLI/package. CodeAtlas parses your codebase with tree-sitter, materializes it into a persistent SQLite graph, and exposes it to agents via the Model Context Protocol. Agents stop reading files by name and start querying a real graph — call chains, PageRank centrality, test coverage gaps, dependency cycles, hotspots, and more.
 
-## Why CodeAtlas
+## Why Stratum / CodeAtlas
 
+- **Hosted control plane foundation** — users, teams, repo tokens, GitHub App metadata, webhook replay/sync, and a `/hosted` dashboard.
 - **24 tree-sitter parsers** — Python, TypeScript/JavaScript, Go, Rust, Java, Kotlin, C/C++, C#, Ruby, PHP, Scala, Swift, Haskell, Bash, Lua, Elixir, SQL, Zig, OCaml, Julia, PowerShell, Svelte, and more.
 - **30 MCP tools** — broad agent surface area including search, graph traversal, context packs, centrality, coverage, and impact.
 - **39 CLI commands** — everything the MCP server does is also scriptable.

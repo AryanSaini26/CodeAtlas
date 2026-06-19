@@ -71,6 +71,7 @@ dev = ["pytest>=7.0.0", "pytest-cov>=4.0.0", "ruff>=0.1.0", "mypy>=1.0.0", "buil
 
 [project.scripts]
 codeatlas = "codeatlas.cli:cli"
+stratum = "codeatlas.cli:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/codeatlas"]

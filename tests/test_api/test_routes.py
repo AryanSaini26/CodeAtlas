@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 from pathlib import Path
 from typing import Any
 
@@ -294,6 +297,111 @@ def test_hosted_repo_registration_rejects_missing_path(tmp_path: Path, db_path: 
         json={"team_slug": "default", "name": "missing", "local_path": str(tmp_path / "nope")},
     )
     assert resp.status_code == 400
+
+
+def test_hosted_github_activation_and_push_webhook_sync(
+    tmp_path: Path,
+    db_path: Path,
+) -> None:
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / "app.py").write_text("def greet(name: str) -> str:\n    return f'hi {name}'\n")
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    token = client.post("/api/hosted/v1/dev/bootstrap").json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    app_status = client.get("/api/hosted/v1/github/app")
+    assert app_status.status_code == 200
+    assert app_status.json()["brand"] == "Stratum"
+
+    installation = client.post(
+        "/api/hosted/v1/github/installations",
+        headers=headers,
+        json={
+            "team_slug": "default",
+            "installation_id": "42",
+            "account_login": "AryanSaini26",
+            "account_type": "User",
+        },
+    )
+    assert installation.status_code == 200
+
+    github_repo = client.post(
+        "/api/hosted/v1/github/installations/42/repos",
+        headers=headers,
+        json={
+            "installation_id": "42",
+            "provider_repo_id": "1001",
+            "full_name": "AryanSaini26/CodeAtlas",
+            "name": "CodeAtlas",
+            "owner": "AryanSaini26",
+            "default_branch": "main",
+            "local_path": str(repo_path),
+        },
+    )
+    assert github_repo.status_code == 200
+
+    activated = client.post(
+        "/api/hosted/v1/github/repos/1001/activate",
+        headers=headers,
+        json={"local_path": str(repo_path)},
+    )
+    assert activated.status_code == 200
+    hosted_repo = activated.json()["repo"]
+    assert hosted_repo["provider"] == "github"
+
+    payload = {
+        "installation": {"id": 42, "permissions": {"contents": "read"}},
+        "account": {"login": "AryanSaini26", "type": "User", "id": 26},
+        "repository": {
+            "id": 1001,
+            "full_name": "AryanSaini26/CodeAtlas",
+            "name": "CodeAtlas",
+            "owner": {"login": "AryanSaini26"},
+            "default_branch": "main",
+            "private": False,
+        },
+    }
+    webhook = client.post(
+        "/api/hosted/v1/github/webhook",
+        headers={"X-GitHub-Event": "push", "X-GitHub-Delivery": "delivery-1"},
+        json=payload,
+    )
+    assert webhook.status_code == 200
+    assert webhook.json()["status"] == "ok"
+    assert webhook.json()["repo_id"] == hosted_repo["id"]
+
+    events = client.get(
+        f"/api/hosted/v1/repos/{hosted_repo['id']}/sync-events",
+        headers=headers,
+    )
+    assert events.status_code == 200
+    assert events.json()["events"][0]["delivery_id"] == "delivery-1"
+
+
+def test_hosted_github_webhook_rejects_invalid_signature(
+    tmp_path: Path,
+    db_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("STRATUM_GITHUB_WEBHOOK_SECRET", "secret")
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    body = json.dumps({"zen": "Keep it logically awesome."}).encode()
+    bad = hmac.new(b"wrong", body, hashlib.sha256).hexdigest()
+
+    resp = client.post(
+        "/api/hosted/v1/github/webhook",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-GitHub-Event": "ping",
+            "X-Hub-Signature-256": f"sha256={bad}",
+        },
+    )
+
+    assert resp.status_code == 401
 
 
 def test_create_app_import_message() -> None:

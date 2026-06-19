@@ -1,16 +1,16 @@
-# Startup Roadmap
+# Stratum Startup Roadmap
 
-CodeAtlas should not compete as another AI coding assistant. Cursor, GitHub
+Stratum should not compete as another AI coding assistant. Cursor, GitHub
 Copilot, Claude Code, Codex, Sourcegraph Amp, and Devin-like products already
-own that framing. CodeAtlas is stronger as agent infrastructure: the persistent
-context, eval, security, and observability layer that makes any coding agent
-more repo-aware and measurable.
+own that framing. Stratum is stronger as agent infrastructure powered by
+CodeAtlas: the persistent context, sync, eval, security, and observability layer
+that makes any coding agent more repo-aware and measurable.
 
 ## Positioning
 
 The product promise is:
 
-> CodeAtlas measures and improves the context given to any coding agent.
+> Stratum measures and improves the context given to any coding agent.
 
 That keeps the story focused on infrastructure rather than model competition.
 The core wedge is shared persistent code context for teams using multiple
@@ -38,11 +38,14 @@ The current MVP foundation is local-dev but product-shaped:
 - `codeatlas hosted register-repo` stores repo metadata and assigns a
   repo-specific graph DB.
 - `codeatlas hosted sync` indexes that repo and records sync events.
+- `codeatlas hosted github status` checks Stratum GitHub App configuration.
+- `codeatlas hosted github webhook-test` replays GitHub push fixtures, records
+  delivery IDs, and triggers sync for activated repos.
 - `codeatlas ui --hosted-db .codeatlas/hosted.db` exposes the `/hosted`
   dashboard over the same FastAPI process.
 
-That gives the project a demoable hosted control plane before adding real
-GitHub OAuth, GitHub App installation, billing, and remote multi-repo MCP
+That gives the project a demoable hosted control plane before adding GitHub
+OAuth callbacks, hosted clone/index jobs, billing, and remote multi-repo MCP
 routing.
 
 ## Paid Wedge
@@ -100,9 +103,9 @@ Avoid unsupported competitor claims, including unverified star counts.
 
 ## Next Build Sequence
 
-1. GitHub App + OAuth onboarding.
-2. Hosted repo registration: users, teams, repos, installations, indexes.
-3. Remote MCP endpoint with per-repo auth token.
-4. Webhook-triggered indexing jobs.
+1. Complete GitHub App setup callbacks and GitHub API repo listing.
+2. Add hosted clone/index workers for activated GitHub repos.
+3. Remote MCP endpoint with per-repo auth token and audience validation.
+4. Webhook-triggered incremental indexing jobs.
 5. Hosted dashboard for index status, MCP URL, graph stats, and latest reports.
 6. Billing after one hosted repo flow is reliable.

@@ -2425,6 +2425,97 @@ def hosted_sync(hosted_db: str, repo_id_or_name: str) -> None:
     )
 
 
+@hosted.group("github")
+def hosted_github() -> None:
+    """Manage Stratum GitHub App metadata and webhook sync."""
+
+
+@hosted_github.command("status")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+def hosted_github_status(hosted_db: str) -> None:
+    """Show GitHub App configuration and stored installation state."""
+    from codeatlas.github_app import load_github_app_config
+    from codeatlas.hosted import HostedStore
+
+    config = load_github_app_config()
+    store = HostedStore(Path(hosted_db))
+    try:
+        installations = store.list_github_installations()
+        repositories = store.list_github_repositories()
+    finally:
+        store.close()
+
+    table = Table(title="Stratum GitHub App")
+    table.add_column("Check")
+    table.add_column("Value")
+    table.add_row("App configured", "yes" if config.configured else "no")
+    table.add_row("OAuth configured", "yes" if config.oauth_configured else "no")
+    table.add_row("Webhook secret", "yes" if config.webhook_configured else "no")
+    table.add_row("Public URL", config.public_url or "not set")
+    table.add_row("Installations", str(len(installations)))
+    table.add_row("GitHub repos", str(len(repositories)))
+    console.print(table)
+
+
+@hosted_github.command("sync")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+@click.option(
+    "--repo", "repo_id_or_name", required=True, help="Hosted repo id, name, or GitHub repo id"
+)
+def hosted_github_sync(hosted_db: str, repo_id_or_name: str) -> None:
+    """Sync an activated GitHub repo through the hosted graph path."""
+    from codeatlas.hosted import HostedStore
+
+    store = HostedStore(Path(hosted_db))
+    try:
+        repo = store.get_repo_by_provider_id(repo_id_or_name) or store.get_repo(repo_id_or_name)
+        result = store.sync_repo(repo.id)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        store.close()
+    console.print("[green]GitHub repo sync complete[/green]")
+    console.print(f"Repo: [cyan]{result.repo.name}[/cyan] ({result.repo.id})")
+    console.print(f"Status: {result.event.status} · {result.event.duration_ms}ms")
+
+
+@hosted_github.command("webhook-test")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+@click.option(
+    "--delivery",
+    "delivery_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="GitHub webhook fixture JSON path",
+)
+@click.option("--event", "event_name", default="push", show_default=True)
+@click.option("--delivery-id", default="cli-fixture", show_default=True)
+def hosted_github_webhook_test(
+    hosted_db: str,
+    delivery_path: str,
+    event_name: str,
+    delivery_id: str,
+) -> None:
+    """Replay a GitHub webhook fixture without network access."""
+    from codeatlas.github_app import parse_webhook_payload, process_github_webhook
+    from codeatlas.hosted import HostedStore
+
+    payload = parse_webhook_payload(Path(delivery_path).read_text())
+    store = HostedStore(Path(hosted_db))
+    try:
+        result = process_github_webhook(
+            store,
+            event=event_name,
+            delivery_id=delivery_id,
+            payload=payload,
+        )
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        store.close()
+    console.print(_json.dumps(result.model_dump(), indent=2))
+
+
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
 @click.option("--host", default="127.0.0.1", show_default=True)

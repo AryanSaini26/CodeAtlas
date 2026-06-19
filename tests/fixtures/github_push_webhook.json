@@ -1,0 +1,25 @@
+{
+  "installation": {
+    "id": 42,
+    "permissions": {
+      "contents": "read",
+      "metadata": "read"
+    }
+  },
+  "account": {
+    "login": "AryanSaini26",
+    "type": "User",
+    "id": 26
+  },
+  "repository": {
+    "id": 1001,
+    "full_name": "AryanSaini26/CodeAtlas",
+    "name": "CodeAtlas",
+    "owner": {
+      "login": "AryanSaini26"
+    },
+    "private": false,
+    "default_branch": "main",
+    "clone_url": "https://github.com/AryanSaini26/CodeAtlas.git"
+  }
+}

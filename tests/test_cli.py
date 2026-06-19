@@ -1,5 +1,6 @@
 """Tests for the CLI commands."""
 
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -204,6 +205,81 @@ def test_hosted_cli_bootstrap_register_and_sync(tmp_path: Path) -> None:
     )
     assert synced.exit_code == 0
     assert "Hosted repo sync complete" in synced.output
+
+
+def test_hosted_github_cli_status_sync_and_webhook_fixture(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    repo = _make_repo(repo_root)
+    hosted_db = tmp_path / "hosted.db"
+    runner = CliRunner()
+
+    bootstrap = runner.invoke(cli, ["hosted", "bootstrap", "--hosted-db", str(hosted_db)])
+    assert bootstrap.exit_code == 0
+
+    from codeatlas.hosted import HostedStore
+
+    store = HostedStore(hosted_db)
+    try:
+        installation = store.upsert_github_installation(
+            team_slug="default",
+            installation_id="42",
+            account_login="AryanSaini26",
+            account_type="User",
+        )
+        store.upsert_github_repository(
+            installation_id=installation.installation_id,
+            provider_repo_id="1001",
+            full_name="AryanSaini26/CodeAtlas",
+            name="CodeAtlas",
+            owner="AryanSaini26",
+            local_path=str(repo),
+        )
+        store.activate_github_repository("1001")
+    finally:
+        store.close()
+
+    status = runner.invoke(cli, ["hosted", "github", "status", "--hosted-db", str(hosted_db)])
+    assert status.exit_code == 0
+    assert "Stratum GitHub App" in status.output
+
+    fixture = tmp_path / "push.json"
+    fixture.write_text(
+        json.dumps(
+            {
+                "installation": {"id": 42, "permissions": {"contents": "read"}},
+                "account": {"login": "AryanSaini26", "type": "User", "id": 26},
+                "repository": {
+                    "id": 1001,
+                    "full_name": "AryanSaini26/CodeAtlas",
+                    "name": "CodeAtlas",
+                    "owner": {"login": "AryanSaini26"},
+                    "private": False,
+                },
+            }
+        )
+    )
+    replay = runner.invoke(
+        cli,
+        [
+            "hosted",
+            "github",
+            "webhook-test",
+            "--hosted-db",
+            str(hosted_db),
+            "--delivery",
+            str(fixture),
+        ],
+    )
+    assert replay.exit_code == 0
+    assert '"status": "ok"' in replay.output
+
+    synced = runner.invoke(
+        cli,
+        ["hosted", "github", "sync", "--hosted-db", str(hosted_db), "--repo", "1001"],
+    )
+    assert synced.exit_code == 0
+    assert "GitHub repo sync complete" in synced.output
 
 
 def test_perf_report_with_local_fixture_repo(tmp_path: Path) -> None:

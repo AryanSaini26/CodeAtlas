@@ -201,7 +201,10 @@ export type HostedRepo = {
   graph_db_path: string;
   provider: string;
   provider_repo?: string | null;
+  provider_repo_id?: string | null;
+  provider_installation_id?: string | null;
   default_branch?: string | null;
+  clone_url?: string | null;
   last_commit_sha?: string | null;
   last_indexed_at?: number | null;
   last_sync_status: string;
@@ -220,7 +223,51 @@ export type HostedSyncEvent = {
   errors: number;
   duration_ms: number;
   commit_sha?: string | null;
+  delivery_id?: string | null;
   created_at: number;
+};
+
+export type HostedGitHubApp = {
+  brand: string;
+  engine: string;
+  configured: boolean;
+  oauth_configured: boolean;
+  webhook_configured: boolean;
+  app_id?: string | null;
+  client_id?: string | null;
+  public_url?: string | null;
+  setup_url?: string | null;
+};
+
+export type HostedGitHubInstallation = {
+  id: string;
+  installation_id: string;
+  team_id: string;
+  account_login: string;
+  account_type: string;
+  account_id?: string | null;
+  app_slug?: string | null;
+  permissions: Record<string, unknown>;
+  created_at: number;
+  updated_at: number;
+};
+
+export type HostedGitHubRepository = {
+  id: string;
+  installation_id: string;
+  provider_repo_id: string;
+  full_name: string;
+  name: string;
+  owner: string;
+  private: boolean;
+  default_branch?: string | null;
+  clone_url?: string | null;
+  local_path?: string | null;
+  activated_repo_id?: string | null;
+  last_webhook_delivery_id?: string | null;
+  last_webhook_event?: string | null;
+  created_at: number;
+  updated_at: number;
 };
 
 export type HostedBootstrapResponse = {
@@ -330,7 +377,10 @@ export const hostedApi = {
     local_path: string;
     provider?: string;
     provider_repo?: string;
+    provider_repo_id?: string;
+    provider_installation_id?: string;
     default_branch?: string;
+    clone_url?: string;
   }) =>
     hostedReq<{ repo: HostedRepo }>("/repos", undefined, {
       method: "POST",
@@ -371,4 +421,22 @@ export const hostedApi = {
       method: "POST",
       body: JSON.stringify({}),
     }),
+  githubApp: () => hostedReq<HostedGitHubApp>("/github/app"),
+  githubInstallations: () =>
+    hostedReq<{ installations: HostedGitHubInstallation[] }>(
+      "/github/installations",
+    ),
+  githubRepos: (installationId: string) =>
+    hostedReq<{ repositories: HostedGitHubRepository[] }>(
+      `/github/installations/${encodeURIComponent(installationId)}/repos`,
+    ),
+  activateGithubRepo: (
+    providerRepoId: string,
+    payload: { local_path: string; hosted_name?: string },
+  ) =>
+    hostedReq<{ repo: HostedRepo }>(
+      `/github/repos/${encodeURIComponent(providerRepoId)}/activate`,
+      undefined,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
 };

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from codeatlas.config import CodeAtlasConfig
 from codeatlas.graph.store import GraphStore
@@ -78,7 +78,10 @@ class HostedRepo(BaseModel):
     graph_db_path: str
     provider: str = "local"
     provider_repo: str | None = None
+    provider_repo_id: str | None = None
+    provider_installation_id: str | None = None
     default_branch: str | None = None
+    clone_url: str | None = None
     last_commit_sha: str | None = None
     last_indexed_at: int | None = None
     last_sync_status: str = "never"
@@ -109,7 +112,39 @@ class HostedSyncEvent(BaseModel):
     errors: int = 0
     duration_ms: int = 0
     commit_sha: str | None = None
+    delivery_id: str | None = None
     created_at: int
+
+
+class GitHubInstallation(BaseModel):
+    id: str
+    installation_id: str
+    team_id: str
+    account_login: str
+    account_type: str
+    account_id: str | None = None
+    app_slug: str | None = None
+    permissions: dict[str, Any] = Field(default_factory=dict)
+    created_at: int
+    updated_at: int
+
+
+class GitHubRepository(BaseModel):
+    id: str
+    installation_id: str
+    provider_repo_id: str
+    full_name: str
+    name: str
+    owner: str
+    private: bool = False
+    default_branch: str | None = None
+    clone_url: str | None = None
+    local_path: str | None = None
+    activated_repo_id: str | None = None
+    last_webhook_delivery_id: str | None = None
+    last_webhook_event: str | None = None
+    created_at: int
+    updated_at: int
 
 
 class HostedPrincipal(BaseModel):
@@ -142,7 +177,10 @@ class RepoRegistration:
     local_path: Path
     provider: str = "local"
     provider_repo: str | None = None
+    provider_repo_id: str | None = None
+    provider_installation_id: str | None = None
     default_branch: str | None = None
+    clone_url: str | None = None
 
 
 class HostedStore:
@@ -157,6 +195,11 @@ class HostedStore:
 
     def close(self) -> None:
         self._conn.close()
+
+    def _ensure_column(self, table: str, column: str, ddl: str) -> None:
+        rows = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
+        if column not in {str(row["name"]) for row in rows}:
+            self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
 
     def _migrate(self) -> None:
         self._conn.executescript(
@@ -189,7 +232,10 @@ class HostedStore:
                 graph_db_path TEXT NOT NULL,
                 provider TEXT NOT NULL DEFAULT 'local',
                 provider_repo TEXT,
+                provider_repo_id TEXT,
+                provider_installation_id TEXT,
                 default_branch TEXT,
+                clone_url TEXT,
                 last_commit_sha TEXT,
                 last_indexed_at INTEGER,
                 last_sync_status TEXT NOT NULL DEFAULT 'never',
@@ -220,14 +266,51 @@ class HostedStore:
                 errors INTEGER NOT NULL DEFAULT 0,
                 duration_ms INTEGER NOT NULL DEFAULT 0,
                 commit_sha TEXT,
+                delivery_id TEXT,
                 created_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS github_installations (
+                id TEXT PRIMARY KEY,
+                installation_id TEXT NOT NULL UNIQUE,
+                team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+                account_login TEXT NOT NULL,
+                account_type TEXT NOT NULL,
+                account_id TEXT,
+                app_slug TEXT,
+                permissions TEXT NOT NULL DEFAULT '{}',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS github_repositories (
+                id TEXT PRIMARY KEY,
+                installation_id TEXT NOT NULL REFERENCES github_installations(id) ON DELETE CASCADE,
+                provider_repo_id TEXT NOT NULL UNIQUE,
+                full_name TEXT NOT NULL,
+                name TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                private INTEGER NOT NULL DEFAULT 0,
+                default_branch TEXT,
+                clone_url TEXT,
+                local_path TEXT,
+                activated_repo_id TEXT REFERENCES repos(id) ON DELETE SET NULL,
+                last_webhook_delivery_id TEXT,
+                last_webhook_event TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
             CREATE INDEX IF NOT EXISTS idx_repos_team ON repos(team_id);
+            CREATE INDEX IF NOT EXISTS idx_repos_provider_id ON repos(provider_repo_id);
             CREATE INDEX IF NOT EXISTS idx_tokens_hash ON tokens(token_hash);
             CREATE INDEX IF NOT EXISTS idx_sync_events_repo_created
                 ON sync_events(repo_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_github_repos_installation
+                ON github_repositories(installation_id);
             """
         )
+        self._ensure_column("repos", "provider_repo_id", "provider_repo_id TEXT")
+        self._ensure_column("repos", "provider_installation_id", "provider_installation_id TEXT")
+        self._ensure_column("repos", "clone_url", "clone_url TEXT")
+        self._ensure_column("sync_events", "delivery_id", "delivery_id TEXT")
         self._conn.commit()
 
     def bootstrap_dev(
@@ -383,15 +466,18 @@ class HostedStore:
             self._conn.execute(
                 """
                 UPDATE repos
-                SET local_path = ?, provider = ?, provider_repo = ?, default_branch = ?,
-                    updated_at = ?
+                SET local_path = ?, provider = ?, provider_repo = ?, provider_repo_id = ?,
+                    provider_installation_id = ?, default_branch = ?, clone_url = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
                     str(root),
                     registration.provider,
                     registration.provider_repo,
+                    registration.provider_repo_id,
+                    registration.provider_installation_id,
                     registration.default_branch,
+                    registration.clone_url,
                     now,
                     repo_id,
                 ),
@@ -405,8 +491,9 @@ class HostedStore:
             """
             INSERT INTO repos
                 (id, team_id, name, local_path, graph_db_path, provider, provider_repo,
-                 default_branch, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 provider_repo_id, provider_installation_id, default_branch, clone_url,
+                 created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 repo_id,
@@ -416,7 +503,10 @@ class HostedStore:
                 str(graph_db_path),
                 registration.provider,
                 registration.provider_repo,
+                registration.provider_repo_id,
+                registration.provider_installation_id,
                 registration.default_branch,
+                registration.clone_url,
                 now,
                 now,
             ),
@@ -443,6 +533,276 @@ class HostedStore:
             rows = self._conn.execute("SELECT * FROM repos ORDER BY created_at ASC").fetchall()
         return [HostedRepo.model_validate(_row_to_dict(row)) for row in rows]
 
+    def upsert_github_installation(
+        self,
+        *,
+        team_slug: str,
+        installation_id: str,
+        account_login: str,
+        account_type: str,
+        account_id: str | None = None,
+        app_slug: str | None = None,
+        permissions: dict[str, Any] | None = None,
+    ) -> GitHubInstallation:
+        team = self.get_team(team_slug)
+        now = _now_ms()
+        existing = self._conn.execute(
+            "SELECT id FROM github_installations WHERE installation_id = ?",
+            (installation_id,),
+        ).fetchone()
+        if existing:
+            installation_pk = str(existing["id"])
+            self._conn.execute(
+                """
+                UPDATE github_installations
+                SET team_id = ?, account_login = ?, account_type = ?, account_id = ?,
+                    app_slug = ?, permissions = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    team.id,
+                    account_login,
+                    account_type,
+                    account_id,
+                    app_slug,
+                    json.dumps(permissions or {}, sort_keys=True),
+                    now,
+                    installation_pk,
+                ),
+            )
+        else:
+            installation_pk = f"ghinst_{uuid.uuid4().hex}"
+            self._conn.execute(
+                """
+                INSERT INTO github_installations
+                    (id, installation_id, team_id, account_login, account_type,
+                     account_id, app_slug, permissions, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    installation_pk,
+                    installation_id,
+                    team.id,
+                    account_login,
+                    account_type,
+                    account_id,
+                    app_slug,
+                    json.dumps(permissions or {}, sort_keys=True),
+                    now,
+                    now,
+                ),
+            )
+        self._conn.commit()
+        return self.get_github_installation(installation_pk)
+
+    def _github_installation_from_row(self, row: sqlite3.Row) -> GitHubInstallation:
+        data = _row_to_dict(row)
+        data["permissions"] = json.loads(str(data["permissions"] or "{}"))
+        return GitHubInstallation.model_validate(data)
+
+    def get_github_installation(self, installation_id_or_pk: str) -> GitHubInstallation:
+        row = self._conn.execute(
+            """
+            SELECT * FROM github_installations
+            WHERE id = ? OR installation_id = ?
+            """,
+            (installation_id_or_pk, installation_id_or_pk),
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"github installation not found: {installation_id_or_pk}")
+        return self._github_installation_from_row(row)
+
+    def list_github_installations(self, team_id: str | None = None) -> list[GitHubInstallation]:
+        if team_id:
+            rows = self._conn.execute(
+                """
+                SELECT * FROM github_installations
+                WHERE team_id = ?
+                ORDER BY updated_at DESC
+                """,
+                (team_id,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT * FROM github_installations ORDER BY updated_at DESC"
+            ).fetchall()
+        return [self._github_installation_from_row(row) for row in rows]
+
+    def upsert_github_repository(
+        self,
+        *,
+        installation_id: str,
+        provider_repo_id: str,
+        full_name: str,
+        name: str,
+        owner: str,
+        private: bool = False,
+        default_branch: str | None = None,
+        clone_url: str | None = None,
+        local_path: str | None = None,
+    ) -> GitHubRepository:
+        installation = self.get_github_installation(installation_id)
+        now = _now_ms()
+        existing = self._conn.execute(
+            "SELECT id FROM github_repositories WHERE provider_repo_id = ?",
+            (provider_repo_id,),
+        ).fetchone()
+        if existing:
+            repo_pk = str(existing["id"])
+            self._conn.execute(
+                """
+                UPDATE github_repositories
+                SET installation_id = ?, full_name = ?, name = ?, owner = ?, private = ?,
+                    default_branch = ?, clone_url = ?, local_path = COALESCE(?, local_path),
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    installation.id,
+                    full_name,
+                    name,
+                    owner,
+                    int(private),
+                    default_branch,
+                    clone_url,
+                    local_path,
+                    now,
+                    repo_pk,
+                ),
+            )
+        else:
+            repo_pk = f"ghrepo_{uuid.uuid4().hex}"
+            self._conn.execute(
+                """
+                INSERT INTO github_repositories
+                    (id, installation_id, provider_repo_id, full_name, name, owner,
+                     private, default_branch, clone_url, local_path, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    repo_pk,
+                    installation.id,
+                    provider_repo_id,
+                    full_name,
+                    name,
+                    owner,
+                    int(private),
+                    default_branch,
+                    clone_url,
+                    local_path,
+                    now,
+                    now,
+                ),
+            )
+        self._conn.commit()
+        return self.get_github_repository(provider_repo_id)
+
+    def _github_repository_from_row(self, row: sqlite3.Row) -> GitHubRepository:
+        data = _row_to_dict(row)
+        data["private"] = bool(data["private"])
+        return GitHubRepository.model_validate(data)
+
+    def get_github_repository(self, provider_repo_id_or_full_name: str) -> GitHubRepository:
+        row = self._conn.execute(
+            """
+            SELECT * FROM github_repositories
+            WHERE id = ? OR provider_repo_id = ? OR full_name = ?
+            """,
+            (
+                provider_repo_id_or_full_name,
+                provider_repo_id_or_full_name,
+                provider_repo_id_or_full_name,
+            ),
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"github repository not found: {provider_repo_id_or_full_name}")
+        return self._github_repository_from_row(row)
+
+    def list_github_repositories(
+        self,
+        installation_id: str | None = None,
+    ) -> list[GitHubRepository]:
+        if installation_id:
+            installation = self.get_github_installation(installation_id)
+            rows = self._conn.execute(
+                """
+                SELECT * FROM github_repositories
+                WHERE installation_id = ?
+                ORDER BY full_name ASC
+                """,
+                (installation.id,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT * FROM github_repositories ORDER BY full_name ASC"
+            ).fetchall()
+        return [self._github_repository_from_row(row) for row in rows]
+
+    def activate_github_repository(
+        self,
+        provider_repo_id: str,
+        *,
+        local_path: Path | str | None = None,
+        hosted_name: str | None = None,
+    ) -> HostedRepo:
+        github_repo = self.get_github_repository(provider_repo_id)
+        installation = self.get_github_installation(github_repo.installation_id)
+        resolved_local_path = str(local_path or github_repo.local_path or "")
+        if not resolved_local_path:
+            raise ValueError(
+                "GitHub repo activation needs a local_path until hosted cloning is enabled"
+            )
+        repo = self.register_repo(
+            RepoRegistration(
+                team_slug=self.get_team(installation.team_id).slug,
+                name=hosted_name or github_repo.full_name,
+                local_path=Path(resolved_local_path),
+                provider="github",
+                provider_repo=github_repo.full_name,
+                provider_repo_id=github_repo.provider_repo_id,
+                provider_installation_id=installation.installation_id,
+                default_branch=github_repo.default_branch,
+                clone_url=github_repo.clone_url,
+            )
+        )
+        now = _now_ms()
+        self._conn.execute(
+            """
+            UPDATE github_repositories
+            SET activated_repo_id = ?, local_path = ?, updated_at = ?
+            WHERE provider_repo_id = ?
+            """,
+            (repo.id, resolved_local_path, now, github_repo.provider_repo_id),
+        )
+        self._conn.commit()
+        return self.get_repo(repo.id)
+
+    def get_repo_by_provider_id(self, provider_repo_id: str) -> HostedRepo | None:
+        row = self._conn.execute(
+            "SELECT * FROM repos WHERE provider_repo_id = ?",
+            (provider_repo_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return HostedRepo.model_validate(_row_to_dict(row))
+
+    def update_github_webhook_delivery(
+        self,
+        *,
+        provider_repo_id: str,
+        delivery_id: str | None,
+        event: str,
+    ) -> None:
+        self._conn.execute(
+            """
+            UPDATE github_repositories
+            SET last_webhook_delivery_id = ?, last_webhook_event = ?, updated_at = ?
+            WHERE provider_repo_id = ?
+            """,
+            (delivery_id, event, _now_ms(), provider_repo_id),
+        )
+        self._conn.commit()
+
     def repo_accessible(self, repo: HostedRepo, principal: HostedPrincipal) -> bool:
         if principal.token.subject_type == "team":
             return principal.team_id == repo.team_id
@@ -459,6 +819,7 @@ class HostedStore:
         errors: int = 0,
         duration_ms: int = 0,
         commit_sha: str | None = None,
+        delivery_id: str | None = None,
     ) -> HostedSyncEvent:
         event_id = f"sync_{uuid.uuid4().hex}"
         now = _now_ms()
@@ -466,8 +827,8 @@ class HostedStore:
             """
             INSERT INTO sync_events
                 (id, repo_id, status, message, parsed, skipped, errors, duration_ms,
-                 commit_sha, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 commit_sha, delivery_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event_id,
@@ -479,6 +840,7 @@ class HostedStore:
                 errors,
                 duration_ms,
                 commit_sha,
+                delivery_id,
                 now,
             ),
         )
@@ -519,7 +881,7 @@ class HostedStore:
         ).fetchall()
         return [HostedSyncEvent.model_validate(_row_to_dict(row)) for row in rows]
 
-    def sync_repo(self, repo_id_or_name: str) -> SyncResult:
+    def sync_repo(self, repo_id_or_name: str, *, delivery_id: str | None = None) -> SyncResult:
         repo = self.get_repo(repo_id_or_name)
         root = Path(repo.local_path)
         start = time.monotonic()
@@ -546,6 +908,7 @@ class HostedStore:
                 errors=int(stats.get("errors", 0)),
                 duration_ms=int((time.monotonic() - start) * 1000),
                 commit_sha=commit_sha,
+                delivery_id=delivery_id,
             )
         except Exception as exc:
             event = self.record_sync_event(
@@ -554,6 +917,7 @@ class HostedStore:
                 message=str(exc),
                 duration_ms=int((time.monotonic() - start) * 1000),
                 commit_sha=commit_sha,
+                delivery_id=delivery_id,
             )
             raise RuntimeError(str(exc)) from exc
         return SyncResult(repo=self.get_repo(repo.id), event=event)

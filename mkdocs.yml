@@ -1,5 +1,5 @@
-site_name: CodeAtlas
-site_description: An MCP server that constructs real-time code knowledge graphs for AI coding agents
+site_name: Stratum / CodeAtlas
+site_description: A hosted team context gateway powered by real-time CodeAtlas knowledge graphs for AI coding agents
 site_url: https://aryansaini26.github.io/CodeAtlas/
 repo_url: https://github.com/AryanSaini26/CodeAtlas
 repo_name: AryanSaini26/CodeAtlas
@@ -56,12 +56,13 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Why CodeAtlas: landing/index.md
+  - Why Stratum: landing/index.md
   - Getting started: getting-started.md
   - CLI reference: cli.md
   - MCP tools: mcp-tools.md
   - AI infra case study: ai-infra-case-study.md
   - Startup roadmap: startup-roadmap.md
+  - Stratum startup plan: stratum-startup-plan.md
   - Hosted MVP: hosted-mvp.md
   - Architecture: architecture.md
   - Languages: languages.md

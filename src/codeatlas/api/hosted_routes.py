@@ -5,10 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from codeatlas.agent_context import build_context_pack
+from codeatlas.github_app import (
+    load_github_app_config,
+    parse_webhook_payload,
+    process_github_webhook,
+    verify_github_signature,
+)
 from codeatlas.graph.store import GraphStore
 from codeatlas.hosted import (
     HostedPrincipal,
@@ -36,12 +42,42 @@ class RepoCreateRequest(BaseModel):
     local_path: str = Field(min_length=1)
     provider: str = "local"
     provider_repo: str | None = None
+    provider_repo_id: str | None = None
+    provider_installation_id: str | None = None
     default_branch: str | None = None
+    clone_url: str | None = None
 
 
 class TokenCreateRequest(BaseModel):
     name: str = "repo token"
     scopes: list[str] = Field(default_factory=lambda: ["context:read", "repo:sync"])
+
+
+class GitHubInstallationRequest(BaseModel):
+    team_slug: str = "default"
+    installation_id: str = Field(min_length=1)
+    account_login: str = Field(min_length=1)
+    account_type: str = "Organization"
+    account_id: str | None = None
+    app_slug: str | None = None
+    permissions: dict[str, Any] = Field(default_factory=dict)
+
+
+class GitHubRepositoryRequest(BaseModel):
+    installation_id: str = Field(min_length=1)
+    provider_repo_id: str = Field(min_length=1)
+    full_name: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    owner: str = Field(min_length=1)
+    private: bool = False
+    default_branch: str | None = None
+    clone_url: str | None = None
+    local_path: str | None = None
+
+
+class GitHubActivateRequest(BaseModel):
+    local_path: str = Field(min_length=1)
+    hosted_name: str | None = None
 
 
 def _bearer_token(header: str | None) -> str | None:
@@ -142,7 +178,10 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
                     local_path=Path(payload.local_path),
                     provider=payload.provider,
                     provider_repo=payload.provider_repo,
+                    provider_repo_id=payload.provider_repo_id,
+                    provider_installation_id=payload.provider_installation_id,
                     default_branch=payload.default_branch,
+                    clone_url=payload.clone_url,
                 )
             )
         except PermissionError as exc:
@@ -265,5 +304,138 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
                 }
             },
         }
+
+    @router.get("/github/app")
+    async def github_app() -> dict[str, Any]:
+        config = load_github_app_config()
+        return {
+            "brand": "Stratum",
+            "engine": "CodeAtlas",
+            "configured": config.configured,
+            "oauth_configured": config.oauth_configured,
+            "webhook_configured": config.webhook_configured,
+            "app_id": config.app_id,
+            "client_id": config.client_id,
+            "public_url": config.public_url,
+            "setup_url": (
+                f"{config.public_url.rstrip('/')}/api/hosted/v1/github/app"
+                if config.public_url
+                else None
+            ),
+        }
+
+    @router.post("/github/installations")
+    async def register_github_installation(
+        payload: GitHubInstallationRequest,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        if principal.token.subject_type != "team":
+            raise HTTPException(status_code=403, detail={"error": "team token required"})
+        team = hosted.get_team(payload.team_slug)
+        if principal.team_id != team.id:
+            raise HTTPException(status_code=403, detail={"error": "token cannot access team"})
+        installation = hosted.upsert_github_installation(
+            team_slug=payload.team_slug,
+            installation_id=payload.installation_id,
+            account_login=payload.account_login,
+            account_type=payload.account_type,
+            account_id=payload.account_id,
+            app_slug=payload.app_slug,
+            permissions=payload.permissions,
+        )
+        return {"installation": installation.model_dump()}
+
+    @router.get("/github/installations")
+    async def github_installations(
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        return {
+            "installations": [
+                installation.model_dump()
+                for installation in hosted.list_github_installations(team_id=principal.team_id)
+            ]
+        }
+
+    @router.post("/github/installations/{installation_id}/repos")
+    async def register_github_repo(
+        installation_id: str,
+        payload: GitHubRepositoryRequest,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        installation = hosted.get_github_installation(installation_id)
+        if principal.team_id != installation.team_id:
+            raise HTTPException(
+                status_code=403, detail={"error": "token cannot access installation"}
+            )
+        repo = hosted.upsert_github_repository(
+            installation_id=payload.installation_id,
+            provider_repo_id=payload.provider_repo_id,
+            full_name=payload.full_name,
+            name=payload.name,
+            owner=payload.owner,
+            private=payload.private,
+            default_branch=payload.default_branch,
+            clone_url=payload.clone_url,
+            local_path=payload.local_path,
+        )
+        return {"repository": repo.model_dump()}
+
+    @router.get("/github/installations/{installation_id}/repos")
+    async def github_repos(
+        installation_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        installation = hosted.get_github_installation(installation_id)
+        if principal.team_id != installation.team_id:
+            raise HTTPException(
+                status_code=403, detail={"error": "token cannot access installation"}
+            )
+        repos = hosted.list_github_repositories(installation_id=installation.id)
+        return {"repositories": [repo.model_dump() for repo in repos]}
+
+    @router.post("/github/repos/{provider_repo_id}/activate")
+    async def activate_github_repo(
+        provider_repo_id: str,
+        payload: GitHubActivateRequest,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        github_repo = hosted.get_github_repository(provider_repo_id)
+        installation = hosted.get_github_installation(github_repo.installation_id)
+        if principal.token.subject_type != "team":
+            raise HTTPException(status_code=403, detail={"error": "team token required"})
+        if principal.team_id != installation.team_id:
+            raise HTTPException(status_code=403, detail={"error": "token cannot access repo"})
+        try:
+            repo = hosted.activate_github_repository(
+                provider_repo_id,
+                local_path=payload.local_path,
+                hosted_name=payload.hosted_name,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        return {"repo": repo.model_dump()}
+
+    @router.post("/github/webhook")
+    async def github_webhook(
+        request: Request,
+        x_github_event: str | None = Header(default=None),
+        x_github_delivery: str | None = Header(default=None),
+        x_hub_signature_256: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        raw = await request.body()
+        config = load_github_app_config()
+        if not verify_github_signature(raw, x_hub_signature_256, config.webhook_secret):
+            raise HTTPException(status_code=401, detail={"error": "invalid GitHub signature"})
+        try:
+            payload = parse_webhook_payload(raw)
+            result = process_github_webhook(
+                hosted,
+                event=x_github_event or "unknown",
+                delivery_id=x_github_delivery,
+                payload=payload,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        return result.model_dump()
 
     return router
