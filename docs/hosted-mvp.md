@@ -144,6 +144,25 @@ GET  /api/hosted/v1/repos/{repo_id}/connection
 The existing local graph API remains under `/api/v1` and keeps its existing
 `X-API-Key` behavior.
 
+## Verified
+
+Status of the four pre-Phase-1 hardening gaps (each closed in code with tests):
+
+- **Live GitHub repo listing (no fixtures outside tests):** `load_github_repositories`
+  now mints a real installation token when the App is configured —
+  `mint_installation_token` signs an RS256 JWT with the App private key and
+  exchanges it at `POST /app/installations/{id}/access_tokens`. Fixtures are
+  used only when `STRATUM_GITHUB_REPOS_FIXTURE` is set (CI/tests).
+- **Token hashing:** bearer tokens are stored as salted, memory-hard
+  `hashlib.scrypt` digests (`scrypt$N$r$p$salt$digest`), not raw SHA-256;
+  `verify_token` narrows by public prefix then compares in constant time.
+- **Webhook idempotency:** the push handler checks `X-GitHub-Delivery` against
+  recorded `sync_events.delivery_id` and returns `status="duplicate"` (200,
+  no re-sync) on a GitHub redelivery.
+- **GitHub App activation:** activating a repo with no local path clones via
+  `clone_url` into the managed `checkouts/` tree; local-path registration is
+  reserved for `hosted register-repo` dev mode.
+
 ## Intentional Stubs
 
 - GitHub OAuth is still represented by local dev bootstrap and bearer tokens.
@@ -159,5 +178,6 @@ The existing local graph API remains under `/api/v1` and keeps its existing
 ## Next Step
 
 The natural follow-up is production GitHub onboarding: OAuth login,
-JWT-to-installation-token exchange, background sync workers, remote streamable
-MCP transport, and team/member administration.
+background sync workers, remote streamable MCP transport, and team/member
+administration. (JWT-to-installation-token exchange is now implemented — see
+the Verified section above.)

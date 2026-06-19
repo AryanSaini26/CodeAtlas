@@ -403,7 +403,7 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
                 "fixture"
                 if config.repos_fixture_path
                 else "github_api"
-                if config.installation_token
+                if (config.installation_token or config.configured)
                 else "store"
             ),
         }

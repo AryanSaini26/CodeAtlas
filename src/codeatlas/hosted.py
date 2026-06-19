@@ -7,7 +7,9 @@ for demo-ready auth without external OAuth credentials.
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import json
 import secrets
 import sqlite3
@@ -26,13 +28,63 @@ from codeatlas.indexer import RepoIndexer
 
 TokenSubject = Literal["team", "repo"]
 
+# scrypt work factors. These are salted and memory-hard, unlike a bare SHA-256,
+# so a leaked token table cannot be brute-forced with a fast GPU hash. stdlib
+# scrypt keeps the hosted control plane dependency-light (no bcrypt/argon2 wheel).
+_SCRYPT_N = 2**14
+_SCRYPT_R = 8
+_SCRYPT_P = 1
+_SCRYPT_DKLEN = 32
+# maxmem must exceed 128 * N * r * p bytes (~16 MiB here); give scrypt headroom.
+_SCRYPT_MAXMEM = 64 * 1024 * 1024
+
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def _hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+def _hash_token(token: str, *, salt: bytes | None = None) -> str:
+    """Return a salted scrypt hash encoded as ``scrypt$N$r$p$salt$digest``."""
+    salt = salt if salt is not None else secrets.token_bytes(16)
+    derived = hashlib.scrypt(
+        token.encode("utf-8"),
+        salt=salt,
+        n=_SCRYPT_N,
+        r=_SCRYPT_R,
+        p=_SCRYPT_P,
+        dklen=_SCRYPT_DKLEN,
+        maxmem=_SCRYPT_MAXMEM,
+    )
+    return "scrypt${}${}${}${}${}".format(
+        _SCRYPT_N,
+        _SCRYPT_R,
+        _SCRYPT_P,
+        base64.b64encode(salt).decode("ascii"),
+        base64.b64encode(derived).decode("ascii"),
+    )
+
+
+def _verify_token_hash(token: str, encoded: str) -> bool:
+    """Constant-time verify a token against a stored ``scrypt$...`` hash."""
+    parts = encoded.split("$")
+    if len(parts) != 6 or parts[0] != "scrypt":
+        return False
+    try:
+        n, r, p = int(parts[1]), int(parts[2]), int(parts[3])
+        salt = base64.b64decode(parts[4])
+        expected = base64.b64decode(parts[5])
+    except (ValueError, base64.binascii.Error):  # type: ignore[attr-defined]
+        return False
+    derived = hashlib.scrypt(
+        token.encode("utf-8"),
+        salt=salt,
+        n=n,
+        r=r,
+        p=p,
+        dklen=len(expected),
+        maxmem=_SCRYPT_MAXMEM,
+    )
+    return hmac.compare_digest(derived, expected)
 
 
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
@@ -306,9 +358,11 @@ class HostedStore:
             );
             CREATE INDEX IF NOT EXISTS idx_repos_team ON repos(team_id);
             CREATE INDEX IF NOT EXISTS idx_repos_provider_id ON repos(provider_repo_id);
-            CREATE INDEX IF NOT EXISTS idx_tokens_hash ON tokens(token_hash);
+            CREATE INDEX IF NOT EXISTS idx_tokens_prefix ON tokens(prefix);
             CREATE INDEX IF NOT EXISTS idx_sync_events_repo_created
                 ON sync_events(repo_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_sync_events_delivery
+                ON sync_events(repo_id, delivery_id);
             CREATE INDEX IF NOT EXISTS idx_github_repos_installation
                 ON github_repositories(installation_id);
             """
@@ -439,10 +493,21 @@ class HostedStore:
         return HostedToken.model_validate(data)
 
     def verify_token(self, token: str) -> HostedPrincipal | None:
-        row = self._conn.execute(
-            "SELECT * FROM tokens WHERE token_hash = ? AND revoked_at IS NULL",
-            (_hash_token(token),),
-        ).fetchone()
+        # Salted scrypt hashes are not directly queryable, so candidates are
+        # narrowed by the public prefix and then verified in constant time.
+        prefix = token[:12]
+        rows = self._conn.execute(
+            "SELECT * FROM tokens WHERE prefix = ? AND revoked_at IS NULL",
+            (prefix,),
+        ).fetchall()
+        row = next(
+            (
+                candidate
+                for candidate in rows
+                if _verify_token_hash(token, str(candidate["token_hash"]))
+            ),
+            None,
+        )
         if row is None:
             return None
         self._conn.execute(
@@ -876,6 +941,21 @@ class HostedStore:
             (delivery_id, event, _now_ms(), provider_repo_id),
         )
         self._conn.commit()
+
+    def delivery_already_processed(self, repo_id: str, delivery_id: str | None) -> bool:
+        """True if a sync event already exists for this repo + GitHub delivery id.
+
+        GitHub redelivers webhooks on timeout/error, so the ingestion handler
+        must no-op on a duplicate ``X-GitHub-Delivery`` instead of racing a
+        second sync against the same per-repo graph DB.
+        """
+        if not delivery_id:
+            return False
+        row = self._conn.execute(
+            "SELECT 1 FROM sync_events WHERE repo_id = ? AND delivery_id = ? LIMIT 1",
+            (repo_id, delivery_id),
+        ).fetchone()
+        return row is not None
 
     def repo_accessible(self, repo: HostedRepo, principal: HostedPrincipal) -> bool:
         if principal.token.subject_type == "team":

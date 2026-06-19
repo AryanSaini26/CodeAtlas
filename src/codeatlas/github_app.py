@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -54,6 +55,11 @@ class GitHubWebhookResult(BaseModel):
 class GitHubRepoListingResult(BaseModel):
     source: str
     repositories: list[dict[str, Any]]
+
+
+class InstallationToken(BaseModel):
+    token: str
+    expires_at: str | None = None
 
 
 def load_github_app_config() -> GitHubAppConfig:
@@ -138,15 +144,85 @@ def _repo_fields(repo: dict[str, Any], installation_id: str | None) -> dict[str,
     }
 
 
+def _resolve_private_key(config: GitHubAppConfig) -> str | None:
+    if config.private_key:
+        return config.private_key
+    if config.private_key_path:
+        path = Path(config.private_key_path)
+        if path.is_file():
+            return path.read_text()
+    return None
+
+
+def mint_installation_token(
+    config: GitHubAppConfig,
+    installation_id: str,
+) -> InstallationToken:
+    """Mint a short-lived installation access token via the GitHub App flow.
+
+    Signs a JWT with the App private key (RS256), then exchanges it at
+    ``POST /app/installations/{id}/access_tokens`` for a ~1h installation token.
+    PyJWT is imported lazily so the core package stays dependency-light; install
+    the ``hosted`` extra to enable minting.
+    """
+    if not config.app_id:
+        raise RuntimeError("STRATUM_GITHUB_APP_ID is required to mint installation tokens")
+    private_key = _resolve_private_key(config)
+    if not private_key:
+        raise RuntimeError("GitHub App private key is required to mint installation tokens")
+    try:
+        import jwt
+    except ImportError as exc:  # pragma: no cover - exercised via env without extra
+        raise RuntimeError(
+            "PyJWT is required to mint GitHub installation tokens; install codeatlas[hosted]"
+        ) from exc
+
+    now = int(time.time())
+    # iat is backdated 60s to tolerate clock skew; GitHub caps exp at 10 minutes.
+    assertion = jwt.encode(
+        {"iat": now - 60, "exp": now + 540, "iss": config.app_id},
+        private_key,
+        algorithm="RS256",
+    )
+    url = f"{config.api_base.rstrip('/')}/app/installations/{installation_id}/access_tokens"
+    request = Request(
+        url,
+        data=b"",
+        method="POST",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {assertion}",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            raw = response.read().decode("utf-8")
+    except HTTPError as exc:
+        raise RuntimeError(f"GitHub installation token exchange failed: HTTP {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"GitHub installation token exchange failed: {exc.reason}") from exc
+    payload = json.loads(raw)
+    token = payload.get("token")
+    if not isinstance(token, str) or not token:
+        raise RuntimeError("GitHub installation token response did not contain a token")
+    expires_at = payload.get("expires_at")
+    return InstallationToken(
+        token=token,
+        expires_at=str(expires_at) if expires_at is not None else None,
+    )
+
+
 def load_github_repositories(
     config: GitHubAppConfig,
     installation_id: str,
 ) -> GitHubRepoListingResult:
-    """Load repositories for an installation from a fixture or GitHub API token.
+    """Load repositories for an installation.
 
-    Full GitHub App JWT-to-installation-token exchange is a deployment concern.
-    This helper keeps CI deterministic with ``STRATUM_GITHUB_REPOS_FIXTURE`` and
-    supports real smoke tests with ``STRATUM_GITHUB_INSTALLATION_TOKEN``.
+    Resolution order: a deterministic fixture (CI), a pre-supplied installation
+    token (smoke tests), or a freshly minted installation token from the App
+    private key (real deployment). Returns an empty ``store`` result when the App
+    is unconfigured so unauthenticated dev environments degrade gracefully.
     """
     if config.repos_fixture_path:
         fixture = Path(config.repos_fixture_path)
@@ -156,7 +232,10 @@ def load_github_repositories(
             raise ValueError("STRATUM_GITHUB_REPOS_FIXTURE must contain a repositories array")
         return GitHubRepoListingResult(source="fixture", repositories=repos)
 
-    if not config.installation_token:
+    token = config.installation_token
+    if not token and config.configured:
+        token = mint_installation_token(config, installation_id).token
+    if not token:
         return GitHubRepoListingResult(source="store", repositories=[])
 
     url = f"{config.api_base.rstrip('/')}/installation/repositories"
@@ -164,7 +243,7 @@ def load_github_repositories(
         url,
         headers={
             "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {config.installation_token}",
+            "Authorization": f"Bearer {token}",
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
@@ -263,6 +342,15 @@ def process_github_webhook(
                 delivery_id=delivery_id,
                 status="ignored",
                 message="github repository is not activated in Stratum",
+                provider_repo_id=provider_repo_id,
+            )
+        if store.delivery_already_processed(hosted_repo.id, delivery_id):
+            return GitHubWebhookResult(
+                event=event,
+                delivery_id=delivery_id,
+                status="duplicate",
+                message="delivery already processed; skipping re-sync",
+                repo_id=hosted_repo.id,
                 provider_repo_id=provider_repo_id,
             )
         try:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from codeatlas.hosted import HostedStore, RepoRegistration
+from codeatlas.hosted import HostedStore, RepoRegistration, _hash_token, _verify_token_hash
 
 
 def _repo(root: Path) -> Path:
@@ -76,6 +76,64 @@ def test_hosted_bootstrap_token_and_repo_crud(tmp_path: Path) -> None:
         assert repo_principal is not None
         assert repo_principal.repo_id == repo.id
         assert store.verify_token("wrong") is None
+    finally:
+        store.close()
+
+
+def test_token_hash_is_salted_scrypt_not_raw_sha256() -> None:
+    encoded = _hash_token("cat_secret")
+    # Salted scrypt: scheme-tagged, and never a bare 64-char SHA-256 hex digest.
+    assert encoded.startswith("scrypt$")
+    assert len(encoded.split("$")) == 6
+    assert not (len(encoded) == 64 and all(c in "0123456789abcdef" for c in encoded))
+    # Random salt per call => same input yields different stored hashes.
+    assert encoded != _hash_token("cat_secret")
+    assert _verify_token_hash("cat_secret", encoded)
+    assert not _verify_token_hash("cat_wrong", encoded)
+
+
+def test_stored_token_hash_uses_scrypt(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        bootstrap = store.bootstrap_dev()
+        row = store._conn.execute(
+            "SELECT token_hash FROM tokens WHERE id = ?",
+            (bootstrap.token_record.id,),
+        ).fetchone()
+        assert str(row["token_hash"]).startswith("scrypt$")
+        # The verification path still resolves a live principal.
+        principal = store.verify_token(bootstrap.token)
+        assert principal is not None
+    finally:
+        store.close()
+
+
+def test_github_activation_clones_when_no_local_path(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()
+        source_repo = _git_repo(tmp_path / "source")
+        installation = store.upsert_github_installation(
+            team_slug="default",
+            installation_id="42",
+            account_login="AryanSaini26",
+            account_type="User",
+        )
+        store.upsert_github_repository(
+            installation_id=installation.installation_id,
+            provider_repo_id="3003",
+            full_name="AryanSaini26/AppFlow",
+            name="AppFlow",
+            owner="AryanSaini26",
+            clone_url=str(source_repo),
+        )
+
+        # GitHub App flow: no local_path supplied anywhere -> must clone via clone_url.
+        activated = store.activate_github_repository("3003")
+
+        assert activated.provider == "github"
+        assert Path(activated.local_path).parent.name == "checkouts"
+        assert Path(activated.local_path, ".git").is_dir()
     finally:
         store.close()
 

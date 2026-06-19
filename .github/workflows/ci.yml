@@ -33,7 +33,7 @@ jobs:
             vscode-extension/package-lock.json
 
       - name: Install dependencies
-        run: pip install -e ".[mcp,api,webhook,dev]" faiss-cpu
+        run: pip install -e ".[mcp,api,webhook,hosted,dev]" faiss-cpu
 
       - name: Lint
         run: ruff check src tests
