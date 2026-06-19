@@ -64,6 +64,7 @@ nav:
   - Startup roadmap: startup-roadmap.md
   - Stratum startup plan: stratum-startup-plan.md
   - Hosted MVP: hosted-mvp.md
+  - Deploy (Oracle, free): deploy-oracle.md
   - Deploy (Fly.io): deploy-fly.md
   - Architecture: architecture.md
   - Languages: languages.md

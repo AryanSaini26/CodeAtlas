@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "codeatlas": {
+      "command": "codeatlas",
+      "args": ["serve", "--db", ".codeatlas/graph.db"]
+    }
+  }
+}

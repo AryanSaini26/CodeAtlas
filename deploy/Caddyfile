@@ -1,0 +1,6 @@
+# Caddy reverse proxy for Stratum. __DOMAIN__ is substituted by oracle-setup.sh.
+# Caddy automatically provisions and renews a Let's Encrypt certificate for the
+# domain, so this is all that's needed for HTTPS.
+__DOMAIN__ {
+	reverse_proxy 127.0.0.1:8080
+}
