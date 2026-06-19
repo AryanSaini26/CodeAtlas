@@ -1,0 +1,31 @@
+# Fly.io config for the hosted Stratum control plane.
+# Rename `app` to your own Fly app before `fly deploy`. Secrets (GitHub App
+# private key, webhook secret, client secret) are set with `fly secrets set`,
+# never committed here. See docs/deploy-fly.md for the full runbook.
+
+app = "stratum-hosted"
+primary_region = "iad"
+
+[build]
+  dockerfile = "deploy/Dockerfile"
+
+[env]
+  PORT = "8080"
+  # After the first deploy, set the real URL so GitHub App callbacks resolve:
+  #   fly secrets set STRATUM_PUBLIC_URL="https://<your-app>.fly.dev"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Persistent SQLite (hosted metadata + per-repo graph DBs + checkouts).
+[[mounts]]
+  source = "stratum_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

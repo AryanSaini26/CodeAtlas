@@ -2557,8 +2557,8 @@ def hosted_github_webhook_test(
 
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
-@click.option("--host", default="127.0.0.1", show_default=True)
-@click.option("--port", default=8080, show_default=True, type=int)
+@click.option("--host", default="127.0.0.1", show_default=True, envvar="HOST")
+@click.option("--port", default=8080, show_default=True, type=int, envvar="PORT")
 @click.option(
     "--hosted-db",
     default=None,
@@ -2628,8 +2628,8 @@ def _find_frontend_dist() -> Path | None:
 
 @cli.command()
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
-@click.option("--host", default="127.0.0.1", show_default=True)
-@click.option("--port", default=8080, show_default=True, type=int)
+@click.option("--host", default="127.0.0.1", show_default=True, envvar="HOST")
+@click.option("--port", default=8080, show_default=True, type=int, envvar="PORT")
 @click.option(
     "--hosted-db",
     default=None,
