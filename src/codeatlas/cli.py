@@ -654,6 +654,72 @@ def _render_bench_suite_markdown(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+@cli.command("agent-eval")
+@click.option("--suite", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("--repos", "repos_path", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("--out", required=True, type=click.Path(file_okay=False))
+@click.option(
+    "--context-mode",
+    default="pagerank",
+    show_default=True,
+    type=click.Choice(["fts", "semantic", "hybrid", "pagerank"]),
+    help="Retrieval mode used to build CodeAtlas context packs",
+)
+@click.option("--dry-run", is_flag=True, help="Validate and write planned artifacts only")
+@click.option(
+    "--agent-command",
+    default=None,
+    help="Generic live-agent command. Receives CODEATLAS_* environment variables.",
+)
+@click.option(
+    "--compare-baseline",
+    is_flag=True,
+    help="Run both prompt-only baseline and CodeAtlas-context variants",
+)
+@click.option(
+    "--cache-dir",
+    default=".codeatlas/bench-repos",
+    show_default=True,
+    type=click.Path(file_okay=False),
+    help="Where remote benchmark repos are cloned/reused for live runs",
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit the resulting JSON payload")
+def agent_eval_cmd(
+    suite: str,
+    repos_path: str,
+    out: str,
+    context_mode: str,
+    dry_run: bool,
+    agent_command: str | None,
+    compare_baseline: bool,
+    cache_dir: str,
+    as_json: bool,
+) -> None:
+    """Run deterministic or live A/B agent outcome evaluation."""
+    from codeatlas.agent_eval import run_agent_eval
+
+    effective_dry_run = dry_run or agent_command is None
+    try:
+        payload = run_agent_eval(
+            suite_path=suite,
+            repos_path=repos_path,
+            out_dir=out,
+            context_mode=context_mode,  # type: ignore[arg-type]
+            dry_run=effective_dry_run,
+            agent_command=agent_command,
+            compare_baseline=compare_baseline,
+            cache_dir=cache_dir,
+        )
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if as_json:
+        click.echo(_json.dumps(payload, indent=2))
+        return
+    mode = "dry-run" if effective_dry_run else "live"
+    console.print(f"[green]Agent eval {mode} artifacts written to {out}[/green]")
+
+
 def _count_loc(files: list[Path]) -> int:
     total = 0
     for path in files:

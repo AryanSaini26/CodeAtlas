@@ -53,6 +53,13 @@ jobs:
           codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output /tmp/codeatlas-bench-results.json
           test -s /tmp/codeatlas-bench-results.json
 
+      - name: Agent eval smoke
+        if: matrix.python-version == '3.13'
+        run: |
+          codeatlas agent-eval --suite benchmarks/agent-suite.json --repos benchmarks/repos.lock.yml --out /tmp/codeatlas-agent-eval --dry-run
+          test -s /tmp/codeatlas-agent-eval/results.json
+          test -s /tmp/codeatlas-agent-eval/report.md
+
       - name: Build Python package
         if: matrix.python-version == '3.13'
         run: python -m build

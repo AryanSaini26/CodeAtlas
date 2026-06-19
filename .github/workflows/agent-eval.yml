@@ -1,0 +1,33 @@
+name: Agent Eval
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -e ".[mcp,api,webhook,dev]" faiss-cpu
+
+      - name: Run deterministic agent-eval dry run
+        run: |
+          codeatlas agent-eval \
+            --suite benchmarks/agent-suite.json \
+            --repos benchmarks/repos.lock.yml \
+            --out benchmarks/agent \
+            --context-mode pagerank \
+            --dry-run
+
+      - name: Upload agent-eval artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeatlas-agent-eval-dry-run
+          path: benchmarks/agent

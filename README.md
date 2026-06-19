@@ -39,7 +39,9 @@ CodeAtlas ships with a reproducible AI-infra benchmark instead of only a feature
 - `benchmarks/report.md` is generated from `codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md`.
 - `benchmarks/eval-suite.json` contains 30 golden retrieval tasks across symbol lookup, impact analysis, dependency tracing, architecture questions, context-pack retrieval, and SQL lineage.
 - `benchmarks/oss-eval-suite.json` adds 45 deterministic real-repo tasks across pinned `requests`, `click`, and `rich` commits in `benchmarks/repos.lock.yml`.
+- `benchmarks/agent-suite.json` defines optional live-agent A/B tasks that compare prompt-only baseline runs against CodeAtlas context-pack runs; CI uses `--dry-run` so no paid LLM or network clone is required.
 - `codeatlas eval --compare` compares FTS, semantic, hybrid, PageRank-boosted, and context-pack ranking paths with symbol recall@k, file recall@k, MRR, latency, misses, and token-savings metrics.
+- `codeatlas agent-eval --dry-run` writes deterministic `results.json`, `report.md`, and `failures.json`; adding `--agent-command "<cmd>" --compare-baseline` runs a live generic-agent A/B benchmark.
 - `codeatlas context <query> --mode fts|semantic|hybrid|pagerank --build-semantic --budget 2000 --json` returns agent-ready context packs with definitions, callers, callees, file summaries, confidence labels, and budget trimming.
 - `docs/ai-infra-case-study.md` explains architecture, tradeoffs, bottlenecks, failure modes, and how the benchmark changed implementation choices.
 
@@ -47,6 +49,7 @@ CodeAtlas ships with a reproducible AI-infra benchmark instead of only a feature
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output benchmarks/results.json
 codeatlas bench-suite --repos benchmarks/repos.lock.yml --suite benchmarks/oss-eval-suite.json --out benchmarks/oss --build-semantic --require-semantic
+codeatlas agent-eval --suite benchmarks/agent-suite.json --repos benchmarks/repos.lock.yml --out benchmarks/agent --dry-run
 ```
 
 ## Features
@@ -288,6 +291,8 @@ switches between community-coloring and kind-coloring.
 | `codeatlas coverage-gaps` | Show public symbols with zero test coverage |
 | `codeatlas report [path]` | Generate a full health report (cycles, dead code, hotspots, gaps) |
 | `codeatlas report [path] --json` | Output health report as JSON |
+| `codeatlas agent-eval --suite S --repos R --out D --dry-run` | Validate agent outcome tasks and write deterministic artifacts |
+| `codeatlas agent-eval --suite S --repos R --out D --agent-command "<cmd>" --compare-baseline` | Run prompt-only vs CodeAtlas-context live-agent A/B evaluation |
 | `codeatlas pre-commit` | Add a CodeAtlas incremental-index hook to `.pre-commit-config.yaml` |
 | `codeatlas impact [path]` | Analyze impact of current git changes on the graph |
 | `codeatlas export` | Export graph in DOT or JSON format |

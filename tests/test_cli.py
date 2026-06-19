@@ -1735,6 +1735,159 @@ def test_bench_does_not_touch_primary_db(tmp_path: Path) -> None:
     assert not (repo / ".codeatlas").exists()
 
 
+# --- agent-eval command ---
+
+
+def test_agent_eval_command_dry_run(tmp_path: Path) -> None:
+    import json
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    repo = _make_repo(repo_root)
+    repos = tmp_path / "repos.json"
+    repos.write_text(json.dumps({"repos": [{"name": "fixture", "path": str(repo)}]}))
+    suite = tmp_path / "agent-suite.json"
+    suite.write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {
+                        "id": "agent-task",
+                        "repo": "fixture",
+                        "task_type": "context_retrieval",
+                        "prompt": "Find greet",
+                        "expected_symbols": ["greet"],
+                        "expected_files": ["main.py"],
+                        "verify_command": "python -c \"print('ok')\"",
+                    }
+                ]
+            }
+        )
+    )
+    out = tmp_path / "agent"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "agent-eval",
+            "--suite",
+            str(suite),
+            "--repos",
+            str(repos),
+            "--out",
+            str(out),
+            "--dry-run",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["dry_run"] is True
+    assert (out / "results.json").exists()
+    assert (out / "report.md").exists()
+
+
+def test_agent_eval_command_live_mock_agent(tmp_path: Path) -> None:
+    import json
+    import sys
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    repo = _make_repo(repo_root)
+    repos = tmp_path / "repos.json"
+    repos.write_text(json.dumps({"repos": [{"name": "fixture", "path": str(repo)}]}))
+    suite = tmp_path / "agent-suite.json"
+    suite.write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {
+                        "id": "agent-task",
+                        "repo": "fixture",
+                        "task_type": "bug_fix",
+                        "prompt": "Create solved.txt if context is present",
+                        "expected_symbols": ["greet"],
+                        "expected_files": ["main.py"],
+                        "verify_command": (
+                            f"{sys.executable} -c "
+                            "\"from pathlib import Path; assert Path('solved.txt').exists()\""
+                        ),
+                    }
+                ]
+            }
+        )
+    )
+    agent = tmp_path / "mock_agent.py"
+    agent.write_text(
+        "import os\n"
+        "from pathlib import Path\n"
+        "if os.environ.get('CODEATLAS_CONTEXT_PATH'):\n"
+        "    Path('solved.txt').write_text('ok')\n"
+    )
+    out = tmp_path / "agent"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "agent-eval",
+            "--suite",
+            str(suite),
+            "--repos",
+            str(repos),
+            "--out",
+            str(out),
+            "--agent-command",
+            f"{sys.executable} {agent}",
+            "--compare-baseline",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["dry_run"] is False
+    assert payload["metrics"]["baseline_vs_context_delta"] == 1.0
+    assert (out / "failures.json").exists()
+
+
+def test_agent_eval_command_missing_repo_validation(tmp_path: Path) -> None:
+    import json
+
+    repos = tmp_path / "repos.json"
+    repos.write_text(json.dumps({"repos": [{"name": "fixture", "path": str(tmp_path)}]}))
+    suite = tmp_path / "agent-suite.json"
+    suite.write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {
+                        "id": "bad-task",
+                        "repo": "missing",
+                        "task_type": "context_retrieval",
+                        "prompt": "Find greet",
+                        "expected_symbols": ["greet"],
+                        "verify_command": "python -c \"print('ok')\"",
+                    }
+                ]
+            }
+        )
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "agent-eval",
+            "--suite",
+            str(suite),
+            "--repos",
+            str(repos),
+            "--out",
+            str(tmp_path / "agent"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "missing repos" in result.output
+
+
 # --- doctor command ---
 
 

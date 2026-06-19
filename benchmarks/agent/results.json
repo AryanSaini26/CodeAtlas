@@ -1,0 +1,232 @@
+{
+  "suite": "benchmarks/agent-suite.json",
+  "repos_file": "benchmarks/repos.lock.yml",
+  "repos": [
+    {
+      "name": "requests",
+      "url": "https://github.com/psf/requests.git",
+      "path": null,
+      "commit": "d64b9ad4bf1c14e21e0df3f0f4320fec81180e91"
+    },
+    {
+      "name": "click",
+      "url": "https://github.com/pallets/click.git",
+      "path": null,
+      "commit": "8a1b1a33d739be05b7e91251e3c0dde77c5e152f"
+    },
+    {
+      "name": "rich",
+      "url": "https://github.com/textualize/rich.git",
+      "path": null,
+      "commit": "46cebbb032f920eb096efbaf23cdc6fe9dd541f7"
+    }
+  ],
+  "dry_run": true,
+  "agent_command_provided": false,
+  "compare_baseline": false,
+  "context_mode": "pagerank",
+  "task_count": 6,
+  "metrics": {
+    "solve_rate": null,
+    "verification_pass_rate": null,
+    "avg_runtime_seconds": null,
+    "context_tokens": 0.0,
+    "context_savings": 0.0,
+    "retrieval_symbol_recall": 0.0,
+    "retrieval_file_recall": 0.0,
+    "baseline_vs_context_delta": null,
+    "baseline_solve_rate": null,
+    "context_solve_rate": null,
+    "live_variant_count": 0
+  },
+  "tasks": [
+    {
+      "id": "requests-session-redirect-context",
+      "repo": "requests",
+      "task_type": "architecture_question",
+      "prompt": "Find where requests prepares and rebuilds redirects for Session.request. Write a concise answer to codeatlas_agent_answer.md naming the key symbols and files.",
+      "expected_symbols": [
+        "Session.request",
+        "Session.prepare_request",
+        "SessionRedirectMixin.rebuild_auth"
+      ],
+      "expected_files": [
+        "requests/sessions.py"
+      ],
+      "verify_command": "python -c \"from pathlib import Path; p=Path('codeatlas_agent_answer.md'); text=p.read_text().lower(); assert 'session' in text and 'redirect' in text\"",
+      "timeout_seconds": 180,
+      "budget": 2200,
+      "notes": "Architecture/context retrieval task that should benefit from graph context around Session and redirects.",
+      "retrieval_symbol_recall": 0.0,
+      "retrieval_file_recall": 0.0,
+      "variants": [
+        {
+          "variant": "codeatlas_context",
+          "status": "dry_run",
+          "verification_passed": null,
+          "runtime_seconds": 0.0,
+          "context_tokens": 0,
+          "context_savings": 0.0,
+          "failure_reason": null
+        }
+      ]
+    },
+    {
+      "id": "requests-adapter-test-location",
+      "repo": "requests",
+      "task_type": "context_retrieval",
+      "prompt": "Identify the adapter mounting behavior and where it is tested. Write codeatlas_agent_answer.md with the implementation and test file paths.",
+      "expected_symbols": [
+        "Session.mount",
+        "Session.get_adapter"
+      ],
+      "expected_files": [
+        "requests/sessions.py",
+        "tests/test_requests.py"
+      ],
+      "verify_command": "python -c \"from pathlib import Path; text=Path('codeatlas_agent_answer.md').read_text().lower(); assert 'sessions.py' in text and 'test' in text\"",
+      "timeout_seconds": 180,
+      "budget": 2200,
+      "notes": "File/symbol retrieval task that rewards finding both implementation and test context.",
+      "retrieval_symbol_recall": 0.0,
+      "retrieval_file_recall": 0.0,
+      "variants": [
+        {
+          "variant": "codeatlas_context",
+          "status": "dry_run",
+          "verification_passed": null,
+          "runtime_seconds": 0.0,
+          "context_tokens": 0,
+          "context_savings": 0.0,
+          "failure_reason": null
+        }
+      ]
+    },
+    {
+      "id": "click-command-invoke-context",
+      "repo": "click",
+      "task_type": "architecture_question",
+      "prompt": "Trace how a Click command creates context and invokes callbacks. Write codeatlas_agent_answer.md with the main call chain and files.",
+      "expected_symbols": [
+        "Command.main",
+        "Command.make_context",
+        "Command.invoke"
+      ],
+      "expected_files": [
+        "src/click/core.py"
+      ],
+      "verify_command": "python -c \"from pathlib import Path; text=Path('codeatlas_agent_answer.md').read_text().lower(); assert 'command' in text and 'invoke' in text and 'context' in text\"",
+      "timeout_seconds": 180,
+      "budget": 2200,
+      "notes": "Call-chain task for graph-aware context packs.",
+      "retrieval_symbol_recall": 0.0,
+      "retrieval_file_recall": 0.0,
+      "variants": [
+        {
+          "variant": "codeatlas_context",
+          "status": "dry_run",
+          "verification_passed": null,
+          "runtime_seconds": 0.0,
+          "context_tokens": 0,
+          "context_savings": 0.0,
+          "failure_reason": null
+        }
+      ]
+    },
+    {
+      "id": "click-decorator-test-location",
+      "repo": "click",
+      "task_type": "context_retrieval",
+      "prompt": "Find the decorator helpers for command/group/pass_context and where context behavior is tested. Write codeatlas_agent_answer.md with symbols and test paths.",
+      "expected_symbols": [
+        "command",
+        "group",
+        "pass_context",
+        "make_pass_decorator"
+      ],
+      "expected_files": [
+        "src/click/decorators.py",
+        "tests/test_context.py"
+      ],
+      "verify_command": "python -c \"from pathlib import Path; text=Path('codeatlas_agent_answer.md').read_text().lower(); assert 'decorators.py' in text and 'test_context' in text\"",
+      "timeout_seconds": 180,
+      "budget": 2200,
+      "notes": "Mixed symbol and test-location retrieval task.",
+      "retrieval_symbol_recall": 0.0,
+      "retrieval_file_recall": 0.0,
+      "variants": [
+        {
+          "variant": "codeatlas_context",
+          "status": "dry_run",
+          "verification_passed": null,
+          "runtime_seconds": 0.0,
+          "context_tokens": 0,
+          "context_savings": 0.0,
+          "failure_reason": null
+        }
+      ]
+    },
+    {
+      "id": "rich-console-render-context",
+      "repo": "rich",
+      "task_type": "architecture_question",
+      "prompt": "Explain how Rich Console renders renderables and writes output. Write codeatlas_agent_answer.md with the relevant symbols and files.",
+      "expected_symbols": [
+        "Console.print",
+        "Console.render",
+        "Console._collect_renderables"
+      ],
+      "expected_files": [
+        "rich/console.py"
+      ],
+      "verify_command": "python -c \"from pathlib import Path; text=Path('codeatlas_agent_answer.md').read_text().lower(); assert 'console' in text and 'render' in text\"",
+      "timeout_seconds": 180,
+      "budget": 2400,
+      "notes": "Large-file architecture task for context ranking.",
+      "retrieval_symbol_recall": 0.0,
+      "retrieval_file_recall": 0.0,
+      "variants": [
+        {
+          "variant": "codeatlas_context",
+          "status": "dry_run",
+          "verification_passed": null,
+          "runtime_seconds": 0.0,
+          "context_tokens": 0,
+          "context_savings": 0.0,
+          "failure_reason": null
+        }
+      ]
+    },
+    {
+      "id": "rich-table-column-context",
+      "repo": "rich",
+      "task_type": "context_retrieval",
+      "prompt": "Locate Rich table column creation/rendering code and summarize the implementation files in codeatlas_agent_answer.md.",
+      "expected_symbols": [
+        "Table.add_column",
+        "Table.add_row",
+        "Table.__rich_console__"
+      ],
+      "expected_files": [
+        "rich/table.py"
+      ],
+      "verify_command": "python -c \"from pathlib import Path; text=Path('codeatlas_agent_answer.md').read_text().lower(); assert 'table' in text and 'column' in text\"",
+      "timeout_seconds": 180,
+      "budget": 2400,
+      "notes": "Focused retrieval task over a feature-rich module.",
+      "retrieval_symbol_recall": 0.0,
+      "retrieval_file_recall": 0.0,
+      "variants": [
+        {
+          "variant": "codeatlas_context",
+          "status": "dry_run",
+          "verification_passed": null,
+          "runtime_seconds": 0.0,
+          "context_tokens": 0,
+          "context_savings": 0.0,
+          "failure_reason": null
+        }
+      ]
+    }
+  ]
+}

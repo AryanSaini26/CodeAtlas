@@ -69,6 +69,38 @@ reproduce it without network access. `benchmarks/oss-eval-suite.json` is the
 manual or scheduled proof suite for pinned OSS repos where cloning commits is
 acceptable.
 
+## Agent Outcome Evaluation
+
+Retrieval metrics prove that CodeAtlas can find relevant symbols and files. The
+next layer is outcome proof: can an agent complete the task more reliably when
+it receives a CodeAtlas context pack?
+
+`codeatlas agent-eval` adds that A/B harness without making CI depend on a paid
+LLM or a specific agent vendor:
+
+```bash
+codeatlas agent-eval \
+  --suite benchmarks/agent-suite.json \
+  --repos benchmarks/repos.lock.yml \
+  --out benchmarks/agent \
+  --dry-run
+
+codeatlas agent-eval \
+  --suite benchmarks/agent-suite.json \
+  --repos benchmarks/repos.lock.yml \
+  --out benchmarks/agent-live \
+  --agent-command "<your-agent-command>" \
+  --compare-baseline
+```
+
+The dry-run path validates the suite and writes deterministic artifacts. The
+live path creates isolated prompt-only and CodeAtlas-context repository copies,
+runs a generic command adapter with `CODEATLAS_*` environment variables, then
+executes task-specific verification commands. Reports include solve rate,
+verification pass rate, runtime, context tokens, retrieval recall, and the
+baseline-vs-context delta. CodeAtlas only claims agent improvement when both
+variants actually ran.
+
 ## Retrieval Modes
 
 `codeatlas context` supports:
@@ -148,6 +180,8 @@ The benchmark/eval path pushed the project toward proof over breadth:
 - `codeatlas eval --compare` now reports retrieval quality by mode.
 - `codeatlas bench --profile --eval-suite` emits one publishable Markdown/JSON
   artifact.
+- `codeatlas agent-eval` separates deterministic dry-run validation from
+  optional live-agent A/B outcome measurement.
 - Context packs expose both requested and effective mode, making optional
   semantic dependencies auditable.
 - README now points to one reproduction command instead of unsupported claims.

@@ -18,6 +18,7 @@ Every CodeAtlas CLI subcommand. Run `codeatlas <cmd> --help` for option details.
 | `codeatlas index [PATH] [--workers N] [--watch]` | Parse + ingest into graph |
 | `codeatlas bench [PATH] [--workers N] [--json] [--eval-suite SUITE] [--build-semantic]` | Benchmark indexing throughput and optional eval quality |
 | `codeatlas bench-suite --repos REPOS --suite SUITE --out DIR` | Run pinned multi-repo benchmark/eval suite |
+| `codeatlas agent-eval --suite SUITE --repos REPOS --out DIR [--dry-run]` | Validate or run agent outcome A/B tasks |
 | `codeatlas doctor [--json]` | Diagnose install: Python, SQLite/FTS5, parsers, optional deps |
 | `codeatlas list-files` | Enumerate files that would be indexed |
 
