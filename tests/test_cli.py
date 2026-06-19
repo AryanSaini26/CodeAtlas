@@ -282,6 +282,61 @@ def test_hosted_github_cli_status_sync_and_webhook_fixture(tmp_path: Path) -> No
     assert "GitHub repo sync complete" in synced.output
 
 
+def test_hosted_github_cli_refresh_repos_from_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hosted_db = tmp_path / "hosted.db"
+    fixture = tmp_path / "repos.json"
+    fixture.write_text(
+        json.dumps(
+            {
+                "repositories": [
+                    {
+                        "id": 2001,
+                        "full_name": "AryanSaini26/CloneMe",
+                        "name": "CloneMe",
+                        "owner": {"login": "AryanSaini26"},
+                    }
+                ]
+            }
+        )
+    )
+    monkeypatch.setenv("STRATUM_GITHUB_REPOS_FIXTURE", str(fixture))
+    runner = CliRunner()
+    assert runner.invoke(cli, ["hosted", "bootstrap", "--hosted-db", str(hosted_db)]).exit_code == 0
+
+    from codeatlas.hosted import HostedStore
+
+    store = HostedStore(hosted_db)
+    try:
+        store.upsert_github_installation(
+            team_slug="default",
+            installation_id="84",
+            account_login="AryanSaini26",
+            account_type="User",
+        )
+    finally:
+        store.close()
+
+    refreshed = runner.invoke(
+        cli,
+        [
+            "hosted",
+            "github",
+            "refresh-repos",
+            "--hosted-db",
+            str(hosted_db),
+            "--installation",
+            "84",
+        ],
+    )
+
+    assert refreshed.exit_code == 0
+    assert "GitHub repos refreshed" in refreshed.output
+    assert "Repositories: 1" in refreshed.output
+
+
 def test_perf_report_with_local_fixture_repo(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()

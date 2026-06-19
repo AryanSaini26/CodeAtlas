@@ -50,7 +50,8 @@ CodeAtlas ships with a reproducible AI-infra benchmark instead of only a feature
 - `codeatlas agent-eval --dry-run` writes deterministic `results.json`, `report.md`, and `failures.json`; adding `--agent-adapter shell|codex|claude|aider|mock` plus live options runs an explicitly labeled A/B benchmark.
 - `codeatlas perf-report`, `codeatlas data-lineage`, and `codeatlas doctor --check ...` add production-style scale, lineage, and environment proof.
 - Hosted MVP foundation: `codeatlas hosted bootstrap`, `register-repo`, and `sync` create a local-dev Stratum team context gateway with bearer tokens, repo metadata, sync events, per-repo graph DBs, and a `/hosted` dashboard.
-- GitHub App sync foundation: `codeatlas hosted github status`, `webhook-test`, and `sync` validate Stratum app config, replay webhook fixtures, record delivery IDs, activate GitHub repos, and trigger per-repo graph sync without live GitHub credentials in CI.
+- GitHub App sync foundation: `codeatlas hosted github status`, `refresh-repos`, `webhook-test`, and `sync` validate Stratum app config, refresh installation repos from a fixture/token source, record delivery IDs, clone hosted checkouts, activate GitHub repos, and trigger per-repo graph sync without live GitHub credentials in CI.
+- Hosted security and remote context: repo-scoped `/remote-mcp` validates `X-Stratum-Audience`, serves context packs and graph summaries, and includes prompt-injection/secret/vendor-path scan results.
 - `codeatlas context <query> --mode fts|semantic|hybrid|pagerank --build-semantic --budget 2000 --json` returns agent-ready context packs with definitions, callers, callees, file summaries, confidence labels, and budget trimming.
 - `docs/ai-infra-case-study.md` explains architecture, tradeoffs, bottlenecks, failure modes, and how the benchmark changed implementation choices.
 - `docs/startup-roadmap.md` frames the commercial wedge as agent infrastructure: persistent team context, evals, security, and observability for any coding agent.
@@ -62,6 +63,7 @@ codeatlas hosted register-repo --hosted-db .codeatlas/hosted.db --team default -
 codeatlas hosted sync --hosted-db .codeatlas/hosted.db --repo codeatlas
 codeatlas ui --db .codeatlas/graph.db --hosted-db .codeatlas/hosted.db
 stratum hosted github status --hosted-db .codeatlas/hosted.db
+codeatlas hosted github refresh-repos --hosted-db .codeatlas/hosted.db --installation <installation-id>
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output benchmarks/report.md
 codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --json --output benchmarks/results.json
 codeatlas bench-suite --repos benchmarks/repos.lock.yml --suite benchmarks/oss-eval-suite.json --out benchmarks/oss --build-semantic --require-semantic

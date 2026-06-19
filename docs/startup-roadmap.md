@@ -39,8 +39,12 @@ The current MVP foundation is local-dev but product-shaped:
   repo-specific graph DB.
 - `codeatlas hosted sync` indexes that repo and records sync events.
 - `codeatlas hosted github status` checks Stratum GitHub App configuration.
+- `codeatlas hosted github refresh-repos` loads installation repositories from
+  a fixture or installation token.
 - `codeatlas hosted github webhook-test` replays GitHub push fixtures, records
   delivery IDs, and triggers sync for activated repos.
+- `codeatlas hosted github sync` clones or updates a hosted checkout and indexes
+  the activated repo.
 - `codeatlas ui --hosted-db .codeatlas/hosted.db` exposes the `/hosted`
   dashboard over the same FastAPI process.
 
@@ -103,9 +107,9 @@ Avoid unsupported competitor claims, including unverified star counts.
 
 ## Next Build Sequence
 
-1. Complete GitHub App setup callbacks and GitHub API repo listing.
-2. Add hosted clone/index workers for activated GitHub repos.
-3. Remote MCP endpoint with per-repo auth token and audience validation.
-4. Webhook-triggered incremental indexing jobs.
-5. Hosted dashboard for index status, MCP URL, graph stats, and latest reports.
-6. Billing after one hosted repo flow is reliable.
+1. Replace fixture/token repo listing with full GitHub App JWT exchange.
+2. Move hosted clone/index work into background jobs with queue state.
+3. Upgrade the JSON remote endpoint into streamable remote MCP transport.
+4. Add team/member administration and GitHub OAuth login.
+5. Add security policy controls for context filters and audit retention.
+6. Billing after one private hosted repo flow is reliable end to end.

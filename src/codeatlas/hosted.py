@@ -170,6 +170,12 @@ class SyncResult(BaseModel):
     event: HostedSyncEvent
 
 
+class GitHubCheckoutResult(BaseModel):
+    repository: GitHubRepository
+    local_path: str
+    action: str
+
+
 @dataclass(frozen=True)
 class RepoRegistration:
     team_slug: str
@@ -747,10 +753,15 @@ class HostedStore:
     ) -> HostedRepo:
         github_repo = self.get_github_repository(provider_repo_id)
         installation = self.get_github_installation(github_repo.installation_id)
-        resolved_local_path = str(local_path or github_repo.local_path or "")
+        if local_path is None and github_repo.local_path is None:
+            checkout = self.clone_or_update_github_repository(provider_repo_id)
+            resolved_local_path = checkout.local_path
+            github_repo = checkout.repository
+        else:
+            resolved_local_path = str(local_path or github_repo.local_path or "")
         if not resolved_local_path:
             raise ValueError(
-                "GitHub repo activation needs a local_path until hosted cloning is enabled"
+                "GitHub repo activation needs a local_path or clone_url for hosted checkout"
             )
         repo = self.register_repo(
             RepoRegistration(
@@ -776,6 +787,69 @@ class HostedStore:
         )
         self._conn.commit()
         return self.get_repo(repo.id)
+
+    def clone_or_update_github_repository(
+        self,
+        provider_repo_id: str,
+        *,
+        checkout_root: Path | str | None = None,
+    ) -> GitHubCheckoutResult:
+        github_repo = self.get_github_repository(provider_repo_id)
+        if not github_repo.clone_url:
+            raise ValueError(f"github repository {github_repo.full_name} has no clone_url")
+        root = (
+            Path(checkout_root) if checkout_root is not None else self.db_path.parent / "checkouts"
+        )
+        target = root / provider_repo_id
+        root.mkdir(parents=True, exist_ok=True)
+        action = "updated"
+        if (target / ".git").is_dir():
+            self._run_git(["fetch", "--all", "--prune"], cwd=target)
+            if github_repo.default_branch:
+                self._run_git(["checkout", github_repo.default_branch], cwd=target)
+            self._run_git(["pull", "--ff-only"], cwd=target)
+        else:
+            action = "cloned"
+            self._run_git(["clone", "--depth", "1", github_repo.clone_url, str(target)], cwd=root)
+            if github_repo.default_branch:
+                self._run_git(["checkout", github_repo.default_branch], cwd=target)
+        now = _now_ms()
+        self._conn.execute(
+            """
+            UPDATE github_repositories
+            SET local_path = ?, updated_at = ?
+            WHERE provider_repo_id = ?
+            """,
+            (str(target), now, provider_repo_id),
+        )
+        self._conn.commit()
+        return GitHubCheckoutResult(
+            repository=self.get_github_repository(provider_repo_id),
+            local_path=str(target),
+            action=action,
+        )
+
+    def sync_github_repository(self, provider_repo_id: str) -> SyncResult:
+        hosted_repo = self.get_repo_by_provider_id(provider_repo_id)
+        if hosted_repo is None:
+            hosted_repo = self.activate_github_repository(provider_repo_id)
+        else:
+            self.clone_or_update_github_repository(provider_repo_id)
+            hosted_repo = self.activate_github_repository(provider_repo_id)
+        return self.sync_repo(hosted_repo.id)
+
+    def _run_git(self, args: list[str], *, cwd: Path) -> None:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        if result.returncode != 0:
+            message = (result.stderr or result.stdout).strip()
+            raise RuntimeError(f"git {' '.join(args)} failed: {message}")
 
     def get_repo_by_provider_id(self, provider_repo_id: str) -> HostedRepo | None:
         row = self._conn.execute(

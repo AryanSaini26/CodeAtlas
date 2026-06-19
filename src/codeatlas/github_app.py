@@ -8,6 +8,8 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from pydantic import BaseModel
 
@@ -22,6 +24,9 @@ class GitHubAppConfig(BaseModel):
     private_key: str | None = None
     private_key_path: str | None = None
     public_url: str | None = None
+    installation_token: str | None = None
+    api_base: str = "https://api.github.com"
+    repos_fixture_path: str | None = None
 
     @property
     def configured(self) -> bool:
@@ -46,6 +51,11 @@ class GitHubWebhookResult(BaseModel):
     sync_event_id: str | None = None
 
 
+class GitHubRepoListingResult(BaseModel):
+    source: str
+    repositories: list[dict[str, Any]]
+
+
 def load_github_app_config() -> GitHubAppConfig:
     """Load Stratum GitHub App settings from environment variables."""
     private_key = os.environ.get("STRATUM_GITHUB_PRIVATE_KEY")
@@ -62,6 +72,9 @@ def load_github_app_config() -> GitHubAppConfig:
         private_key=private_key,
         private_key_path=private_key_path,
         public_url=os.environ.get("STRATUM_PUBLIC_URL"),
+        installation_token=os.environ.get("STRATUM_GITHUB_INSTALLATION_TOKEN"),
+        api_base=os.environ.get("STRATUM_GITHUB_API_BASE", "https://api.github.com"),
+        repos_fixture_path=os.environ.get("STRATUM_GITHUB_REPOS_FIXTURE"),
     )
 
 
@@ -123,6 +136,66 @@ def _repo_fields(repo: dict[str, Any], installation_id: str | None) -> dict[str,
         "default_branch": str(repo["default_branch"]) if repo.get("default_branch") else None,
         "clone_url": str(repo["clone_url"]) if repo.get("clone_url") else None,
     }
+
+
+def load_github_repositories(
+    config: GitHubAppConfig,
+    installation_id: str,
+) -> GitHubRepoListingResult:
+    """Load repositories for an installation from a fixture or GitHub API token.
+
+    Full GitHub App JWT-to-installation-token exchange is a deployment concern.
+    This helper keeps CI deterministic with ``STRATUM_GITHUB_REPOS_FIXTURE`` and
+    supports real smoke tests with ``STRATUM_GITHUB_INSTALLATION_TOKEN``.
+    """
+    if config.repos_fixture_path:
+        fixture = Path(config.repos_fixture_path)
+        payload = parse_webhook_payload(fixture.read_text())
+        repos = payload.get("repositories")
+        if not isinstance(repos, list):
+            raise ValueError("STRATUM_GITHUB_REPOS_FIXTURE must contain a repositories array")
+        return GitHubRepoListingResult(source="fixture", repositories=repos)
+
+    if not config.installation_token:
+        return GitHubRepoListingResult(source="store", repositories=[])
+
+    url = f"{config.api_base.rstrip('/')}/installation/repositories"
+    request = Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {config.installation_token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            raw = response.read().decode("utf-8")
+    except HTTPError as exc:
+        raise RuntimeError(f"GitHub repo listing failed: HTTP {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"GitHub repo listing failed: {exc.reason}") from exc
+    payload = json.loads(raw)
+    repos = payload.get("repositories")
+    if not isinstance(repos, list):
+        raise ValueError("GitHub repo listing response did not contain repositories")
+    return GitHubRepoListingResult(source="github_api", repositories=repos)
+
+
+def refresh_github_repositories(
+    store: HostedStore,
+    *,
+    installation_id: str,
+    config: GitHubAppConfig,
+) -> GitHubRepoListingResult:
+    listing = load_github_repositories(config, installation_id)
+    if not listing.repositories:
+        return listing
+    for repo in listing.repositories:
+        fields = _repo_fields(repo, installation_id)
+        if fields:
+            store.upsert_github_repository(**fields)
+    return listing
 
 
 def process_github_webhook(

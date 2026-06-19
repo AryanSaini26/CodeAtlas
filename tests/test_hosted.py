@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from codeatlas.hosted import HostedStore, RepoRegistration
@@ -11,6 +12,28 @@ def _repo(root: Path) -> Path:
     root.mkdir()
     (root / "app.py").write_text("def hello(name: str) -> str:\n    return f'hi {name}'\n")
     return root
+
+
+def _git_repo(root: Path) -> Path:
+    repo = _repo(root)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "initial",
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    return repo
 
 
 def test_hosted_migrations_are_idempotent(tmp_path: Path) -> None:
@@ -122,5 +145,35 @@ def test_github_installation_repo_activation_and_delivery_sync(tmp_path: Path) -
         assert refreshed.activated_repo_id == activated.id
         assert refreshed.last_webhook_delivery_id == "delivery-1"
         assert refreshed.last_webhook_event == "push"
+    finally:
+        store.close()
+
+
+def test_github_sync_clones_checkout_and_indexes(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()
+        source_repo = _git_repo(tmp_path / "source")
+        installation = store.upsert_github_installation(
+            team_slug="default",
+            installation_id="42",
+            account_login="AryanSaini26",
+            account_type="User",
+        )
+        store.upsert_github_repository(
+            installation_id=installation.installation_id,
+            provider_repo_id="1002",
+            full_name="AryanSaini26/CloneMe",
+            name="CloneMe",
+            owner="AryanSaini26",
+            clone_url=str(source_repo),
+        )
+
+        result = store.sync_github_repository("1002")
+
+        assert result.event.status == "success"
+        assert Path(result.repo.local_path).parent.name == "checkouts"
+        assert Path(result.repo.graph_db_path).exists()
+        assert store.repo_stats(result.repo.id)["symbols"] >= 1
     finally:
         store.close()

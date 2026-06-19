@@ -97,12 +97,27 @@ revenue, or benchmark wins.
 
 The next money-making milestone is a real GitHub App flow:
 
-- setup callback and installation registration
-- GitHub API repo listing with mocked CI tests
-- hosted clone/index jobs for activated repos
-- webhook-triggered incremental sync
-- repo-scoped remote MCP/context credentials
+- production OAuth login and GitHub App JWT-to-installation-token exchange
+- background hosted clone/index jobs with visible queue state
+- webhook-triggered incremental sync instead of full sync on every push
+- streamable remote MCP transport using the repo-scoped auth model
+- security policies for context filters, secret exclusion, and audit retention
 - dashboard view for sync status, graph stats, context preview, and audit logs
 
 Stripe, team invites, and enterprise controls should wait until this loop is
 demoable with one private repo.
+
+## Current v0.2 Proof
+
+The current local-dev product slice now supports:
+
+- GitHub setup callback registration.
+- Installation repository refresh from a fixture or installation token.
+- Hosted checkout clone/update from stored `clone_url`.
+- GitHub provider repo activation into per-repo graph DBs.
+- Push webhook delivery tracking and sync.
+- Repo-scoped remote JSON MCP endpoint with explicit audience validation.
+- Deterministic context security scan results returned with context packs.
+
+This is still not a production SaaS, but it is a credible end-to-end prototype
+of the product loop a buyer would evaluate.

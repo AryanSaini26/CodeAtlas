@@ -237,6 +237,7 @@ export type HostedGitHubApp = {
   client_id?: string | null;
   public_url?: string | null;
   setup_url?: string | null;
+  repo_listing_source?: string | null;
 };
 
 export type HostedGitHubInstallation = {
@@ -426,17 +427,24 @@ export const hostedApi = {
     hostedReq<{ installations: HostedGitHubInstallation[] }>(
       "/github/installations",
     ),
-  githubRepos: (installationId: string) =>
-    hostedReq<{ repositories: HostedGitHubRepository[] }>(
+  githubRepos: (installationId: string, params?: { refresh?: boolean }) =>
+    hostedReq<{ source: string; repositories: HostedGitHubRepository[] }>(
       `/github/installations/${encodeURIComponent(installationId)}/repos`,
+      params,
     ),
   activateGithubRepo: (
     providerRepoId: string,
-    payload: { local_path: string; hosted_name?: string },
+    payload: { local_path?: string; hosted_name?: string },
   ) =>
     hostedReq<{ repo: HostedRepo }>(
       `/github/repos/${encodeURIComponent(providerRepoId)}/activate`,
       undefined,
       { method: "POST", body: JSON.stringify(payload) },
+    ),
+  syncGithubRepo: (providerRepoId: string) =>
+    hostedReq<{ repo: HostedRepo; event: HostedSyncEvent }>(
+      `/github/repos/${encodeURIComponent(providerRepoId)}/sync`,
+      undefined,
+      { method: "POST" },
     ),
 };

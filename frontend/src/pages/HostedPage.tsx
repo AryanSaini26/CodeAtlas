@@ -125,9 +125,23 @@ export default function HostedPage() {
   const activateGithubRepo = useMutation({
     mutationFn: (repo: HostedGitHubRepository) =>
       hostedApi.activateGithubRepo(repo.provider_repo_id, {
-        local_path: githubLocalPath,
+        local_path: githubLocalPath.trim() || undefined,
         hosted_name: repo.full_name,
       }),
+    onSuccess: (data) => {
+      setSelectedRepoId(data.repo.id);
+      void qc.invalidateQueries({ queryKey: ["hosted"] });
+    },
+  });
+  const refreshGithubRepos = useMutation({
+    mutationFn: (installation: HostedGitHubInstallation) =>
+      hostedApi.githubRepos(installation.id, { refresh: true }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["hosted", "github", "repos"] });
+    },
+  });
+  const syncGithubRepo = useMutation({
+    mutationFn: (repo: HostedGitHubRepository) => hostedApi.syncGithubRepo(repo.provider_repo_id),
     onSuccess: (data) => {
       setSelectedRepoId(data.repo.id);
       void qc.invalidateQueries({ queryKey: ["hosted"] });
@@ -223,7 +237,7 @@ export default function HostedPage() {
                 <StatusPill label="Webhook" on={!!githubApp.data?.webhook_configured} />
               </div>
               <div className="font-mono text-[10px] text-text-4">
-                {githubApp.data?.public_url ?? "STRATUM_PUBLIC_URL not set"}
+                {githubApp.data?.setup_url ?? githubApp.data?.public_url ?? "STRATUM_PUBLIC_URL not set"}
               </div>
               <div className="flex flex-col gap-2">
                 {(installations.data?.installations ?? []).map((installation) => (
@@ -240,18 +254,28 @@ export default function HostedPage() {
               </div>
               {selectedInstallation ? (
                 <div className="flex flex-col gap-2">
-                  <Input
-                    value={githubLocalPath}
-                    onChange={(e) => setGithubLocalPath(e.target.value)}
-                    placeholder="Local checkout path for activation"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      value={githubLocalPath}
+                      onChange={(e) => setGithubLocalPath(e.target.value)}
+                      placeholder="Local path override; blank uses hosted checkout"
+                    />
+                    <Button
+                      variant="ghost"
+                      onClick={() => refreshGithubRepos.mutate(selectedInstallation)}
+                      disabled={refreshGithubRepos.isPending}
+                    >
+                      <Icon name="refresh" size={12} /> Refresh
+                    </Button>
+                  </div>
+                  <div className="text-[10px] text-text-4">
+                    Repo source: {githubRepos.data?.source ?? githubApp.data?.repo_listing_source ?? "store"}
+                  </div>
                   <div className="max-h-[220px] overflow-auto rounded-md border border-border">
                     {(githubRepos.data?.repositories ?? []).map((repo) => (
-                      <button
-                        type="button"
+                      <div
                         key={repo.id}
-                        onClick={() => activateGithubRepo.mutate(repo)}
-                        className="flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-white/[0.04]"
+                        className="flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2 last:border-b-0"
                       >
                         <span className="min-w-0">
                           <span className="block truncate text-[12px] text-text-1">
@@ -262,10 +286,24 @@ export default function HostedPage() {
                             {repo.activated_repo_id ? "active" : "inactive"}
                           </span>
                         </span>
-                        <Badge tone={repo.activated_repo_id ? "success" : "warn"}>
-                          {repo.activated_repo_id ? "active" : "activate"}
-                        </Badge>
-                      </button>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => activateGithubRepo.mutate(repo)}
+                            disabled={activateGithubRepo.isPending}
+                          >
+                            {repo.activated_repo_id ? "Update" : "Activate"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => syncGithubRepo.mutate(repo)}
+                            disabled={syncGithubRepo.isPending}
+                          >
+                            Sync
+                          </Button>
+                        </span>
+                      </div>
                     ))}
                   </div>
                 </div>

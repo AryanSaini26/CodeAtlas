@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from codeatlas.agent_context import build_context_pack
+from codeatlas.context_security import scan_context_pack
 from codeatlas.github_app import (
     load_github_app_config,
     parse_webhook_payload,
     process_github_webhook,
+    refresh_github_repositories,
     verify_github_signature,
 )
 from codeatlas.graph.store import GraphStore
@@ -76,8 +78,13 @@ class GitHubRepositoryRequest(BaseModel):
 
 
 class GitHubActivateRequest(BaseModel):
-    local_path: str = Field(min_length=1)
+    local_path: str | None = Field(default=None, min_length=1)
     hosted_name: str | None = None
+
+
+class RemoteMCPRequest(BaseModel):
+    method: str = Field(min_length=1)
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 def _bearer_token(header: str | None) -> str | None:
@@ -101,6 +108,20 @@ def _require_repo_access(
     if not hosted.repo_accessible(repo, principal):
         raise HTTPException(status_code=403, detail={"error": "repo token cannot access repo"})
     return repo
+
+
+def _validate_repo_audience(repo: HostedRepo, audience: str | None) -> None:
+    accepted = {f"repo:{repo.id}", f"repo:{repo.name}"}
+    if repo.provider_repo:
+        accepted.add(f"repo:{repo.provider_repo}")
+    if audience not in accepted:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "invalid or missing Stratum audience",
+                "accepted": sorted(accepted),
+            },
+        )
 
 
 def build_hosted_router(hosted: HostedStore) -> APIRouter:
@@ -252,15 +273,69 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
             raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
         store = GraphStore(graph_db)
         try:
-            return build_context_pack(
+            pack = build_context_pack(
                 store,
                 q,
                 budget_tokens=budget,
                 limit=limit,
                 mode=mode,
             )
+            pack["security"] = scan_context_pack(pack)
+            return pack
         finally:
             store.close()
+
+    @router.post("/repos/{repo_id}/remote-mcp")
+    async def remote_mcp(
+        repo_id: str,
+        payload: RemoteMCPRequest,
+        x_stratum_audience: str | None = Header(default=None),
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        _validate_repo_audience(repo, x_stratum_audience)
+        graph_db = Path(repo.graph_db_path)
+        if not graph_db.is_file():
+            raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
+
+        if payload.method == "tools/call":
+            name = payload.params.get("name")
+            arguments = payload.params.get("arguments")
+            arguments = arguments if isinstance(arguments, dict) else {}
+            if name not in {"context", "codeatlas.context", "stratum.context"}:
+                raise HTTPException(status_code=400, detail={"error": f"unsupported tool: {name}"})
+            q = str(arguments.get("q") or arguments.get("query") or "").strip()
+            if not q:
+                raise HTTPException(status_code=400, detail={"error": "context query is required"})
+            budget = int(arguments.get("budget", 2000))
+            mode = str(arguments.get("mode", "pagerank"))
+            if mode not in {"fts", "semantic", "hybrid", "pagerank"}:
+                raise HTTPException(status_code=400, detail={"error": f"unsupported mode: {mode}"})
+            mode_cast = cast(Literal["fts", "semantic", "hybrid", "pagerank"], mode)
+            store = GraphStore(graph_db)
+            try:
+                pack = build_context_pack(
+                    store,
+                    q,
+                    budget_tokens=budget,
+                    mode=mode_cast,
+                )
+                pack["security"] = scan_context_pack(pack)
+            finally:
+                store.close()
+            return {"jsonrpc": "2.0", "result": pack}
+
+        if payload.method == "resources/read":
+            uri = str(payload.params.get("uri") or "")
+            if uri != "codeatlas://graph/summary":
+                raise HTTPException(
+                    status_code=400, detail={"error": f"unsupported resource: {uri}"}
+                )
+            return {"jsonrpc": "2.0", "result": hosted.repo_stats(repo.id)}
+
+        raise HTTPException(
+            status_code=400, detail={"error": f"unsupported method: {payload.method}"}
+        )
 
     @router.post("/repos/{repo_id}/tokens")
     async def repo_token(
@@ -289,11 +364,13 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
             "repo": repo.model_dump(),
             "status": "hosted_context_api_ready",
             "context_endpoint": f"/api/hosted/v1/repos/{repo.id}/context",
+            "remote_mcp_endpoint": f"/api/hosted/v1/repos/{repo.id}/remote-mcp",
             "auth_header": "Authorization: Bearer <repo-or-team-token>",
+            "audience_header": f"X-Stratum-Audience: repo:{repo.id}",
             "mcp_note": (
-                "This MVP exposes authenticated hosted context and sync APIs. "
-                "Dynamic multi-repo remote MCP routing is the next follow-up; "
-                "use `codeatlas serve --transport stdio` for local MCP today."
+                "This hosted endpoint accepts a small MCP-compatible JSON shape for "
+                "context tools and graph summary resources. Full streamable MCP "
+                "transport can layer on top of the same repo-scoped auth model."
             ),
             "local_mcp_config": {
                 "mcpServers": {
@@ -318,10 +395,38 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
             "client_id": config.client_id,
             "public_url": config.public_url,
             "setup_url": (
-                f"{config.public_url.rstrip('/')}/api/hosted/v1/github/app"
+                f"{config.public_url.rstrip('/')}/api/hosted/v1/github/setup"
                 if config.public_url
                 else None
             ),
+            "repo_listing_source": (
+                "fixture"
+                if config.repos_fixture_path
+                else "github_api"
+                if config.installation_token
+                else "store"
+            ),
+        }
+
+    @router.get("/github/setup")
+    async def github_setup_callback(
+        installation_id: str = Query(..., min_length=1),
+        setup_action: str | None = None,
+        team_slug: str = "default",
+    ) -> dict[str, Any]:
+        hosted.create_team(slug=team_slug, name="Default Team")
+        installation = hosted.upsert_github_installation(
+            team_slug=team_slug,
+            installation_id=installation_id,
+            account_login="pending",
+            account_type="Organization",
+            app_slug="stratum",
+        )
+        return {
+            "status": "installation_registered",
+            "setup_action": setup_action,
+            "installation": installation.model_dump(),
+            "next": "Authenticate with a team token, then refresh repos for this installation.",
         }
 
     @router.post("/github/installations")
@@ -383,6 +488,7 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
     @router.get("/github/installations/{installation_id}/repos")
     async def github_repos(
         installation_id: str,
+        refresh: bool = Query(default=False),
         principal: HostedPrincipal = Depends(principal_dep),
     ) -> dict[str, Any]:
         installation = hosted.get_github_installation(installation_id)
@@ -390,8 +496,19 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
             raise HTTPException(
                 status_code=403, detail={"error": "token cannot access installation"}
             )
+        source = "store"
+        if refresh:
+            try:
+                listing = refresh_github_repositories(
+                    hosted,
+                    installation_id=installation.installation_id,
+                    config=load_github_app_config(),
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+            source = listing.source
         repos = hosted.list_github_repositories(installation_id=installation.id)
-        return {"repositories": [repo.model_dump() for repo in repos]}
+        return {"source": source, "repositories": [repo.model_dump() for repo in repos]}
 
     @router.post("/github/repos/{provider_repo_id}/activate")
     async def activate_github_repo(
@@ -414,6 +531,23 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
         except Exception as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
         return {"repo": repo.model_dump()}
+
+    @router.post("/github/repos/{provider_repo_id}/sync")
+    async def sync_github_repo(
+        provider_repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        github_repo = hosted.get_github_repository(provider_repo_id)
+        installation = hosted.get_github_installation(github_repo.installation_id)
+        if principal.token.subject_type != "team":
+            raise HTTPException(status_code=403, detail={"error": "team token required"})
+        if principal.team_id != installation.team_id:
+            raise HTTPException(status_code=403, detail={"error": "token cannot access repo"})
+        try:
+            result = hosted.sync_github_repository(provider_repo_id)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        return {"repo": result.repo.model_dump(), "event": result.event.model_dump()}
 
     @router.post("/github/webhook")
     async def github_webhook(

@@ -51,6 +51,9 @@ The GitHub App path is product-shaped but still local-first:
 
 ```bash
 codeatlas hosted github status --hosted-db .codeatlas/hosted.db
+codeatlas hosted github refresh-repos \
+  --hosted-db .codeatlas/hosted.db \
+  --installation <installation-id>
 codeatlas hosted github webhook-test \
   --hosted-db .codeatlas/hosted.db \
   --delivery tests/fixtures/github_push_webhook.json
@@ -67,23 +70,55 @@ STRATUM_GITHUB_WEBHOOK_SECRET
 STRATUM_GITHUB_PRIVATE_KEY
 STRATUM_GITHUB_PRIVATE_KEY_PATH
 STRATUM_PUBLIC_URL
+STRATUM_GITHUB_INSTALLATION_TOKEN
+STRATUM_GITHUB_API_BASE
+STRATUM_GITHUB_REPOS_FIXTURE
 ```
 
 Current GitHub routes:
 
 ```text
 GET  /api/hosted/v1/github/app
+GET  /api/hosted/v1/github/setup
 POST /api/hosted/v1/github/installations
 GET  /api/hosted/v1/github/installations
 POST /api/hosted/v1/github/installations/{id}/repos
-GET  /api/hosted/v1/github/installations/{id}/repos
+GET  /api/hosted/v1/github/installations/{id}/repos?refresh=true
 POST /api/hosted/v1/github/repos/{provider_repo_id}/activate
+POST /api/hosted/v1/github/repos/{provider_repo_id}/sync
 POST /api/hosted/v1/github/webhook
 ```
 
-Activation currently maps a GitHub repository to a local checkout path, then
-uses the same per-repo graph DB sync path as the local hosted flow. Hosted
-cloning/job execution is intentionally left for the next slice.
+Activation can map a GitHub repository to a local checkout path, or use the
+stored `clone_url` to create a hosted checkout under
+`.codeatlas/checkouts/<provider_repo_id>`. Sync then uses the same per-repo
+graph DB path as the local hosted flow.
+
+Repo listing is deliberately CI-safe. In local tests and demos,
+`STRATUM_GITHUB_REPOS_FIXTURE` can point at a JSON file with a `repositories`
+array. In a real deployment, `STRATUM_GITHUB_INSTALLATION_TOKEN` can be used to
+call GitHub's installation repository endpoint. Full JWT-to-installation-token
+exchange is the next production hardening step.
+
+## Remote Context/MCP Endpoint
+
+Each synced repo exposes a repo-scoped MCP-compatible JSON endpoint:
+
+```text
+POST /api/hosted/v1/repos/{repo_id}/remote-mcp
+Authorization: Bearer <repo-or-team-token>
+X-Stratum-Audience: repo:{repo_id}
+```
+
+Supported methods in this slice:
+
+- `tools/call` with tool name `stratum.context`, `codeatlas.context`, or
+  `context`.
+- `resources/read` for `codeatlas://graph/summary`.
+
+Every context response includes deterministic security scan metadata under
+`security`, including prompt-injection-like instructions, secret-like content,
+and generated/vendor path warnings.
 
 ## API Shape
 
@@ -111,17 +146,18 @@ The existing local graph API remains under `/api/v1` and keeps its existing
 
 ## Intentional Stubs
 
-- GitHub OAuth and GitHub App setup callbacks are represented by local dev
-  bootstrap, metadata endpoints, and webhook fixture replay.
+- GitHub OAuth is still represented by local dev bootstrap and bearer tokens.
+  GitHub setup callbacks, fixture/token-backed repo refresh, hosted checkout,
+  and webhook fixture replay are implemented.
 - Billing is intentionally omitted until hosted repo registration and sync are
   reliable.
-- Remote multi-repo MCP routing is not complete in this slice. The connection
-  endpoint exposes hosted context API details and local MCP config for the
-  repo-specific graph DB.
+- Full streamable remote MCP transport is not complete in this slice. The
+  remote endpoint accepts a small MCP-compatible JSON shape over the existing
+  hosted API auth model.
 - CI does not clone external repos or require network credentials.
 
 ## Next Step
 
-The natural follow-up is real GitHub onboarding: OAuth login, GitHub App
-installation callback handling, GitHub API repo listing, hosted clone/index
-jobs, and remote MCP transport with repo-scoped authorization.
+The natural follow-up is production GitHub onboarding: OAuth login,
+JWT-to-installation-token exchange, background sync workers, remote streamable
+MCP transport, and team/member administration.

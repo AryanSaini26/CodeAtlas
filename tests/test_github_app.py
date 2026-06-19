@@ -9,6 +9,7 @@ from pathlib import Path
 
 from codeatlas.github_app import (
     load_github_app_config,
+    load_github_repositories,
     parse_webhook_payload,
     verify_github_signature,
 )
@@ -54,3 +55,28 @@ def test_parse_webhook_payload_rejects_non_object() -> None:
         assert "JSON object" in str(exc)
     else:
         raise AssertionError("expected non-object payload to fail")
+
+
+def test_load_github_repositories_from_fixture(tmp_path: Path, monkeypatch) -> None:
+    fixture = tmp_path / "repos.json"
+    fixture.write_text(
+        json.dumps(
+            {
+                "repositories": [
+                    {
+                        "id": 1001,
+                        "full_name": "AryanSaini26/CodeAtlas",
+                        "name": "CodeAtlas",
+                        "owner": {"login": "AryanSaini26"},
+                    }
+                ]
+            }
+        )
+    )
+    monkeypatch.setenv("STRATUM_GITHUB_REPOS_FIXTURE", str(fixture))
+    config = load_github_app_config()
+
+    result = load_github_repositories(config, "42")
+
+    assert result.source == "fixture"
+    assert result.repositories[0]["full_name"] == "AryanSaini26/CodeAtlas"

@@ -2452,9 +2452,41 @@ def hosted_github_status(hosted_db: str) -> None:
     table.add_row("OAuth configured", "yes" if config.oauth_configured else "no")
     table.add_row("Webhook secret", "yes" if config.webhook_configured else "no")
     table.add_row("Public URL", config.public_url or "not set")
+    table.add_row(
+        "Repo listing",
+        "fixture"
+        if config.repos_fixture_path
+        else "token"
+        if config.installation_token
+        else "store",
+    )
     table.add_row("Installations", str(len(installations)))
     table.add_row("GitHub repos", str(len(repositories)))
     console.print(table)
+
+
+@hosted_github.command("refresh-repos")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+@click.option("--installation", "installation_id", required=True, help="GitHub installation id")
+def hosted_github_refresh_repos(hosted_db: str, installation_id: str) -> None:
+    """Refresh GitHub repository metadata from fixture or GitHub token config."""
+    from codeatlas.github_app import load_github_app_config, refresh_github_repositories
+    from codeatlas.hosted import HostedStore
+
+    store = HostedStore(Path(hosted_db))
+    try:
+        listing = refresh_github_repositories(
+            store,
+            installation_id=installation_id,
+            config=load_github_app_config(),
+        )
+        repos = store.list_github_repositories(installation_id=installation_id)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        store.close()
+    console.print(f"[green]GitHub repos refreshed[/green] from {listing.source}")
+    console.print(f"Repositories: {len(repos)}")
 
 
 @hosted_github.command("sync")
@@ -2468,8 +2500,15 @@ def hosted_github_sync(hosted_db: str, repo_id_or_name: str) -> None:
 
     store = HostedStore(Path(hosted_db))
     try:
-        repo = store.get_repo_by_provider_id(repo_id_or_name) or store.get_repo(repo_id_or_name)
-        result = store.sync_repo(repo.id)
+        provider_repo = store.get_repo_by_provider_id(repo_id_or_name)
+        if provider_repo is not None:
+            result = store.sync_repo(provider_repo.id)
+        else:
+            try:
+                result = store.sync_github_repository(repo_id_or_name)
+            except KeyError:
+                repo = store.get_repo(repo_id_or_name)
+                result = store.sync_repo(repo.id)
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
     finally:
