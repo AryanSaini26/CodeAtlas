@@ -14,11 +14,13 @@ function fmtTime(ms?: number | null) {
   return new Date(ms).toLocaleString();
 }
 
+const IN_PROGRESS_SYNC_STATUSES = ["pending", "cloning", "indexing"];
+
 function statusTone(status: string): "default" | "success" | "warn" | "danger" | "cyan" {
-  if (status === "success") return "success";
-  if (status === "error") return "danger";
+  if (status === "success" || status === "ready") return "success";
+  if (status === "error" || status === "failed") return "danger";
   if (status === "never") return "warn";
-  return "cyan";
+  return "cyan"; // pending / cloning / indexing and any unknown in-progress state
 }
 
 export default function HostedPage() {
@@ -46,6 +48,12 @@ export default function HostedPage() {
     queryFn: () => hostedApi.repos(),
     retry: false,
     enabled: !!tokenInput,
+    // Poll while any repo is mid-sync so lifecycle transitions show live.
+    refetchInterval: (query) => {
+      const list = query.state.data?.repos ?? [];
+      const busy = list.some((repo) => IN_PROGRESS_SYNC_STATUSES.includes(repo.last_sync_status));
+      return busy ? 2000 : false;
+    },
   });
   const teams = useQuery({
     queryKey: ["hosted", "teams", tokenInput],

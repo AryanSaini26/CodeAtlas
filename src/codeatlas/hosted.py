@@ -28,6 +28,12 @@ from codeatlas.indexer import RepoIndexer
 
 TokenSubject = Literal["team", "repo"]
 
+# Repo sync lifecycle. ``never`` is the initial state; ``pending`` once a job is
+# queued; ``cloning``/``indexing`` while the worker runs; ``ready`` on success
+# and ``failed`` (with ``last_error`` populated) on any error.
+SyncStatus = Literal["never", "pending", "cloning", "indexing", "ready", "failed"]
+IN_PROGRESS_SYNC_STATUSES = frozenset({"pending", "cloning", "indexing"})
+
 # scrypt work factors. These are salted and memory-hard, unlike a bare SHA-256,
 # so a leaked token table cannot be brute-forced with a fast GPU hash. stdlib
 # scrypt keeps the hosted control plane dependency-light (no bcrypt/argon2 wheel).
@@ -249,6 +255,10 @@ class HostedStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        # The background sync worker opens its own connection to the same file;
+        # a busy timeout lets writers wait out a transient lock instead of
+        # raising "database is locked".
+        self._conn.execute("PRAGMA busy_timeout = 5000")
         self._migrate()
 
     def close(self) -> None:
@@ -998,6 +1008,9 @@ class HostedStore:
                 now,
             ),
         )
+        # sync_events.status stays "success"/"error" (the run outcome); the repo
+        # lifecycle field maps those to the terminal states "ready"/"failed".
+        succeeded = status == "success"
         self._conn.execute(
             """
             UPDATE repos
@@ -1006,9 +1019,9 @@ class HostedStore:
             WHERE id = ?
             """,
             (
-                status,
-                None if status == "success" else message,
-                now if status == "success" else None,
+                "ready" if succeeded else "failed",
+                None if succeeded else message,
+                now if succeeded else None,
                 commit_sha,
                 now,
                 repo_id,
@@ -1034,6 +1047,55 @@ class HostedStore:
             (repo_id, limit),
         ).fetchall()
         return [HostedSyncEvent.model_validate(_row_to_dict(row)) for row in rows]
+
+    def set_sync_status(
+        self,
+        repo_id_or_name: str,
+        status: SyncStatus,
+        *,
+        error: str | None = None,
+    ) -> HostedRepo:
+        """Set the repo lifecycle status (used by the background sync worker)."""
+        repo = self.get_repo(repo_id_or_name)
+        self._conn.execute(
+            "UPDATE repos SET last_sync_status = ?, last_error = ?, updated_at = ? WHERE id = ?",
+            (status, error, _now_ms(), repo.id),
+        )
+        self._conn.commit()
+        return self.get_repo(repo.id)
+
+    def run_sync_pipeline(
+        self,
+        repo_id_or_name: str,
+        *,
+        delivery_id: str | None = None,
+        github_provider_repo_id: str | None = None,
+    ) -> SyncResult:
+        """Walk a repo through clone -> index, updating its lifecycle status.
+
+        Used by both the synchronous "sync now" routes and the background
+        worker. When ``github_provider_repo_id`` points at a repo with a
+        ``clone_url`` the working tree is refreshed before indexing, so a push
+        webhook indexes the just-pushed commit rather than a stale checkout.
+        """
+        repo = self.get_repo(repo_id_or_name)
+        try:
+            if github_provider_repo_id:
+                github_repo = self.get_github_repository(github_provider_repo_id)
+                if github_repo.clone_url:
+                    self.set_sync_status(repo.id, "cloning")
+                    self.clone_or_update_github_repository(github_provider_repo_id)
+            self.set_sync_status(repo.id, "indexing")
+        except Exception as exc:
+            # Surface checkout failures the same way index failures are surfaced.
+            self.record_sync_event(
+                repo_id=repo.id,
+                status="error",
+                message=str(exc),
+                delivery_id=delivery_id,
+            )
+            raise RuntimeError(str(exc)) from exc
+        return self.sync_repo(repo.id, delivery_id=delivery_id)
 
     def sync_repo(self, repo_id_or_name: str, *, delivery_id: str | None = None) -> SyncResult:
         repo = self.get_repo(repo_id_or_name)

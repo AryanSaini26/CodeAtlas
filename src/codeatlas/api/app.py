@@ -36,16 +36,21 @@ def create_app(
     """
     store = GraphStore(Path(db_path))
     hosted_store = None
+    sync_worker = None
     if hosted_db_path is not None:
         from codeatlas.hosted import HostedStore
+        from codeatlas.hosted_worker import SyncJobWorker
 
         hosted_store = HostedStore(Path(hosted_db_path))
+        sync_worker = SyncJobWorker(Path(hosted_db_path))
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            if sync_worker is not None:
+                sync_worker.shutdown(wait=True)
             store.close()
             if hosted_store is not None:
                 hosted_store.close()
@@ -73,8 +78,9 @@ def create_app(
     if hosted_store is not None:
         from codeatlas.api.hosted_routes import build_hosted_router
 
+        app.state.sync_worker = sync_worker
         app.include_router(
-            build_hosted_router(hosted_store),
+            build_hosted_router(hosted_store, worker=sync_worker),
             prefix="/api/hosted/v1",
             tags=["hosted"],
         )

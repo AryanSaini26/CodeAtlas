@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from codeatlas.hosted import HostedStore, RepoRegistration, _hash_token, _verify_token_hash
+from codeatlas.hosted_worker import SyncJobWorker
 
 
 def _repo(root: Path) -> Path:
@@ -205,6 +209,79 @@ def test_github_installation_repo_activation_and_delivery_sync(tmp_path: Path) -
         assert refreshed.last_webhook_event == "push"
     finally:
         store.close()
+
+
+def test_run_sync_pipeline_sets_ready_status(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()
+        repo = store.register_repo(
+            RepoRegistration(
+                team_slug="default",
+                name="fixture",
+                local_path=_repo(tmp_path / "repo"),
+            )
+        )
+        assert store.get_repo(repo.id).last_sync_status == "never"
+
+        result = store.run_sync_pipeline(repo.id)
+
+        assert result.event.status == "success"
+        assert store.get_repo(repo.id).last_sync_status == "ready"
+        assert store.get_repo(repo.id).last_error is None
+    finally:
+        store.close()
+
+
+def test_run_sync_pipeline_failure_sets_failed_status(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()
+        repo_root = _repo(tmp_path / "repo")
+        repo = store.register_repo(
+            RepoRegistration(team_slug="default", name="fixture", local_path=repo_root)
+        )
+        shutil.rmtree(repo_root)  # make the working tree disappear before indexing
+
+        with pytest.raises(RuntimeError):
+            store.run_sync_pipeline(repo.id)
+
+        failed = store.get_repo(repo.id)
+        assert failed.last_sync_status == "failed"
+        assert failed.last_error
+    finally:
+        store.close()
+
+
+def test_sync_worker_runs_job_off_thread_and_marks_ready(tmp_path: Path) -> None:
+    db = tmp_path / "hosted.db"
+    store = HostedStore(db)
+    try:
+        store.bootstrap_dev()
+        repo = store.register_repo(
+            RepoRegistration(
+                team_slug="default",
+                name="fixture",
+                local_path=_repo(tmp_path / "repo"),
+            )
+        )
+    finally:
+        store.close()
+
+    worker = SyncJobWorker(db)
+    try:
+        future = worker.enqueue(repo.id, delivery_id="delivery-async")
+        result = future.result(timeout=30)
+        assert result.event.status == "success"
+        assert result.event.delivery_id == "delivery-async"
+    finally:
+        worker.shutdown()
+
+    reopened = HostedStore(db)
+    try:
+        assert reopened.get_repo(repo.id).last_sync_status == "ready"
+    finally:
+        reopened.close()
 
 
 def test_github_sync_clones_checkout_and_indexes(tmp_path: Path) -> None:

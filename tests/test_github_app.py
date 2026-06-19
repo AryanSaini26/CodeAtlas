@@ -194,7 +194,6 @@ def _push_payload(provider_repo_id: int, clone_url: str) -> dict:
             "full_name": "AryanSaini26/CloneMe",
             "name": "CloneMe",
             "owner": {"login": "AryanSaini26"},
-            "default_branch": "master",
             "clone_url": clone_url,
         },
     }
@@ -228,7 +227,6 @@ def test_push_webhook_dedupes_redelivered_delivery_id(tmp_path: Path) -> None:
             full_name="AryanSaini26/CloneMe",
             name="CloneMe",
             owner="AryanSaini26",
-            default_branch="master",
             clone_url=str(source),
             local_path=str(source),
         )

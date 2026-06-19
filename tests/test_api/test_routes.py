@@ -369,9 +369,12 @@ def test_hosted_github_activation_and_push_webhook_sync(
         headers={"X-GitHub-Event": "push", "X-GitHub-Delivery": "delivery-1"},
         json=payload,
     )
+    # Webhook returns fast: the sync is queued on the background worker.
     assert webhook.status_code == 200
-    assert webhook.json()["status"] == "ok"
+    assert webhook.json()["status"] == "queued"
     assert webhook.json()["repo_id"] == hosted_repo["id"]
+
+    app.state.sync_worker.wait_for_idle(timeout=30)
 
     events = client.get(
         f"/api/hosted/v1/repos/{hosted_repo['id']}/sync-events",
@@ -379,6 +382,130 @@ def test_hosted_github_activation_and_push_webhook_sync(
     )
     assert events.status_code == 200
     assert events.json()["events"][0]["delivery_id"] == "delivery-1"
+
+    # A redelivery of the same X-GitHub-Delivery is a no-op (idempotent).
+    duplicate = client.post(
+        "/api/hosted/v1/github/webhook",
+        headers={"X-GitHub-Event": "push", "X-GitHub-Delivery": "delivery-1"},
+        json=payload,
+    )
+    assert duplicate.json()["status"] == "duplicate"
+
+    # Final lifecycle state is surfaced on the repo record for the dashboard.
+    repo_after = client.get(f"/api/hosted/v1/repos/{hosted_repo['id']}", headers=headers).json()[
+        "repo"
+    ]
+    assert repo_after["last_sync_status"] == "ready"
+
+
+def test_hosted_webhook_async_clone_index_and_context(
+    tmp_path: Path,
+    db_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end: only the GitHub API boundary is mocked; everything internal runs.
+
+    Signed push webhook -> signature verified -> delivery deduped -> job queued
+    -> clone from clone_url -> index -> sync_status transitions -> context
+    endpoint returns real graph data for the repo.
+    """
+    secret = "hook-secret"
+    monkeypatch.setenv("STRATUM_GITHUB_WEBHOOK_SECRET", secret)
+
+    source_repo = tmp_path / "source"
+    source_repo.mkdir()
+    (source_repo / "auth.py").write_text(
+        "def login(user: str) -> str:\n    return f'session for {user}'\n"
+    )
+    subprocess.run(["git", "init"], cwd=source_repo, check=True, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=source_repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "user.name=T", "-c", "user.email=t@e.com", "commit", "-m", "init"],
+        cwd=source_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    token = client.post("/api/hosted/v1/dev/bootstrap").json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    client.post(
+        "/api/hosted/v1/github/installations",
+        headers=headers,
+        json={
+            "team_slug": "default",
+            "installation_id": "99",
+            "account_login": "AryanSaini26",
+            "account_type": "User",
+        },
+    )
+    client.post(
+        "/api/hosted/v1/github/installations/99/repos",
+        headers=headers,
+        json={
+            "installation_id": "99",
+            "provider_repo_id": "7001",
+            "full_name": "AryanSaini26/AuthSvc",
+            "name": "AuthSvc",
+            "owner": "AryanSaini26",
+            "clone_url": str(source_repo),
+        },
+    )
+    # Activate with no local path -> hosted checkout clones via clone_url.
+    activated = client.post(
+        "/api/hosted/v1/github/repos/7001/activate",
+        headers=headers,
+        json={},
+    )
+    assert activated.status_code == 200
+    repo_id = activated.json()["repo"]["id"]
+
+    payload = {
+        "installation": {"id": 99},
+        "account": {"login": "AryanSaini26", "type": "User", "id": 26},
+        "repository": {
+            "id": 7001,
+            "full_name": "AryanSaini26/AuthSvc",
+            "name": "AuthSvc",
+            "owner": {"login": "AryanSaini26"},
+            "clone_url": str(source_repo),
+        },
+    }
+    body = json.dumps(payload).encode()
+    sig = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    webhook = client.post(
+        "/api/hosted/v1/github/webhook",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-GitHub-Event": "push",
+            "X-GitHub-Delivery": "delivery-async-1",
+            "X-Hub-Signature-256": sig,
+        },
+    )
+    assert webhook.status_code == 200
+    assert webhook.json()["status"] == "queued"
+
+    app.state.sync_worker.wait_for_idle(timeout=30)
+
+    repo_after = client.get(f"/api/hosted/v1/repos/{repo_id}", headers=headers).json()["repo"]
+    assert repo_after["last_sync_status"] == "ready"
+
+    events = client.get(f"/api/hosted/v1/repos/{repo_id}/sync-events", headers=headers).json()[
+        "events"
+    ]
+    assert events[0]["status"] == "success"
+    assert events[0]["delivery_id"] == "delivery-async-1"
+
+    context = client.get(
+        f"/api/hosted/v1/repos/{repo_id}/context",
+        headers=headers,
+        params={"q": "login", "mode": "fts"},
+    )
+    assert context.status_code == 200
+    assert "security" in context.json()
 
 
 def test_hosted_github_webhook_rejects_invalid_signature(

@@ -24,6 +24,7 @@ from codeatlas.hosted import (
     HostedStore,
     RepoRegistration,
 )
+from codeatlas.hosted_worker import SyncJobWorker
 
 
 class BootstrapRequest(BaseModel):
@@ -124,11 +125,16 @@ def _validate_repo_audience(repo: HostedRepo, audience: str | None) -> None:
         )
 
 
-def build_hosted_router(hosted: HostedStore) -> APIRouter:
+def build_hosted_router(
+    hosted: HostedStore,
+    worker: SyncJobWorker | None = None,
+) -> APIRouter:
     """Build hosted-MVP API routes.
 
     ``/dev/bootstrap`` is intentionally open for local demos; every other route
-    requires ``Authorization: Bearer <token>``.
+    requires ``Authorization: Bearer <token>``. When ``worker`` is provided,
+    push webhooks enqueue sync jobs off the request path instead of indexing
+    inline.
     """
 
     router = APIRouter()
@@ -225,8 +231,12 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
         principal: HostedPrincipal = Depends(principal_dep),
     ) -> dict[str, Any]:
         repo = _require_repo_access(hosted, repo_id, principal)
+        github_provider_repo_id = repo.provider_repo_id if repo.provider == "github" else None
         try:
-            result = hosted.sync_repo(repo.id)
+            result = hosted.run_sync_pipeline(
+                repo.id,
+                github_provider_repo_id=github_provider_repo_id,
+            )
         except RuntimeError as exc:
             fresh_repo = hosted.get_repo(repo.id)
             events = hosted.list_sync_events(repo.id, limit=1)
@@ -567,6 +577,7 @@ def build_hosted_router(hosted: HostedStore) -> APIRouter:
                 event=x_github_event or "unknown",
                 delivery_id=x_github_delivery,
                 payload=payload,
+                enqueue_sync=worker.enqueue if worker is not None else None,
             )
         except Exception as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc

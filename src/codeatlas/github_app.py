@@ -7,6 +7,7 @@ import hmac
 import json
 import os
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -284,8 +285,15 @@ def process_github_webhook(
     delivery_id: str | None,
     payload: dict[str, Any],
     default_team_slug: str = "default",
+    enqueue_sync: Callable[..., Any] | None = None,
 ) -> GitHubWebhookResult:
-    """Apply a GitHub webhook payload to hosted metadata and sync when possible."""
+    """Apply a GitHub webhook payload to hosted metadata and sync when possible.
+
+    When ``enqueue_sync`` is provided, a push schedules the sync off the request
+    path (returning ``status="queued"``) instead of cloning/indexing inline, so
+    the webhook responds before GitHub's delivery timeout. Without it the sync
+    runs synchronously (used by direct unit tests and the CLI).
+    """
     installation = _installation_fields(payload)
     if installation and installation["installation_id"]:
         store.create_team(slug=default_team_slug, name="Default Team")
@@ -353,8 +361,26 @@ def process_github_webhook(
                 repo_id=hosted_repo.id,
                 provider_repo_id=provider_repo_id,
             )
+        if enqueue_sync is not None:
+            enqueue_sync(
+                hosted_repo.id,
+                delivery_id=delivery_id,
+                github_provider_repo_id=provider_repo_id,
+            )
+            return GitHubWebhookResult(
+                event=event,
+                delivery_id=delivery_id,
+                status="queued",
+                message="sync queued from GitHub push webhook",
+                repo_id=hosted_repo.id,
+                provider_repo_id=provider_repo_id,
+            )
         try:
-            result = store.sync_repo(hosted_repo.id, delivery_id=delivery_id)
+            result = store.run_sync_pipeline(
+                hosted_repo.id,
+                delivery_id=delivery_id,
+                github_provider_repo_id=provider_repo_id,
+            )
         except RuntimeError as exc:
             events = store.list_sync_events(hosted_repo.id, limit=1)
             return GitHubWebhookResult(
