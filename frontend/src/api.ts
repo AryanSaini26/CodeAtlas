@@ -469,6 +469,10 @@ export const hostedApi = {
     hostedReq<{ queries: HostedContextQuery[] }>(
       `/repos/${encodeURIComponent(repoId)}/context-queries`,
     ),
+  explain: (repoId: string) =>
+    hostedReq<{ repo: string; markdown: string }>(
+      `/repos/${encodeURIComponent(repoId)}/explain`,
+    ),
   contextSavings: (repoId: string, q: string) =>
     hostedReq<{ savings: HostedSavings }>(
       `/repos/${encodeURIComponent(repoId)}/context-savings`,

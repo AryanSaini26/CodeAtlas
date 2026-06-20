@@ -175,6 +175,12 @@ def build_router(
             by_depth=groups,
         )
 
+    @router.get("/explain")
+    async def explain() -> dict[str, Any]:
+        from codeatlas.repo_overview import build_repo_explainer
+
+        return build_repo_explainer(store)
+
     @router.get("/search", response_model=schemas.SearchResponse)
     async def search(
         q: str = Query(..., min_length=1),

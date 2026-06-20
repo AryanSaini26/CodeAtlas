@@ -157,6 +157,15 @@ def test_impact_analysis_not_found(client: TestClient) -> None:
     assert client.get("/api/v1/symbols/nope/impact").status_code == 404
 
 
+def test_explain_endpoint(client: TestClient) -> None:
+    resp = client.get("/api/v1/explain")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "Architecture overview" in data["markdown"]
+    assert data["sections"]["stats"]["symbols"] == 3
+    assert len(data["sections"]["api_surface"]) >= 1
+
+
 def test_search(client: TestClient) -> None:
     resp = client.get("/api/v1/search", params={"q": "main"})
     assert resp.status_code == 200

@@ -1369,6 +1369,26 @@ def context_cmd(
     )
 
 
+@cli.command(name="explain")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--json", "as_json", is_flag=True, help="Output the structured sections as JSON")
+def explain_cmd(db: str, as_json: bool) -> None:
+    """Generate an architecture overview of the indexed repo (great for agents)."""
+    import json as _json
+
+    from codeatlas.repo_overview import build_repo_explainer
+
+    store = _get_store(Path(db))
+    try:
+        result = build_repo_explainer(store)
+    finally:
+        store.close()
+    if as_json:
+        click.echo(_json.dumps(result["sections"], indent=2))
+    else:
+        click.echo(result["markdown"])
+
+
 @cli.command(name="eval")
 @click.option("--suite", required=True, type=click.Path(exists=True, dir_okay=False))
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)

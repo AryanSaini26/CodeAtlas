@@ -372,6 +372,23 @@ def build_hosted_router(
             raise HTTPException(status_code=409, detail={"error": "repo has no local checkout"})
         return {"savings": compute_context_savings(graph_db, root, q)}
 
+    @router.get("/repos/{repo_id}/explain")
+    async def explain_repo(
+        repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        graph_db = Path(repo.graph_db_path)
+        if not graph_db.is_file():
+            raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
+        from codeatlas.repo_overview import build_repo_explainer
+
+        store = GraphStore(graph_db)
+        try:
+            return build_repo_explainer(store, repo_name=repo.name)
+        finally:
+            store.close()
+
     @router.get("/repos/{repo_id}/context-queries")
     async def context_queries(
         repo_id: str,

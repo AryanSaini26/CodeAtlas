@@ -129,6 +129,10 @@ export default function HostedPage() {
       hostedApi.contextSavings(vars.repo.id, vars.q),
   });
 
+  const explain = useMutation({
+    mutationFn: (repo: HostedRepo) => hostedApi.explain(repo.id),
+  });
+
   const contextFeed = useQuery({
     queryKey: ["hosted", "context-queries", selectedRepo?.id],
     queryFn: () => hostedApi.contextQueries(selectedRepo!.id),
@@ -543,6 +547,43 @@ export default function HostedPage() {
                     hint="Run an eval to measure retrieval quality for this repo."
                   />
                 )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Explain this repo"
+                subtitle="One-click architecture overview for humans and agents"
+              />
+              <CardBody className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-text-3">
+                    Scale, central symbols, modules, and public API — as Markdown.
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => selectedRepo && explain.mutate(selectedRepo)}
+                      disabled={!selectedRepo || explain.isPending}
+                    >
+                      {explain.isPending ? "Generating…" : "Generate"}
+                    </Button>
+                    {explain.data?.markdown ? (
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          navigator.clipboard.writeText(explain.data!.markdown)
+                        }
+                      >
+                        <Icon name="copy" size={12} /> Copy
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+                {explain.data?.markdown ? (
+                  <pre className="max-h-[260px] overflow-auto rounded-md border border-border bg-black/20 p-3 text-[11px] text-text-2 whitespace-pre-wrap">
+                    {explain.data.markdown}
+                  </pre>
+                ) : null}
               </CardBody>
             </Card>
 
