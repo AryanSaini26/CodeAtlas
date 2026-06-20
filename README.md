@@ -73,6 +73,23 @@ flowchart LR
   per-repo isolation; a known tradeoff to revisit at multi-node scale.
 - Full rationale, bottlenecks, and failure modes: [docs/ai-infra-case-study.md](docs/ai-infra-case-study.md).
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/assets/web-ui.svg" alt="Stratum web UI" width="760" />
+</p>
+
+<!-- Replace these with real captures from the live instance for max impact:
+     docs/assets/graph.png        — the interactive graph (PageRank-sized, community-colored, blast-radius)
+     docs/assets/eval.png         — the Agent Retrieval Eval bar chart
+     docs/assets/context-feed.png — the Agent Context Feed
+     Then reference them here. -->
+
+The hosted dashboard surfaces what competitors don't: an **Agent Context Feed**
+(what your agents actually retrieved), **measured retrieval quality** (recall/MRR
+bars), **before/after token savings**, **blast-radius impact**, and **data
+lineage** — all per repo.
+
 ## Measured Results
 
 CodeAtlas ships with a reproducible AI-infra benchmark instead of only a feature list:
