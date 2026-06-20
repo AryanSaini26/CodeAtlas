@@ -72,7 +72,7 @@ def create_app(
 
     app = FastAPI(
         title="CodeAtlas API",
-        version="1.0.0",
+        version="1.1.0",
         description="HTTP/JSON interface over a CodeAtlas knowledge graph.",
         lifespan=lifespan,
     )
@@ -116,7 +116,7 @@ def create_app(
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok", "version": "1.0.0"}
+        return {"status": "ok", "version": "1.1.0"}
 
     @app.get("/metrics", include_in_schema=False)
     def metrics() -> Response:

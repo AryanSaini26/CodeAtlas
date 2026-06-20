@@ -20,6 +20,11 @@ Stratum is the hosted team context gateway powered by the open-source CodeAtlas 
 > **Docs:** https://aryansaini26.github.io/CodeAtlas/ ·
 > **2-min walkthrough:** see [demo script](docs/demo-script.md)
 
+> **Status — v1.1.0.** Everything runs locally today (`pip install codeatlas`,
+> `codeatlas index .`, `codeatlas ui`). Deploying ([Google Cloud](docs/deploy-gcp.md))
+> adds the hosted, multi-tenant gateway (GitHub sign-in, PR bot, remote MCP).
+> Try the dependency-aware analysis on the bundled [demo monorepo](examples/demo-monorepo).
+
 **TL;DR** — a full-stack product that gives AI coding agents *persistent, measured*
 codebase context. Python/FastAPI + React, a multi-tenant hosted control plane, a
 GitHub App (OAuth + signed webhooks), a background sync worker, and a dashboard
@@ -27,7 +32,12 @@ that **measures** whether retrieval is actually good — not just a diagram.
 
 | recall@k | MRR | context saved | languages | MCP tools | tests |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **1.000** | **0.978** | **27–60%** | **24** | **30** | **1,160+** |
+| **1.000** | **0.978** | **27–60%** | **24** | **30** | **1,175+** |
+
+> Honest note: those retrieval numbers come from the committed eval suites; the
+> optional cross-encoder reranker is shipped but did **not** beat the graph/
+> lexical baseline on the code-symbol suite (kept opt-in) — the
+> [measured report](benchmarks/rerank-report.md) says so plainly.
 
 **Depth across the stack:** two-stage retrieval with optional cross-encoder
 reranking ([benchmarked](benchmarks/rerank-report.md), 7 modes) · security scan →

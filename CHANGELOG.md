@@ -5,6 +5,46 @@ All notable changes to CodeAtlas are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-06-20
+
+The hosted platform release: CodeAtlas (engine) gains **Stratum**, a hosted,
+multi-tenant gateway that serves measured context to AI agents.
+
+### Added
+
+- **Hosted control plane (Stratum)** — users/teams, per-repo graph DBs, sync
+  events, repo stats, and a React `/hosted` dashboard under `/api/hosted/v1`.
+- **GitHub App** — JWT→installation-token minting, signed-webhook verification
+  with delivery-id dedupe, "Sign in with GitHub" OAuth + auto-provisioning, a
+  background sync worker with a `never→pending→cloning→indexing→ready/failed`
+  state machine, and a public landing page.
+- **Two-stage retrieval** — optional cross-encoder reranker (`--mode rerank`,
+  `eval --compare --with-rerank`) with a committed measured benchmark.
+- **PR intelligence** — `codeatlas pr-analyze` + a reusable GitHub Action (blast
+  radius, suggested tests, risk score, SARIF) and a hosted PR-comment bot.
+- **`codeatlas explain-query`** — per-stage retrieval trace (FTS/semantic/
+  PageRank/rerank) explaining why a result ranked.
+- **Security & supply chain** — `codeatlas scan` → SARIF in the GitHub Security
+  tab; context policy (deny-list + secret redaction) + `policy check`; hosted
+  audit log + token revocation; CycloneDX SBOM + SLSA build provenance on release.
+- **Observability** — Prometheus `/metrics`, a Grafana dashboard, and a GHCR
+  container image; deploy guides for Google Cloud, Oracle, DigitalOcean, Fly.
+- **Dashboard surfaces** — agent-eval, data lineage, before/after context
+  savings, an Agent Context Feed, a staleness badge, and "Explain this repo".
+- **VS Code** — "Show Impact Radius" and "Build Agent Context" commands.
+- **`examples/demo-monorepo`** — a dependency-chained demo for impact analysis.
+
+### Changed
+
+- Bearer tokens now use salted, memory-hard **scrypt** hashing (was SHA-256).
+- Interactive graph view: PageRank-sized, community-colored nodes, click-to-blast
+  -radius, and edge-confidence coloring.
+
+### Testing
+
+- Grew to **1,175+ tests** including property-based (hypothesis), a CI
+  performance-regression guard, and tenant-isolation tests; CI on 3.11/3.12/3.13.
+
 ## [1.0.0] — 2026-04-18
 
 ### Added

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "codeatlas"
-version = "1.0.0"
+version = "1.1.0"
 description = "An MCP server that constructs real-time code knowledge graphs for AI coding agents"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }

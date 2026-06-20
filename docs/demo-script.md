@@ -45,3 +45,22 @@ README hero GIF.
 ## Beat 6 — Close (2:40–3:00)
 - Back to `/welcome`. "Live demo and docs are linked below; it's open source."
 - End on the graph view (best freeze-frame for a thumbnail).
+
+## Optional B-roll: PR intelligence on the demo monorepo
+The bundled [`examples/demo-monorepo`](../examples/demo-monorepo) has an
+`auth → billing → admin` dependency chain, so a one-line change to
+`auth/session.py` shows a real blast radius:
+
+```bash
+codeatlas index examples/demo-monorepo --db /tmp/demo.db
+codeatlas explain-query "verify token" --db /tmp/demo.db
+codeatlas pr-analyze --base main --head HEAD --repo examples/demo-monorepo --db /tmp/demo.db
+```
+
+Great for a tight terminal clip: "change auth, watch billing + admin light up,
+get suggested tests and a risk score."
+
+## Release (one-time, after the video)
+`git tag v1.1.0 && git push --tags` fires the release pipeline (PyPI + CycloneDX
+SBOM + SLSA provenance) and publishes the GHCR image. Enable code scanning in
+repo Settings → Code security so the SARIF upload lands in the Security tab.

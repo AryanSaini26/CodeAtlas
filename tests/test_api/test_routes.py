@@ -92,7 +92,7 @@ def keyed_client(db_path: Path) -> TestClient:
 def test_health(client: TestClient) -> None:
     resp = client.get("/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok", "version": "1.0.0"}
+    assert resp.json() == {"status": "ok", "version": "1.1.0"}
 
 
 def test_stats(client: TestClient) -> None:
