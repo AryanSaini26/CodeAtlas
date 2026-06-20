@@ -1185,6 +1185,46 @@ class HostedStore:
             raise RuntimeError(str(exc)) from exc
         return SyncResult(repo=self.get_repo(repo.id), event=event)
 
+    def seed_demo_repo(
+        self,
+        clone_url: str,
+        *,
+        name: str | None = None,
+        team_slug: str = "demo",
+    ) -> tuple[HostedRepo, str]:
+        """Clone + index a repo for the public read-only demo and issue a token.
+
+        Returns the repo and a *repo-scoped* token (subject_type='repo') so the
+        public token can only read this one repo's context — never other repos or
+        team-management routes.
+        """
+        self.create_team(slug=team_slug, name="Stratum Demo")
+        repo_name = name or clone_url.rstrip("/").split("/")[-1].removesuffix(".git")
+        target = self.db_path.parent / "demo-checkouts" / repo_name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if (target / ".git").is_dir():
+            self._run_git(["fetch", "--all", "--prune"], cwd=target)
+            self._run_git(["pull", "--ff-only"], cwd=target)
+        else:
+            self._run_git(["clone", "--depth", "1", clone_url, str(target)], cwd=target.parent)
+        repo = self.register_repo(
+            RepoRegistration(
+                team_slug=team_slug,
+                name=repo_name,
+                local_path=target,
+                provider="local",
+                clone_url=clone_url,
+            )
+        )
+        self.run_sync_pipeline(repo.id)
+        issued = self.create_token(
+            subject_type="repo",
+            subject_id=repo.id,
+            name="public demo (read-only)",
+            scopes=["context:read"],
+        )
+        return self.get_repo(repo.id), issued.token
+
     def metrics(self) -> dict[str, Any]:
         """Crude signup/activation metrics for tracking from day one.
 

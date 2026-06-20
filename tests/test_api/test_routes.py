@@ -759,6 +759,25 @@ def test_hosted_repo_eval_endpoint(tmp_path: Path, db_path: Path) -> None:
     assert latest.json()["eval"]["task_count"] >= 1
 
 
+def test_hosted_demo_info_endpoint(
+    tmp_path: Path,
+    db_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Disabled when env not set.
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    assert client.get("/api/hosted/v1/demo-info").json() == {"enabled": False}
+
+    # Enabled when seeded values are present in env.
+    monkeypatch.setenv("STRATUM_DEMO_TOKEN", "cat_demo")
+    monkeypatch.setenv("STRATUM_DEMO_REPO_ID", "repo_abc")
+    app2 = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted2.db")
+    client2 = TestClient(app2)
+    info = client2.get("/api/hosted/v1/demo-info").json()
+    assert info == {"enabled": True, "token": "cat_demo", "repo_id": "repo_abc"}
+
+
 def test_hosted_metrics_endpoint_admin_gated(
     tmp_path: Path,
     db_path: Path,

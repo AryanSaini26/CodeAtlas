@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { hostedApi, hostedOAuthLoginUrl } from "../api";
 import { Badge, Button, Card, CardBody, StatTile } from "../components/ui";
 import { Icon } from "../components/Icon";
@@ -14,6 +14,20 @@ export default function LandingPage() {
     retry: false,
   });
   const oauthReady = githubApp.data?.oauth_configured ?? false;
+
+  const demo = useQuery({
+    queryKey: ["hosted", "demo-info"],
+    queryFn: () => hostedApi.demoInfo(),
+    retry: false,
+  });
+  const navigate = useNavigate();
+
+  const openDemo = () => {
+    const info = demo.data;
+    if (!info?.enabled || !info.token) return;
+    localStorage.setItem("codeatlas.hostedToken", info.token);
+    navigate("/hosted");
+  };
 
   return (
     <div className="mx-auto flex max-w-[920px] flex-col gap-8 py-6">
@@ -47,6 +61,11 @@ export default function LandingPage() {
               </Button>
             </Link>
           )}
+          {demo.data?.enabled ? (
+            <Button variant="ghost" onClick={openDemo}>
+              <Icon name="graph" size={14} /> Explore live demo
+            </Button>
+          ) : null}
           <a href={DOCS_URL} target="_blank" rel="noreferrer">
             <Button variant="ghost">
               <Icon name="externalLink" size={14} /> Read the docs

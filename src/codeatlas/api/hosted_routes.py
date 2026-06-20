@@ -196,6 +196,16 @@ def build_hosted_router(
     async def me(principal: HostedPrincipal = Depends(principal_dep)) -> dict[str, Any]:
         return principal.model_dump()
 
+    @router.get("/demo-info")
+    async def demo_info() -> dict[str, Any]:
+        # Public, opt-in: exposes the read-only demo repo token (set via env after
+        # `codeatlas hosted seed-demo`) so visitors can explore without signup.
+        token = os.environ.get("STRATUM_DEMO_TOKEN")
+        repo_id = os.environ.get("STRATUM_DEMO_REPO_ID")
+        if not token or not repo_id:
+            return {"enabled": False}
+        return {"enabled": True, "token": token, "repo_id": repo_id}
+
     @router.get("/metrics")
     async def metrics(
         x_stratum_admin: str | None = Header(default=None),

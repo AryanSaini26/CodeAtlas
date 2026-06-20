@@ -2425,6 +2425,38 @@ def hosted_sync(hosted_db: str, repo_id_or_name: str) -> None:
     )
 
 
+@hosted.command("seed-demo")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+@click.option(
+    "--repo",
+    "clone_url",
+    default="https://github.com/pallets/flask.git",
+    show_default=True,
+    help="Public repo to clone + index for the read-only demo",
+)
+@click.option("--name", default=None, help="Override the demo repo name")
+def hosted_seed_demo(hosted_db: str, clone_url: str, name: str | None) -> None:
+    """Seed a public read-only demo repo and print its token + repo id.
+
+    Set the printed values as STRATUM_DEMO_TOKEN and STRATUM_DEMO_REPO_ID so the
+    landing page's "Explore live demo" button works without signup.
+    """
+    from codeatlas.hosted import HostedStore
+
+    store = HostedStore(Path(hosted_db))
+    try:
+        repo, token = store.seed_demo_repo(clone_url, name=name)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        store.close()
+    console.print("[green]Demo repo seeded[/green]")
+    console.print(f"Repo: [cyan]{repo.name}[/cyan] ({repo.id})")
+    console.print("\nSet these on the server, then restart:")
+    console.print(f'  STRATUM_DEMO_REPO_ID="{repo.id}"')
+    console.print(f'  STRATUM_DEMO_TOKEN="{token}"')
+
+
 @hosted.command("metrics")
 @click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")

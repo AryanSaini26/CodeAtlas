@@ -239,6 +239,24 @@ def test_provision_github_login_is_idempotent(tmp_path: Path) -> None:
         store.close()
 
 
+def test_seed_demo_repo_issues_readonly_repo_token(tmp_path: Path) -> None:
+    source = _git_repo(tmp_path / "source")
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        repo, token = store.seed_demo_repo(str(source), name="demo")
+        assert repo.provider == "local"
+        assert store.get_repo(repo.id).last_sync_status == "ready"
+
+        principal = store.verify_token(token)
+        assert principal is not None
+        # Repo-scoped: locked to this one repo, not a team-wide token.
+        assert principal.repo_id == repo.id
+        assert principal.token.subject_type == "repo"
+        assert principal.token.scopes == ["context:read"]
+    finally:
+        store.close()
+
+
 def test_metrics_counts_signups_and_activation(tmp_path: Path) -> None:
     store = HostedStore(tmp_path / "hosted.db")
     try:

@@ -476,6 +476,8 @@ export const hostedApi = {
       body: JSON.stringify({}),
     }),
   githubApp: () => hostedReq<HostedGitHubApp>("/github/app"),
+  demoInfo: () =>
+    hostedReq<{ enabled: boolean; token?: string; repo_id?: string }>("/demo-info"),
   githubInstallations: () =>
     hostedReq<{ installations: HostedGitHubInstallation[] }>(
       "/github/installations",
