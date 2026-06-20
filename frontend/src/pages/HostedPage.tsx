@@ -503,34 +503,29 @@ export default function HostedPage() {
                   </Button>
                 </div>
                 {evalResult.data?.eval ? (
-                  <div className="overflow-auto">
-                    <table className="w-full text-[11px]">
-                      <thead className="text-text-3">
-                        <tr className="text-left">
-                          <th className="py-1 pr-3 font-medium">Mode</th>
-                          <th className="py-1 pr-3 font-medium">Recall@k</th>
-                          <th className="py-1 pr-3 font-medium">MRR</th>
-                          <th className="py-1 pr-3 font-medium">nDCG@k</th>
-                          <th className="py-1 font-medium">Ctx savings</th>
-                        </tr>
-                      </thead>
-                      <tbody className="font-mono text-text-2">
-                        {evalResult.data.eval.comparison.map((row) => (
-                          <tr key={row.mode} className="border-t border-border">
-                            <td className="py-1 pr-3">{row.mode}</td>
-                            <td className="py-1 pr-3">{row.recall_at_k.toFixed(3)}</td>
-                            <td className="py-1 pr-3">{row.mrr.toFixed(3)}</td>
-                            <td className="py-1 pr-3">{row.ndcg_at_k.toFixed(3)}</td>
-                            <td className="py-1">
-                              {(row.avg_context_savings * 100).toFixed(0)}%
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div className="mt-2 text-[10px] text-text-4">
-                      {evalResult.data.eval.task_count} tasks ·{" "}
-                      {evalResult.data.eval.note}
+                  <div className="flex flex-col gap-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.06em] text-text-4">
+                      Recall@k by retrieval mode
+                    </div>
+                    {evalResult.data.eval.comparison.map((row) => (
+                      <div key={row.mode} className="flex flex-col gap-1">
+                        <div className="flex justify-between text-[11px] text-text-3">
+                          <span className="font-mono">{row.mode}</span>
+                          <span className="font-mono text-text-4">
+                            recall {row.recall_at_k.toFixed(3)} · MRR {row.mrr.toFixed(3)} · nDCG{" "}
+                            {row.ndcg_at_k.toFixed(3)}
+                          </span>
+                        </div>
+                        <div className="h-3 rounded bg-white/[0.04] overflow-hidden">
+                          <div
+                            className="h-full rounded bg-cyan"
+                            style={{ width: `${Math.min(1, row.recall_at_k) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <div className="mt-1 text-[10px] text-text-4">
+                      {evalResult.data.eval.task_count} tasks · {evalResult.data.eval.note}
                     </div>
                   </div>
                 ) : (

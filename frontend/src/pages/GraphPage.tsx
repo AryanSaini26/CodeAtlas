@@ -33,6 +33,13 @@ function colorFor(node: GraphNode, byCommunity: boolean): string {
 
 const KIND_ORDER = ["function", "method", "class", "interface", "module", "variable", "type"];
 
+// Edge confidence from the resolver: AST-proven vs name-resolved vs heuristic.
+const CONFIDENCE_COLOR: Record<string, string> = {
+  extracted: "rgba(0,240,255,0.30)",
+  inferred: "rgba(168,85,247,0.28)",
+  ambiguous: "rgba(245,158,11,0.32)",
+};
+
 export default function GraphPage() {
   const [fileFilter, setFileFilter] = useState("");
   const [byCommunity, setByCommunity] = useState(true);
@@ -185,9 +192,9 @@ export default function GraphPage() {
               linkColor={(l: VizLink) => {
                 if (highlightNodes) {
                   const on = highlightNodes.has(nodeId(l.source)) && highlightNodes.has(nodeId(l.target));
-                  return on ? "rgba(0,240,255,0.45)" : "rgba(255,255,255,0.03)";
+                  return on ? "rgba(0,240,255,0.55)" : "rgba(255,255,255,0.03)";
                 }
-                return "rgba(255,255,255,0.08)";
+                return CONFIDENCE_COLOR[l.confidence ?? "extracted"] ?? "rgba(255,255,255,0.08)";
               }}
               linkDirectionalArrowLength={3}
               linkDirectionalArrowRelPos={1}
@@ -255,6 +262,27 @@ export default function GraphPage() {
               <li>• Color = {byCommunity ? "community" : "symbol kind"}</li>
               <li>• Glow = high-importance node</li>
             </ul>
+            <div className="mt-2 border-t border-border pt-2">
+              <div className="text-[10px] text-text-4 uppercase tracking-[0.06em] mb-1.5">
+                Edge confidence
+              </div>
+              <div className="flex flex-col gap-1">
+                {[
+                  ["extracted", "AST-proven"],
+                  ["inferred", "name-resolved"],
+                  ["ambiguous", "heuristic"],
+                ].map(([key, label]) => (
+                  <div key={key} className="flex items-center gap-2 text-[11px]">
+                    <span
+                      className="h-[2px] w-4 shrink-0 rounded"
+                      style={{ backgroundColor: CONFIDENCE_COLOR[key].replace(/0\.\d+/, "1") }}
+                    />
+                    <span className="text-text-2 capitalize">{key}</span>
+                    <span className="text-text-4">· {label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
             {!byCommunity ? (
               <div className="flex flex-col gap-1 mt-2">
                 {KIND_ORDER.map((k) => (
