@@ -12,8 +12,14 @@ from typing import Any, Literal
 from codeatlas.graph.store import GraphStore
 from codeatlas.models import Relationship, Symbol
 
-ContextMode = Literal["fts", "semantic", "hybrid", "pagerank"]
-VALID_CONTEXT_MODES: tuple[ContextMode, ...] = ("fts", "semantic", "hybrid", "pagerank")
+ContextMode = Literal["fts", "semantic", "hybrid", "pagerank", "rerank"]
+VALID_CONTEXT_MODES: tuple[ContextMode, ...] = (
+    "fts",
+    "semantic",
+    "hybrid",
+    "pagerank",
+    "rerank",
+)
 
 
 def estimate_tokens(text: str) -> int:
@@ -109,6 +115,15 @@ def _rank_candidates(
         else:
             candidates = store.search(query, limit=search_limit)
             effective_mode = "pagerank-fallback"
+    elif mode == "rerank":
+        # Stage 1: broad recall (hybrid when a semantic index is available).
+        recall_limit = max(search_limit, 50)
+        if semantic_index is not None:
+            from codeatlas.search.hybrid import HybridSearch
+
+            candidates = HybridSearch(store, semantic_index).search(query, limit=recall_limit)
+        else:
+            candidates = store.search(query, limit=recall_limit)
     else:
         candidates = store.search(query, limit=search_limit)
 
@@ -117,6 +132,16 @@ def _rank_candidates(
         if sym.id not in seen:
             candidates.append(sym)
             seen.add(sym.id)
+
+    if mode == "rerank":
+        # Stage 2: cross-encoder precision rerank. Falls back to the heuristic
+        # sort below if sentence-transformers isn't installed.
+        try:
+            from codeatlas.search.rerank import CrossEncoderReranker
+
+            return CrossEncoderReranker().rerank(query, candidates), "rerank"
+        except Exception:
+            effective_mode = "hybrid-fallback" if semantic_index is not None else "fts-fallback"
 
     pagerank = store.compute_pagerank()
     candidate_order = {sym.id: idx for idx, sym in enumerate(candidates)}

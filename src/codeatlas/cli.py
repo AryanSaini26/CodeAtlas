@@ -1410,10 +1410,15 @@ def explain_cmd(db: str, as_json: bool) -> None:
 )
 @click.option(
     "--mode",
-    type=click.Choice(["fts", "semantic", "hybrid", "pagerank"]),
+    type=click.Choice(["fts", "semantic", "hybrid", "pagerank", "rerank"]),
     default="pagerank",
     show_default=True,
     help="Retrieval/ranking mode when --compare is not set",
+)
+@click.option(
+    "--with-rerank",
+    is_flag=True,
+    help="Include the cross-encoder rerank mode in --compare (adds latency)",
 )
 def eval_cmd(
     suite: str,
@@ -1425,11 +1430,17 @@ def eval_cmd(
     build_semantic: bool,
     require_semantic: bool,
     mode: str,
+    with_rerank: bool,
 ) -> None:
     """Run golden retrieval/context evals and report recall, MRR, and latency."""
     import json as json_mod
 
-    from codeatlas.eval import render_eval_markdown, run_eval_comparison, run_eval_suite
+    from codeatlas.eval import (
+        DEFAULT_EVAL_MODES,
+        render_eval_markdown,
+        run_eval_comparison,
+        run_eval_suite,
+    )
 
     store = _get_store(Path(db))
     try:
@@ -1442,10 +1453,12 @@ def eval_cmd(
                 require_semantic=require_semantic,
             )
         if compare:
+            compare_modes = (*DEFAULT_EVAL_MODES, "rerank") if with_rerank else DEFAULT_EVAL_MODES
             report = run_eval_comparison(
                 store,
                 suite,
                 budget_tokens=budget,
+                modes=compare_modes,
                 semantic_index=semantic_index,
             )
         else:

@@ -17,10 +17,13 @@ EvalMode = Literal[
     "pagerank",
     "semantic",
     "hybrid",
+    "rerank",
     "graph-neighborhood",
     "oracle-ablation",
     "context-pack",
 ]
+# rerank is intentionally NOT in the default set: it pulls a cross-encoder model
+# and adds ~4x latency. Opt in with `codeatlas eval --compare --with-rerank`.
 DEFAULT_EVAL_MODES: tuple[EvalMode, ...] = (
     "fts",
     "bm25",
