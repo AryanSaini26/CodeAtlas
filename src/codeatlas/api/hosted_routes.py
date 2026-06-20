@@ -239,6 +239,19 @@ def build_hosted_router(
             raise HTTPException(status_code=401, detail={"error": "admin token required"})
         return hosted.metrics()
 
+    @router.get("/audit")
+    async def audit_log(
+        limit: int = Query(default=50, ge=1, le=500),
+        x_stratum_admin: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        # Admin-only, same gating as /metrics — an audit trail shouldn't be public.
+        admin_token = os.environ.get("STRATUM_ADMIN_TOKEN")
+        if not admin_token:
+            raise HTTPException(status_code=404, detail={"error": "audit endpoint disabled"})
+        if not x_stratum_admin or not secrets.compare_digest(x_stratum_admin, admin_token):
+            raise HTTPException(status_code=401, detail={"error": "admin token required"})
+        return {"events": [e.model_dump() for e in hosted.list_audit_events(limit=limit)]}
+
     @router.get("/teams")
     async def teams(_: HostedPrincipal = Depends(principal_dep)) -> dict[str, Any]:
         return {"teams": [team.model_dump() for team in hosted.list_teams()]}

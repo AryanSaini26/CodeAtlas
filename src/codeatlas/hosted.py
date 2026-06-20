@@ -205,6 +205,15 @@ class GitHubRepository(BaseModel):
     updated_at: int
 
 
+class AuditEvent(BaseModel):
+    id: str
+    action: str
+    actor: str | None = None
+    target: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: int
+
+
 class ContextQuery(BaseModel):
     id: str
     repo_id: str
@@ -392,6 +401,14 @@ class HostedStore:
                 summary TEXT NOT NULL,
                 created_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id TEXT PRIMARY KEY,
+                action TEXT NOT NULL,
+                actor TEXT,
+                target TEXT,
+                metadata TEXT NOT NULL DEFAULT '{}',
+                created_at INTEGER NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS context_queries (
                 id TEXT PRIMARY KEY,
                 repo_id TEXT NOT NULL REFERENCES repos(id) ON DELETE CASCADE,
@@ -410,6 +427,8 @@ class HostedStore:
                 ON repo_evals(repo_id, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_context_queries_repo
                 ON context_queries(repo_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_audit_created
+                ON audit_events(created_at DESC);
             """
         )
         self._ensure_column("repos", "provider_repo_id", "provider_repo_id TEXT")
@@ -566,6 +585,12 @@ class HostedStore:
             ),
         )
         self._conn.commit()
+        self.record_audit_event(
+            action="token.issue",
+            actor=subject_id,
+            target=token_id,
+            metadata={"subject_type": subject_type, "name": name},
+        )
         return IssuedToken(token=raw, token_record=self.get_token(token_id))
 
     def get_token(self, token_id: str) -> HostedToken:
@@ -935,6 +960,11 @@ class HostedStore:
             (repo.id, resolved_local_path, now, github_repo.provider_repo_id),
         )
         self._conn.commit()
+        self.record_audit_event(
+            action="repo.activate",
+            target=repo.id,
+            metadata={"provider_repo": github_repo.full_name},
+        )
         return self.get_repo(repo.id)
 
     def clone_or_update_github_repository(
@@ -1102,6 +1132,11 @@ class HostedStore:
             ),
         )
         self._conn.commit()
+        self.record_audit_event(
+            action="repo.sync",
+            target=repo_id,
+            metadata={"status": status, "parsed": parsed, "errors": errors},
+        )
         return self.get_sync_event(event_id)
 
     def get_sync_event(self, event_id: str) -> HostedSyncEvent:
@@ -1284,6 +1319,43 @@ class HostedStore:
             "commits_behind": commits_behind,
             "stale": stale,
         }
+
+    def record_audit_event(
+        self,
+        *,
+        action: str,
+        actor: str | None = None,
+        target: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Append a tamper-evident-ish audit record of a sensitive action."""
+        self._conn.execute(
+            """
+            INSERT INTO audit_events (id, action, actor, target, metadata, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                f"aud_{uuid.uuid4().hex}",
+                action,
+                actor,
+                target,
+                json.dumps(metadata or {}, sort_keys=True),
+                _now_ms(),
+            ),
+        )
+        self._conn.commit()
+
+    def list_audit_events(self, limit: int = 50) -> list[AuditEvent]:
+        rows = self._conn.execute(
+            "SELECT * FROM audit_events ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        events = []
+        for row in rows:
+            data = _row_to_dict(row)
+            data["metadata"] = json.loads(str(data["metadata"] or "{}"))
+            events.append(AuditEvent.model_validate(data))
+        return events
 
     def record_context_query(
         self,

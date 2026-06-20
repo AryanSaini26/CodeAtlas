@@ -286,6 +286,25 @@ def test_seed_demo_repo_issues_readonly_repo_token(tmp_path: Path) -> None:
         store.close()
 
 
+def test_audit_log_records_sensitive_actions(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()  # issues a token -> token.issue audit event
+        repo = store.register_repo(
+            RepoRegistration(team_slug="default", name="r", local_path=_repo(tmp_path / "repo"))
+        )
+        store.run_sync_pipeline(repo.id)  # -> repo.sync audit event
+        events = store.list_audit_events()
+        actions = {e.action for e in events}
+        assert "token.issue" in actions
+        assert "repo.sync" in actions
+        sync_event = next(e for e in events if e.action == "repo.sync")
+        assert sync_event.target == repo.id
+        assert sync_event.metadata["status"] == "success"
+    finally:
+        store.close()
+
+
 def test_metrics_counts_signups_and_activation(tmp_path: Path) -> None:
     store = HostedStore(tmp_path / "hosted.db")
     try:

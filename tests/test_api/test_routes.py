@@ -826,6 +826,12 @@ def test_hosted_metrics_endpoint_admin_gated(
     assert ok.status_code == 200
     assert ok.json()["users"] >= 1
 
+    # The audit endpoint uses the same admin gating and lists recorded actions.
+    assert client2.get("/api/hosted/v1/audit").status_code == 401
+    audit = client2.get("/api/hosted/v1/audit", headers={"X-Stratum-Admin": "s3cret"})
+    assert audit.status_code == 200
+    assert any(e["action"] == "token.issue" for e in audit.json()["events"])
+
 
 def test_hosted_context_savings_endpoint(tmp_path: Path, db_path: Path) -> None:
     repo_path = tmp_path / "repo"
