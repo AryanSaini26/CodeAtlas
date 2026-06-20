@@ -153,6 +153,93 @@ ${d.docstring ? `<blockquote>${esc(d.docstring)}</blockquote>` : ""}
 </body></html>`;
 }
 
+type ImpactGroup = { depth: number; count: number; symbols: SymbolRef[] };
+type ImpactResponse = { symbol_id: string; total_affected: number; by_depth: ImpactGroup[] };
+type ContextResponse = { query: string; result_count: number; estimated_tokens: number };
+
+async function resolveCursorSymbol(): Promise<SearchHit | null> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showInformationMessage("No active editor");
+    return null;
+  }
+  const word = editor.document.getText(
+    editor.document.getWordRangeAtPosition(editor.selection.active),
+  );
+  if (!word) {
+    vscode.window.showInformationMessage("Place the cursor on a symbol name.");
+    return null;
+  }
+  const data = await apiGet<{ hits: SearchHit[] }>(
+    `/api/v1/search?q=${encodeURIComponent(word)}&limit=10`,
+  );
+  if (!data.hits.length) {
+    vscode.window.showInformationMessage(`No CodeAtlas match for "${word}"`);
+    return null;
+  }
+  return data.hits[0];
+}
+
+async function showImpactRadius(): Promise<void> {
+  try {
+    const sym = await resolveCursorSymbol();
+    if (!sym) return;
+    const data = await apiGet<ImpactResponse>(
+      `/api/v1/symbols/${encodeURIComponent(sym.id)}/impact?max_depth=5`,
+    );
+    const esc = (s: string) =>
+      s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
+    const groups = data.by_depth
+      .map(
+        (g) =>
+          `<h3>Depth ${g.depth} (${g.count})</h3><ul>${g.symbols
+            .map((r) => `<li><code>${esc(r.qualified_name)}</code> — ${esc(r.file)}</li>`)
+            .join("")}</ul>`,
+      )
+      .join("");
+    const panel = vscode.window.createWebviewPanel(
+      "codeatlasImpact",
+      `Impact: ${sym.name}`,
+      vscode.ViewColumn.Beside,
+      { enableScripts: false },
+    );
+    panel.webview.html = `<!doctype html><html><body style="font-family: var(--vscode-font-family)">
+<h2>Blast radius of ${esc(sym.name)}</h2>
+<p><strong>${data.total_affected}</strong> downstream symbol(s) may be affected.</p>
+${groups || "<p><em>No downstream dependents.</em></p>"}
+</body></html>`;
+  } catch (err) {
+    vscode.window.showErrorMessage(`CodeAtlas: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+async function buildAgentContext(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showInformationMessage("No active editor");
+    return;
+  }
+  const selection = editor.document.getText(editor.selection);
+  const word = selection || editor.document.getText(
+    editor.document.getWordRangeAtPosition(editor.selection.active),
+  );
+  if (!word) {
+    vscode.window.showInformationMessage("Select text or place the cursor on a symbol.");
+    return;
+  }
+  try {
+    const data = await apiGet<ContextResponse>(
+      `/api/v1/context?q=${encodeURIComponent(word)}&mode=pagerank&budget=2000`,
+    );
+    await vscode.env.clipboard.writeText(JSON.stringify(data, null, 2));
+    vscode.window.showInformationMessage(
+      `CodeAtlas: context for "${word}" copied (${data.result_count} results, ~${data.estimated_tokens} tokens).`,
+    );
+  } catch (err) {
+    vscode.window.showErrorMessage(`CodeAtlas: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 async function openUi(): Promise<void> {
   await vscode.env.openExternal(vscode.Uri.parse(apiBase()));
 }
@@ -162,6 +249,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("codeatlas.openUi", openUi),
     vscode.commands.registerCommand("codeatlas.searchSymbols", searchSymbols),
     vscode.commands.registerCommand("codeatlas.showSymbolDetails", showSymbolAtCursor),
+    vscode.commands.registerCommand("codeatlas.showImpactRadius", showImpactRadius),
+    vscode.commands.registerCommand("codeatlas.buildAgentContext", buildAgentContext),
   );
 }
 

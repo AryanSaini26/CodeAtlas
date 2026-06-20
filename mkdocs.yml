@@ -71,6 +71,8 @@ nav:
   - Deploy (Oracle, free): deploy-oracle.md
   - Deploy (Fly.io): deploy-fly.md
   - Architecture: architecture.md
+  - Threat model: threat-model.md
+  - Limitations: limitations.md
   - Languages: languages.md
   - Changelog: changelog.md
 

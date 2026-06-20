@@ -2619,6 +2619,23 @@ def hosted_sync(hosted_db: str, repo_id_or_name: str) -> None:
     )
 
 
+@hosted.command("revoke-token")
+@click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
+@click.option("--id", "token_id", required=True, help="Token id to revoke (tok_...)")
+def hosted_revoke_token(hosted_db: str, token_id: str) -> None:
+    """Revoke a hosted bearer token by id."""
+    from codeatlas.hosted import HostedStore
+
+    store = HostedStore(Path(hosted_db))
+    try:
+        store.revoke_token(token_id)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        store.close()
+    console.print(f"[green]Revoked token[/green] {token_id}")
+
+
 @hosted.command("seed-demo")
 @click.option("--hosted-db", default=".codeatlas/hosted.db", show_default=True)
 @click.option(

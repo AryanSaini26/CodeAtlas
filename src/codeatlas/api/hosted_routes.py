@@ -568,6 +568,27 @@ def build_hosted_router(
         )
         return issued.model_dump()
 
+    @router.post("/tokens/{token_id}/revoke")
+    async def revoke_token(
+        token_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        if principal.token.subject_type != "team":
+            raise HTTPException(status_code=403, detail={"error": "team token required"})
+        try:
+            token = hosted.get_token(token_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail={"error": str(exc)}) from exc
+        owner_team = (
+            token.subject_id
+            if token.subject_type == "team"
+            else hosted.get_repo(token.subject_id).team_id
+        )
+        if owner_team != principal.team_id:
+            raise HTTPException(status_code=403, detail={"error": "token cannot revoke this token"})
+        hosted.revoke_token(token_id)
+        return {"revoked": token_id}
+
     @router.get("/repos/{repo_id}/connection")
     async def connection(
         repo_id: str,

@@ -32,6 +32,14 @@
       {
         "command": "codeatlas.showSymbolDetails",
         "title": "CodeAtlas: Show Symbol at Cursor"
+      },
+      {
+        "command": "codeatlas.showImpactRadius",
+        "title": "CodeAtlas: Show Impact Radius"
+      },
+      {
+        "command": "codeatlas.buildAgentContext",
+        "title": "CodeAtlas: Build Agent Context"
       }
     ],
     "configuration": {

@@ -601,6 +601,14 @@ class HostedStore:
         data["scopes"] = json.loads(str(data["scopes"]))
         return HostedToken.model_validate(data)
 
+    def revoke_token(self, token_id: str) -> HostedToken:
+        """Revoke a token (verify_token already filters out revoked tokens)."""
+        self.get_token(token_id)  # raises KeyError if the token doesn't exist
+        self._conn.execute("UPDATE tokens SET revoked_at = ? WHERE id = ?", (_now_ms(), token_id))
+        self._conn.commit()
+        self.record_audit_event(action="token.revoke", target=token_id)
+        return self.get_token(token_id)
+
     def verify_token(self, token: str) -> HostedPrincipal | None:
         # Salted scrypt hashes are not directly queryable, so candidates are
         # narrowed by the public prefix and then verified in constant time.
