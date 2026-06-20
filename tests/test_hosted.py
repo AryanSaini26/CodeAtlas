@@ -239,6 +239,35 @@ def test_provision_github_login_is_idempotent(tmp_path: Path) -> None:
         store.close()
 
 
+def test_repo_freshness_detects_new_commits(tmp_path: Path) -> None:
+    source = _git_repo(tmp_path / "source")
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()
+        repo = store.register_repo(
+            RepoRegistration(team_slug="default", name="r", local_path=source)
+        )
+        store.run_sync_pipeline(repo.id)
+        fresh = store.repo_freshness(repo.id)
+        assert fresh["stale"] is False
+        assert fresh["head_sha"] == fresh["last_indexed_sha"]
+
+        # A new commit makes the index stale.
+        (source / "extra.py").write_text("def added() -> int:\n    return 2\n")
+        subprocess.run(["git", "add", "."], cwd=source, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-c", "user.name=T", "-c", "user.email=t@e.com", "commit", "-m", "more"],
+            cwd=source,
+            check=True,
+            capture_output=True,
+        )
+        stale = store.repo_freshness(repo.id)
+        assert stale["stale"] is True
+        assert stale["commits_behind"] == 1
+    finally:
+        store.close()
+
+
 def test_seed_demo_repo_issues_readonly_repo_token(tmp_path: Path) -> None:
     source = _git_repo(tmp_path / "source")
     store = HostedStore(tmp_path / "hosted.db")

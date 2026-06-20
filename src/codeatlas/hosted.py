@@ -1252,6 +1252,39 @@ class HostedStore:
         )
         return self.get_repo(repo.id), issued.token
 
+    def repo_freshness(self, repo_id_or_name: str) -> dict[str, Any]:
+        """Compare the working-tree HEAD with the last indexed commit.
+
+        commits_behind is best-effort (None on a shallow clone where the old
+        commit isn't in local history); ``stale`` falls back to a SHA mismatch.
+        """
+        repo = self.get_repo(repo_id_or_name)
+        root = Path(repo.local_path)
+        head = _commit_sha(root)
+        last = repo.last_commit_sha
+        commits_behind: int | None = None
+        if head and last and head != last:
+            try:
+                result = subprocess.run(
+                    ["git", "rev-list", "--count", f"{last}..{head}"],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+                if result.returncode == 0:
+                    commits_behind = int(result.stdout.strip() or "0")
+            except Exception:
+                commits_behind = None
+        stale = bool(head and last and head != last)
+        return {
+            "head_sha": head,
+            "last_indexed_sha": last,
+            "commits_behind": commits_behind,
+            "stale": stale,
+        }
+
     def record_context_query(
         self,
         *,

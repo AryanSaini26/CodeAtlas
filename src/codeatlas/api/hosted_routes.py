@@ -372,6 +372,14 @@ def build_hosted_router(
             raise HTTPException(status_code=409, detail={"error": "repo has no local checkout"})
         return {"savings": compute_context_savings(graph_db, root, q)}
 
+    @router.get("/repos/{repo_id}/freshness")
+    async def repo_freshness(
+        repo_id: str,
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        return {"freshness": hosted.repo_freshness(repo.id)}
+
     @router.get("/repos/{repo_id}/explain")
     async def explain_repo(
         repo_id: str,

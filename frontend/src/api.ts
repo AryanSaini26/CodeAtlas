@@ -473,6 +473,15 @@ export const hostedApi = {
     hostedReq<{ repo: string; markdown: string }>(
       `/repos/${encodeURIComponent(repoId)}/explain`,
     ),
+  freshness: (repoId: string) =>
+    hostedReq<{
+      freshness: {
+        head_sha: string | null;
+        last_indexed_sha: string | null;
+        commits_behind: number | null;
+        stale: boolean;
+      };
+    }>(`/repos/${encodeURIComponent(repoId)}/freshness`),
   contextSavings: (repoId: string, q: string) =>
     hostedReq<{ savings: HostedSavings }>(
       `/repos/${encodeURIComponent(repoId)}/context-savings`,

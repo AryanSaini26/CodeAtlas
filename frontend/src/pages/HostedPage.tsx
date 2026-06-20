@@ -142,6 +142,13 @@ export default function HostedPage() {
     refetchInterval: 5000,
   });
 
+  const freshness = useQuery({
+    queryKey: ["hosted", "freshness", selectedRepo?.id],
+    queryFn: () => hostedApi.freshness(selectedRepo!.id),
+    enabled: !!selectedRepo,
+    retry: false,
+  });
+
   const bootstrap = useMutation({
     mutationFn: () => hostedApi.bootstrap(),
     onSuccess: (data) => {
@@ -466,6 +473,18 @@ export default function HostedPage() {
                   <Field label="Provider" value={selectedRepo.provider} />
                   <Field label="Provider repo" value={selectedRepo.provider_repo ?? "local"} />
                   <Field label="Status" value={selectedRepo.last_sync_status} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-text-3">Freshness</span>
+                    {freshness.data?.freshness.stale ? (
+                      <Badge tone="warn">
+                        {freshness.data.freshness.commits_behind != null
+                          ? `${freshness.data.freshness.commits_behind} commits behind`
+                          : "stale — re-sync"}
+                      </Badge>
+                    ) : (
+                      <Badge tone="success">up to date</Badge>
+                    )}
+                  </div>
                   {selectedRepo.last_error ? (
                     <div className="md:col-span-2 text-bad">{selectedRepo.last_error}</div>
                   ) : null}
