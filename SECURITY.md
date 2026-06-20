@@ -22,8 +22,13 @@ The hosted control plane (Stratum) is built with these protections:
   MCP / context endpoints.
 - **Served-context scanning:** context packs are scanned for prompt-injection and
   secret-like material, and vendor/generated paths are excluded.
-- **Admin metrics** are disabled unless `STRATUM_ADMIN_TOKEN` is set, then gated
-  by a constant-time check.
+- **Admin metrics + audit log** are disabled unless `STRATUM_ADMIN_TOKEN` is set,
+  then gated by a constant-time check. Sensitive actions (token issuance, repo
+  activation, sync) are recorded in an append-only audit log.
+- **Static analysis:** `codeatlas scan` emits SARIF (secret-like content,
+  prompt-injection text, risky paths); CI uploads it to GitHub code scanning.
+- **Supply chain:** releases ship a CycloneDX SBOM and an SLSA build-provenance
+  attestation (`actions/attest-build-provenance`) on the built artifacts.
 
 ## Secrets
 
