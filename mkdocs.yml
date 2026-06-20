@@ -65,6 +65,7 @@ nav:
   - Stratum startup plan: stratum-startup-plan.md
   - Hosted MVP: hosted-mvp.md
   - Demo script: demo-script.md
+  - Deploy (Google Cloud, free): deploy-gcp.md
   - Deploy (DigitalOcean): deploy-digitalocean.md
   - Deploy (Oracle, free): deploy-oracle.md
   - Deploy (Fly.io): deploy-fly.md
