@@ -1912,6 +1912,60 @@ def scan_cmd(repo_path: str, sarif_out: str | None, fail_on_error: bool) -> None
         raise SystemExit(1)
 
 
+@cli.command(name="pr-analyze")
+@click.option("--base", required=True, help="Base ref (e.g. origin/main)")
+@click.option("--head", default="HEAD", show_default=True, help="Head ref")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option("--repo", "repo_path", default=".", show_default=True, help="Repo path")
+@click.option("--format", "fmt", type=click.Choice(["markdown", "json"]), default="markdown")
+@click.option(
+    "--markdown", "markdown_out", default=None, type=click.Path(), help="Write the report"
+)
+@click.option(
+    "--sarif", "sarif_out", default=None, type=click.Path(), help="Write changed-file SARIF"
+)
+@click.option(
+    "--fail-on",
+    type=click.Choice(["none", "low", "medium", "high"]),
+    default="none",
+    show_default=True,
+    help="Exit non-zero if a security finding at/above this severity exists",
+)
+def pr_analyze(
+    base: str,
+    head: str,
+    db: str,
+    repo_path: str,
+    fmt: str,
+    markdown_out: str | None,
+    sarif_out: str | None,
+    fail_on: str,
+) -> None:
+    """Graph-based PR intelligence: blast radius, suggested tests, risk, SARIF."""
+    import json as _json
+
+    from codeatlas.pr_analysis import analyze_pr, render_pr_markdown
+
+    analysis = analyze_pr(db, repo_path, base, head)
+    report = render_pr_markdown(analysis)
+    if fmt == "json":
+        click.echo(_json.dumps(analysis.to_dict(), indent=2))
+    else:
+        click.echo(report)
+    if markdown_out:
+        Path(markdown_out).write_text(report + "\n")
+    if sarif_out:
+        from codeatlas.sarif import build_security_sarif
+
+        sarif = build_security_sarif(repo_path, only_files=analysis.changed_files)
+        Path(sarif_out).write_text(_json.dumps(sarif, indent=2) + "\n")
+    if fail_on != "none":
+        order = {"low": 1, "medium": 2, "high": 3}
+        threshold = order[fail_on]
+        if any(order.get(f["severity"], 0) >= threshold for f in analysis.security_findings):
+            raise SystemExit(1)
+
+
 @cli.command(name="find-path")
 @click.argument("source")
 @click.argument("target")

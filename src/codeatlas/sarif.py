@@ -102,13 +102,21 @@ def build_security_sarif(
     *,
     max_files: int = 5000,
     max_bytes: int = 1_000_000,
+    only_files: list[str] | None = None,
 ) -> dict[str, Any]:
     """Scan a repo for secret-like content, prompt-injection text, and risky
-    paths, emitting GitHub code-scanning compatible SARIF 2.1.0."""
+    paths, emitting GitHub code-scanning compatible SARIF 2.1.0.
+
+    Pass ``only_files`` (repo-relative paths) to scope the scan, e.g. to a PR's
+    changed files."""
     root = Path(repo_path)
     results: list[dict[str, Any]] = []
     scanned = 0
-    for path in sorted(root.rglob("*")):
+    if only_files is not None:
+        candidates = [root / f for f in only_files]
+    else:
+        candidates = sorted(root.rglob("*"))
+    for path in candidates:
         if not path.is_file() or any(part in _SCAN_SKIP_DIRS for part in path.parts):
             continue
         rel = path.relative_to(root).as_posix()

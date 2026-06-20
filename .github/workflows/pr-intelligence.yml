@@ -1,0 +1,41 @@
+name: PR intelligence
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    # Skip forks (their GITHUB_TOKEN can't comment).
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[mcp,api,webhook,hosted]"
+      - name: Index + analyze PR
+        run: |
+          codeatlas index . --db .codeatlas/graph.db
+          codeatlas pr-analyze --base "origin/${{ github.base_ref }}" --head HEAD \
+            --db .codeatlas/graph.db \
+            --markdown pr-report.md \
+            --sarif pr.sarif
+      - name: Upload SARIF
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: pr.sarif
+          category: codeatlas-pr
+      - name: Comment on PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file pr-report.md
