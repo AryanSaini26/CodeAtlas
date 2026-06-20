@@ -1884,6 +1884,34 @@ def audit(
             console.print("[dim]No relationships found for centrality analysis.[/dim]")
 
 
+@cli.command(name="scan")
+@click.option("--path", "repo_path", default=".", show_default=True, help="Repo path to scan")
+@click.option(
+    "--sarif", "sarif_out", default=None, type=click.Path(), help="Write SARIF to this file"
+)
+@click.option("--fail-on-error", is_flag=True, help="Exit non-zero if high-severity findings exist")
+def scan_cmd(repo_path: str, sarif_out: str | None, fail_on_error: bool) -> None:
+    """Security scan: secret-like content, prompt-injection text, risky paths -> SARIF.
+
+    Pipe the SARIF to GitHub code scanning to surface findings in the Security tab.
+    Exits 0 by default (so CI can still upload the SARIF); use --fail-on-error to gate.
+    """
+    import json as _json
+
+    from codeatlas.sarif import build_security_sarif
+
+    payload = build_security_sarif(repo_path)
+    results = payload["runs"][0]["results"]
+    text = _json.dumps(payload, indent=2)
+    if sarif_out:
+        Path(sarif_out).write_text(text + "\n")
+        console.print(f"[green]SARIF written to {sarif_out}[/green] ({len(results)} findings)")
+    else:
+        click.echo(text)
+    if fail_on_error and any(r["level"] == "error" for r in results):
+        raise SystemExit(1)
+
+
 @cli.command(name="find-path")
 @click.argument("source")
 @click.argument("target")

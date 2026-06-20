@@ -1,12 +1,41 @@
-"""SARIF export for CodeAtlas audit findings."""
+"""SARIF export for CodeAtlas audit + security findings."""
 
 from __future__ import annotations
 
 import hashlib
+from pathlib import Path
 from typing import Any
 
+from codeatlas.context_security import ContextSecurityFinding, scan_path, scan_text
 from codeatlas.graph.store import GraphStore
 from codeatlas.models import Symbol
+
+_SEVERITY_TO_LEVEL = {"high": "error", "medium": "warning", "low": "note"}
+_SCAN_SKIP_DIRS = {
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+    "dist",
+    "build",
+    ".next",
+    "vendor",
+    "site",
+    ".codeatlas",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+}
+_SECURITY_RULES = [
+    {"id": "prompt.ignore_previous", "name": "Prompt injection (ignore instructions)"},
+    {"id": "prompt.system_override", "name": "Prompt injection (system prompt override)"},
+    {"id": "prompt.exfiltrate", "name": "Prompt injection (secret exfiltration)"},
+    {"id": "secret.private_key", "name": "Private key material"},
+    {"id": "secret.aws_key", "name": "AWS access key"},
+    {"id": "secret.env_assignment", "name": "Hard-coded secret assignment"},
+    {"id": "path.generated_or_vendor", "name": "Generated/vendor path"},
+]
 
 
 def _fingerprint(*parts: object) -> str:
@@ -40,6 +69,88 @@ def _result(
         "message": {"text": message},
         "locations": [_location(sym, fallback_file=fallback_file)],
         "partialFingerprints": {"codeatlasFingerprint": _fingerprint(rule_id, *fingerprint_parts)},
+    }
+
+
+def _line_for(text: str, finding: ContextSecurityFinding) -> int:
+    """Best-effort source line for a finding (snippets drop newlines)."""
+    needle = (finding.snippet or "").strip()
+    token = max(needle.split(), key=len, default="")
+    idx = text.find(token) if token else -1
+    return text.count("\n", 0, idx) + 1 if idx >= 0 else 1
+
+
+def _security_result(finding: ContextSecurityFinding, uri: str, line: int) -> dict[str, Any]:
+    return {
+        "ruleId": finding.rule_id,
+        "level": _SEVERITY_TO_LEVEL.get(finding.severity, "warning"),
+        "message": {"text": finding.message},
+        "locations": [
+            {
+                "physicalLocation": {
+                    "artifactLocation": {"uri": uri},
+                    "region": {"startLine": max(1, line)},
+                }
+            }
+        ],
+        "partialFingerprints": {"codeatlasFingerprint": _fingerprint(finding.rule_id, uri, line)},
+    }
+
+
+def build_security_sarif(
+    repo_path: str = ".",
+    *,
+    max_files: int = 5000,
+    max_bytes: int = 1_000_000,
+) -> dict[str, Any]:
+    """Scan a repo for secret-like content, prompt-injection text, and risky
+    paths, emitting GitHub code-scanning compatible SARIF 2.1.0."""
+    root = Path(repo_path)
+    results: list[dict[str, Any]] = []
+    scanned = 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or any(part in _SCAN_SKIP_DIRS for part in path.parts):
+            continue
+        rel = path.relative_to(root).as_posix()
+        for finding in scan_path(rel):
+            results.append(_security_result(finding, rel, 1))
+        try:
+            if path.stat().st_size > max_bytes:
+                continue
+            text = path.read_text(errors="ignore")
+        except OSError:
+            continue
+        for finding in scan_text(text, location=rel):
+            results.append(_security_result(finding, rel, _line_for(text, finding)))
+        scanned += 1
+        if scanned >= max_files:
+            break
+
+    return {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "CodeAtlas Security",
+                        "informationUri": "https://github.com/AryanSaini26/CodeAtlas",
+                        "rules": [
+                            {
+                                "id": rule["id"],
+                                "name": rule["name"],
+                                "shortDescription": {"text": rule["name"]},
+                            }
+                            for rule in _SECURITY_RULES
+                        ],
+                    }
+                },
+                "invocations": [
+                    {"executionSuccessful": True, "workingDirectory": {"uri": str(root)}}
+                ],
+                "results": results,
+            }
+        ],
     }
 
 
