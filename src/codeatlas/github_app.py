@@ -281,6 +281,80 @@ def refresh_github_repositories(
     return listing
 
 
+def _process_pull_request(
+    store: HostedStore,
+    *,
+    config: GitHubAppConfig | None,
+    payload: dict[str, Any],
+    delivery_id: str | None,
+) -> GitHubWebhookResult:
+    """Post/refresh a blast-radius comment on an opened/updated PR."""
+    action = str(payload.get("action") or "")
+    if action not in {"opened", "synchronize", "reopened"}:
+        return GitHubWebhookResult(
+            event="pull_request",
+            delivery_id=delivery_id,
+            status="ignored",
+            message=f"pull_request action {action!r} ignored",
+        )
+    installation = _installation_fields(payload)
+    installation_id = installation["installation_id"] if installation else None
+    _repo = payload.get("repository")
+    repo_payload = _repo if isinstance(_repo, dict) else {}
+    _pr = payload.get("pull_request")
+    pr_payload = _pr if isinstance(_pr, dict) else {}
+    provider_repo_id = str(repo_payload.get("id")) if repo_payload.get("id") is not None else None
+    full_name = str(repo_payload.get("full_name") or "")
+    number = pr_payload.get("number")
+    if not (
+        config
+        and config.configured
+        and installation_id
+        and provider_repo_id
+        and "/" in full_name
+        and number
+    ):
+        return GitHubWebhookResult(
+            event="pull_request",
+            delivery_id=delivery_id,
+            status="ignored",
+            message="pull_request missing config or required fields",
+            provider_repo_id=provider_repo_id,
+        )
+    hosted_repo = store.get_repo_by_provider_id(provider_repo_id)
+    if hosted_repo is None:
+        return GitHubWebhookResult(
+            event="pull_request",
+            delivery_id=delivery_id,
+            status="ignored",
+            message="github repository is not activated in Stratum",
+            provider_repo_id=provider_repo_id,
+        )
+    owner, repo_name = full_name.split("/", 1)
+    try:
+        token = mint_installation_token(config, installation_id).token
+        changed_files = list_pr_changed_files(config, token, owner, repo_name, int(number))
+        body = build_pr_impact_comment(hosted_repo.graph_db_path, changed_files)
+        outcome = upsert_pr_comment(config, token, owner, repo_name, int(number), body)
+    except Exception as exc:
+        return GitHubWebhookResult(
+            event="pull_request",
+            delivery_id=delivery_id,
+            status="error",
+            message=str(exc),
+            repo_id=hosted_repo.id,
+            provider_repo_id=provider_repo_id,
+        )
+    return GitHubWebhookResult(
+        event="pull_request",
+        delivery_id=delivery_id,
+        status="ok",
+        message=f"pr impact comment {outcome}",
+        repo_id=hosted_repo.id,
+        provider_repo_id=provider_repo_id,
+    )
+
+
 def process_github_webhook(
     store: HostedStore,
     *,
@@ -289,13 +363,15 @@ def process_github_webhook(
     payload: dict[str, Any],
     default_team_slug: str = "default",
     enqueue_sync: Callable[..., Any] | None = None,
+    config: GitHubAppConfig | None = None,
 ) -> GitHubWebhookResult:
     """Apply a GitHub webhook payload to hosted metadata and sync when possible.
 
     When ``enqueue_sync`` is provided, a push schedules the sync off the request
     path (returning ``status="queued"``) instead of cloning/indexing inline, so
     the webhook responds before GitHub's delivery timeout. Without it the sync
-    runs synchronously (used by direct unit tests and the CLI).
+    runs synchronously (used by direct unit tests and the CLI). ``config`` enables
+    the PR review bot (needs a token + GitHub API base).
     """
     installation = _installation_fields(payload)
     if installation and installation["installation_id"]:
@@ -311,6 +387,9 @@ def process_github_webhook(
         )
 
     installation_id = installation["installation_id"] if installation else None
+
+    if event == "pull_request":
+        return _process_pull_request(store, config=config, payload=payload, delivery_id=delivery_id)
 
     if event in {"installation", "installation_repositories"}:
         repositories = payload.get("repositories") or payload.get("repositories_added") or []
@@ -534,3 +613,131 @@ def fetch_github_user(
         email=str(email) if email else None,
         name=str(profile["name"]) if profile.get("name") else None,
     )
+
+
+PR_BOT_MARKER = "<!-- stratum-pr-bot -->"
+
+
+def build_pr_impact_comment(
+    graph_db_path: Path | str,
+    changed_files: list[str],
+    *,
+    max_listed: int = 10,
+) -> str:
+    """Build a Markdown blast-radius comment for a PR from the indexed graph.
+
+    For each changed file we find its symbols and their dependents — the
+    downstream code that may be affected. No working tree needed; this reads the
+    existing graph.
+    """
+    from codeatlas.graph.store import GraphStore
+
+    store = GraphStore(Path(graph_db_path))
+    try:
+        changed_symbols = 0
+        affected: dict[str, tuple[str, str]] = {}  # id -> (qualified_name, file)
+        affected_files: set[str] = set()
+        for file_path in changed_files:
+            symbols = store.get_symbols_in_file(file_path)
+            changed_symbols += len(symbols)
+            for sym in symbols:
+                for rel in store.get_dependents(sym.id):
+                    dep = store.get_symbol_by_id(rel.source_id)
+                    if dep is None or dep.file_path in changed_files:
+                        continue
+                    affected[dep.id] = (dep.qualified_name, dep.file_path)
+                    affected_files.add(dep.file_path)
+    finally:
+        store.close()
+
+    lines = [
+        "## 🛰️ Stratum impact analysis",
+        "",
+        f"This PR touches **{len(changed_files)} file(s)** / **{changed_symbols} symbol(s)**.",
+    ]
+    if affected:
+        lines.append(
+            f"Downstream blast radius: **{len(affected)} symbol(s)** across "
+            f"**{len(affected_files)} file(s)** may be affected."
+        )
+        lines += ["", "**Most affected:**"]
+        for _id, (name, file) in sorted(affected.items(), key=lambda kv: kv[1])[:max_listed]:
+            lines.append(f"- `{name}` — {file}")
+        if len(affected) > max_listed:
+            lines.append(f"- …and {len(affected) - max_listed} more")
+    else:
+        lines.append("No downstream dependents found for the changed symbols. ✅")
+    lines += ["", f"_Measured from the CodeAtlas graph._ {PR_BOT_MARKER}"]
+    return "\n".join(lines)
+
+
+def _github_post(url: str, token: str, data: dict[str, Any]) -> Any:
+    request = Request(
+        url,
+        data=json.dumps(data).encode("utf-8"),
+        method="POST",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "Stratum",
+            "Content-Type": "application/json",
+        },
+    )
+    with urlopen(request, timeout=15) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def _github_patch(url: str, token: str, data: dict[str, Any]) -> Any:
+    request = Request(
+        url,
+        data=json.dumps(data).encode("utf-8"),
+        method="PATCH",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "Stratum",
+            "Content-Type": "application/json",
+        },
+    )
+    with urlopen(request, timeout=15) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def list_pr_changed_files(
+    config: GitHubAppConfig, token: str, owner: str, repo: str, number: int
+) -> list[str]:
+    base = config.api_base.rstrip("/")
+    payload = _github_get(f"{base}/repos/{owner}/{repo}/pulls/{number}/files?per_page=100", token)
+    if not isinstance(payload, list):
+        return []
+    return [
+        str(item["filename"]) for item in payload if isinstance(item, dict) and item.get("filename")
+    ]
+
+
+def upsert_pr_comment(
+    config: GitHubAppConfig,
+    token: str,
+    owner: str,
+    repo: str,
+    number: int,
+    body: str,
+) -> str:
+    """Update the existing Stratum bot comment if present, else create one."""
+    base = config.api_base.rstrip("/")
+    existing = _github_get(
+        f"{base}/repos/{owner}/{repo}/issues/{number}/comments?per_page=100", token
+    )
+    if isinstance(existing, list):
+        for comment in existing:
+            if isinstance(comment, dict) and PR_BOT_MARKER in str(comment.get("body", "")):
+                _github_patch(
+                    f"{base}/repos/{owner}/{repo}/issues/comments/{comment['id']}",
+                    token,
+                    {"body": body},
+                )
+                return "updated"
+    _github_post(f"{base}/repos/{owner}/{repo}/issues/{number}/comments", token, {"body": body})
+    return "created"

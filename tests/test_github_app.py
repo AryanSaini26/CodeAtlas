@@ -10,9 +10,11 @@ import subprocess
 from pathlib import Path
 
 from codeatlas.github_app import (
+    PR_BOT_MARKER,
     GitHubAppConfig,
     InstallationToken,
     build_oauth_authorize_url,
+    build_pr_impact_comment,
     exchange_oauth_code,
     fetch_github_user,
     load_github_app_config,
@@ -22,7 +24,7 @@ from codeatlas.github_app import (
     process_github_webhook,
     verify_github_signature,
 )
-from codeatlas.hosted import HostedStore
+from codeatlas.hosted import HostedStore, RepoRegistration
 
 
 def _rsa_keypair() -> tuple[str, str]:
@@ -313,3 +315,81 @@ def test_fetch_github_user_falls_back_to_primary_verified_email(monkeypatch) -> 
     monkeypatch.setattr("codeatlas.github_app.urlopen", lambda req, timeout=15: next(responses))
     user = fetch_github_user("tok")
     assert user.email == "p@e.com"
+
+
+def test_build_pr_impact_comment(tmp_path: Path) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()
+        repo_dir = tmp_path / "repo"
+        repo_dir.mkdir()
+        (repo_dir / "auth.py").write_text("def login(user: str) -> str:\n    return user\n")
+        repo = store.register_repo(
+            RepoRegistration(team_slug="default", name="r", local_path=repo_dir)
+        )
+        store.run_sync_pipeline(repo.id)
+        body = build_pr_impact_comment(repo.graph_db_path, ["auth.py"])
+        assert PR_BOT_MARKER in body
+        assert "impact analysis" in body
+    finally:
+        store.close()
+
+
+def test_pull_request_webhook_posts_impact_comment(tmp_path: Path, monkeypatch) -> None:
+    store = HostedStore(tmp_path / "hosted.db")
+    try:
+        store.bootstrap_dev()
+        repo_dir = tmp_path / "repo"
+        repo_dir.mkdir()
+        (repo_dir / "auth.py").write_text("def login(user: str) -> str:\n    return user\n")
+        store.upsert_github_installation(
+            team_slug="default", installation_id="42", account_login="o", account_type="User"
+        )
+        store.upsert_github_repository(
+            installation_id="42",
+            provider_repo_id="1001",
+            full_name="o/r",
+            name="r",
+            owner="o",
+            local_path=str(repo_dir),
+        )
+        activated = store.activate_github_repository("1001", local_path=str(repo_dir))
+        store.run_sync_pipeline(activated.id)
+
+        captured: dict[str, str] = {}
+        monkeypatch.setattr(
+            "codeatlas.github_app.mint_installation_token",
+            lambda c, i: InstallationToken(token="t"),
+        )
+        monkeypatch.setattr(
+            "codeatlas.github_app.list_pr_changed_files",
+            lambda c, t, o, r, n: ["auth.py"],
+        )
+
+        def fake_upsert(c, t, o, r, n, body):  # type: ignore[no-untyped-def]
+            captured["body"] = body
+            return "created"
+
+        monkeypatch.setattr("codeatlas.github_app.upsert_pr_comment", fake_upsert)
+
+        payload = {
+            "action": "opened",
+            "installation": {"id": 42},
+            "account": {"login": "o", "type": "User", "id": 1},
+            "repository": {"id": 1001, "full_name": "o/r"},
+            "pull_request": {"number": 7},
+        }
+        config = GitHubAppConfig(app_id="1", private_key="x")
+        result = process_github_webhook(
+            store, event="pull_request", delivery_id="d", payload=payload, config=config
+        )
+        assert result.status == "ok"
+        assert PR_BOT_MARKER in captured["body"]
+
+        # Unconfigured app -> ignored, no crash.
+        ignored = process_github_webhook(
+            store, event="pull_request", delivery_id="d2", payload=payload, config=None
+        )
+        assert ignored.status == "ignored"
+    finally:
+        store.close()

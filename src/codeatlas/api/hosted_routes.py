@@ -802,6 +802,7 @@ def build_hosted_router(
                 delivery_id=x_github_delivery,
                 payload=payload,
                 enqueue_sync=worker.enqueue if worker is not None else None,
+                config=config,
             )
         except Exception as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
