@@ -16,6 +16,19 @@ Stratum is the hosted team context gateway powered by the open-source CodeAtlas 
   <img src="docs/assets/hero.svg" alt="CodeAtlas demo placeholder" width="720" />
 </p>
 
+> **Live demo:** _set after deploy_ — `https://<your-domain>/welcome` ·
+> **Docs:** https://aryansaini26.github.io/CodeAtlas/ ·
+> **2-min walkthrough:** see [demo script](docs/demo-script.md)
+
+**TL;DR** — a full-stack product that gives AI coding agents *persistent, measured*
+codebase context. Python/FastAPI + React, a multi-tenant hosted control plane, a
+GitHub App (OAuth + signed webhooks), a background sync worker, and a dashboard
+that **measures** whether retrieval is actually good — not just a diagram.
+
+| recall@k | MRR | context saved | languages | MCP tools | tests |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| **1.000** | **0.978** | **27–60%** | **24** | **30** | **1,140** |
+
 ## The Problem
 
 AI coding agents waste 60-80% of their context window orienting themselves in a codebase before doing real work. Stratum gives teams persistent, shared CodeAtlas context so agents can navigate intelligently from the first token and teams can measure whether that context actually improves outcomes.
@@ -29,6 +42,36 @@ AI coding agents waste 60-80% of their context window orienting themselves in a 
 - **Full React web UI** — interactive force graph, search, symbol details, analysis tabs — all backed by a FastAPI layer. Launch with one command: `codeatlas ui`.
 - **24 languages via tree-sitter** — Python, TypeScript/TSX, Go, Rust, JavaScript, Java, Kotlin, C, C++, C#, Ruby, PHP, Scala, Bash, Lua, Elixir, Swift, Haskell, SQL, Zig, OCaml, Julia, PowerShell, Svelte.
 - **Hosted gateway foundation** — local-dev Stratum control plane with users, teams, bearer tokens, per-repo graph DBs, GitHub App metadata, webhook replay/sync, and a `/hosted` dashboard.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  A[Git repo] --> B[tree-sitter parsers<br/>24 languages]
+  B --> C[(SQLite graph<br/>FTS5 · symbols · edges)]
+  C --> D[FAISS embeddings]
+  C --> E[PageRank · communities]
+  C --> F[MCP server<br/>30 tools]
+  C --> G[HTTP API · FastAPI]
+  G --> H[React UI<br/>graph · eval · savings]
+  I[GitHub App<br/>OAuth + signed webhooks] --> J[Background sync worker<br/>clone → index]
+  J --> C
+  K[Control plane<br/>users · teams · scrypt tokens] --> G
+  G --> L[Remote MCP / context<br/>rate-limited · audience-scoped]
+```
+
+## Engineering decisions (the short version)
+
+- **Measured retrieval as a product surface.** Recall@k / MRR / nDCG are shown in
+  the dashboard, not buried in a CLI flag — the wedge versus diagram-only tools.
+- **scrypt for token hashing** (stdlib, salted, memory-hard) instead of
+  bcrypt/argon2 — strong without adding a native wheel.
+- **In-process thread-pool sync worker** instead of Celery/Redis — webhooks
+  return fast, deliveries are deduplicated by `X-GitHub-Delivery`, and it's
+  right-sized for a single-VPS MVP.
+- **SQLite + per-repo graph DBs** instead of Postgres — simple ops and natural
+  per-repo isolation; a known tradeoff to revisit at multi-node scale.
+- Full rationale, bottlenecks, and failure modes: [docs/ai-infra-case-study.md](docs/ai-infra-case-study.md).
 
 ## Measured Results
 
