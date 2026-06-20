@@ -167,8 +167,13 @@ def build_context_pack(
     relation_limit: int = 6,
     mode: ContextMode = "pagerank",
     semantic_index: Any | None = None,
+    policy: Any | None = None,
 ) -> dict[str, Any]:
-    """Build a deterministic, token-budgeted context pack for an agent."""
+    """Build a deterministic, token-budgeted context pack for an agent.
+
+    When ``policy`` (a ``ContextPolicy``) is provided, deny-listed files are
+    excluded and secret-like text in signatures/docstrings is redacted.
+    """
     if budget_tokens < 128:
         raise ValueError("budget_tokens must be at least 128")
     if limit < 1:
@@ -191,13 +196,29 @@ def build_context_pack(
     selected_files: set[str] = set()
     estimated_tokens = estimate_tokens(query)
     baseline_tokens = 0
+    excluded_files = 0
+    secrets_redacted = 0
+    if policy is not None:
+        from codeatlas.context_policy import is_denied as _is_denied
+        from codeatlas.context_policy import redact as _redact
 
     for sym in ranked:
+        if policy is not None and _is_denied(sym.file_path, policy):
+            excluded_files += 1
+            continue
         outgoing = store.get_dependencies(sym.id)[:relation_limit]
         incoming = store.get_dependents(sym.id)[:relation_limit]
+        symbol_payload = _symbol_payload(sym)
+        if policy is not None:
+            for fld in ("signature", "docstring"):
+                value = symbol_payload.get(fld)
+                if isinstance(value, str):
+                    cleaned, n = _redact(value, policy)
+                    symbol_payload[fld] = cleaned
+                    secrets_redacted += n
         entry = {
             "score": _score_symbol(sym, query, pagerank, include_pagerank=include_pagerank),
-            "symbol": _symbol_payload(sym),
+            "symbol": symbol_payload,
             "relationships": {
                 "outgoing": _relationship_refs(store, outgoing, attr="target_id"),
                 "incoming": _relationship_refs(store, incoming, attr="source_id"),
@@ -248,4 +269,9 @@ def build_context_pack(
         "result_count": len(selected),
         "results": selected,
         "file_summaries": file_summaries,
+        **(
+            {"policy": {"excluded_files": excluded_files, "secrets_redacted": secrets_redacted}}
+            if policy is not None
+            else {}
+        ),
     }

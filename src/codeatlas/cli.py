@@ -1966,6 +1966,31 @@ def scan_cmd(repo_path: str, sarif_out: str | None, fail_on_error: bool) -> None
         raise SystemExit(1)
 
 
+@cli.group(name="policy")
+def policy() -> None:
+    """Context-safety policy (deny-listed files + secret redaction)."""
+
+
+@policy.command("check")
+@click.option("--path", "repo_path", default=".", show_default=True, help="Repo path to check")
+@click.option("--json", "as_json", is_flag=True, help="Output the report as JSON")
+def policy_check(repo_path: str, as_json: bool) -> None:
+    """Report what the context policy would exclude/redact/flag in a repo."""
+    import json as _json
+
+    from codeatlas.context_policy import ContextPolicy, safety_report
+
+    report = safety_report(repo_path, ContextPolicy())
+    if as_json:
+        click.echo(_json.dumps(report, indent=2))
+        return
+    console.print("[green]Context Safety Report[/green]")
+    console.print(f"  files excluded by policy: [cyan]{report['excluded_count']}[/cyan]")
+    console.print(f"  secret-like findings:     [cyan]{report['secrets_found']}[/cyan]")
+    console.print(f"  prompt-injection warnings:[cyan]{report['injection_warnings']}[/cyan]")
+    console.print(f"  vendor/generated included:[cyan]{report['vendor_included']}[/cyan]")
+
+
 @cli.command(name="pr-analyze")
 @click.option("--base", required=True, help="Base ref (e.g. origin/main)")
 @click.option("--head", default="HEAD", show_default=True, help="Head ref")

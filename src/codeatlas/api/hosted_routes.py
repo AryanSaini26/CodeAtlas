@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from codeatlas.agent_context import build_context_pack
+from codeatlas.context_policy import ContextPolicy
 from codeatlas.context_security import scan_context_pack
 from codeatlas.data_lineage import build_lineage_graph
 from codeatlas.github_app import (
@@ -486,6 +487,7 @@ def build_hosted_router(
                 budget_tokens=budget,
                 limit=limit,
                 mode=mode,
+                policy=ContextPolicy(),
             )
             pack["security"] = scan_context_pack(pack)
             _log_context_query(repo.id, q, pack, "context-api", started)
@@ -529,6 +531,7 @@ def build_hosted_router(
                     q,
                     budget_tokens=budget,
                     mode=mode_cast,
+                    policy=ContextPolicy(),
                 )
                 pack["security"] = scan_context_pack(pack)
                 _log_context_query(repo.id, q, pack, "remote-mcp", started)
