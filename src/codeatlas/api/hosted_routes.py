@@ -385,6 +385,27 @@ def build_hosted_router(
             raise HTTPException(status_code=409, detail={"error": "repo has no local checkout"})
         return {"savings": compute_context_savings(graph_db, root, q)}
 
+    @router.get("/repos/{repo_id}/explain-query")
+    async def explain_query(
+        repo_id: str,
+        q: str = Query(..., min_length=1),
+        mode: Literal["fts", "pagerank"] = "pagerank",
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        _enforce_rate_limit(_context_limiter, f"trace:{principal.token.id}:{repo.id}")
+        graph_db = Path(repo.graph_db_path)
+        if not graph_db.is_file():
+            raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
+        from codeatlas.retrieval_trace import build_query_trace
+
+        store = GraphStore(graph_db)
+        try:
+            # Hosted graphs have no semantic index; FTS + PageRank stages apply.
+            return build_query_trace(store, q, mode=mode)
+        finally:
+            store.close()
+
     @router.get("/repos/{repo_id}/freshness")
     async def repo_freshness(
         repo_id: str,

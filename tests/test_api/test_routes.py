@@ -904,6 +904,32 @@ def test_hosted_context_feed_logs_queries(tmp_path: Path, db_path: Path) -> None
     assert feed[0]["tokens"] >= 1
 
 
+def test_hosted_explain_query_endpoint(tmp_path: Path, db_path: Path) -> None:
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / "auth.py").write_text("def authenticate(u: str) -> str:\n    return u\n")
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    token = client.post("/api/hosted/v1/dev/bootstrap").json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    repo = client.post(
+        "/api/hosted/v1/repos",
+        headers=headers,
+        json={"team_slug": "default", "name": "r", "local_path": str(repo_path)},
+    ).json()["repo"]
+    client.post(f"/api/hosted/v1/repos/{repo['id']}/sync", headers=headers)
+
+    resp = client.get(
+        f"/api/hosted/v1/repos/{repo['id']}/explain-query",
+        headers=headers,
+        params={"q": "authenticate"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["candidates"]
+    assert "explanation" in data
+
+
 def test_hosted_repo_lineage_endpoint(tmp_path: Path, db_path: Path) -> None:
     repo_path = tmp_path / "repo"
     repo_path.mkdir()

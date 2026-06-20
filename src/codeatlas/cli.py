@@ -1389,6 +1389,60 @@ def explain_cmd(db: str, as_json: bool) -> None:
         click.echo(result["markdown"])
 
 
+@cli.command(name="explain-query")
+@click.argument("query")
+@click.option("--db", default=".codeatlas/graph.db", show_default=True)
+@click.option(
+    "--mode",
+    type=click.Choice(["fts", "semantic", "hybrid", "pagerank", "rerank"]),
+    default="pagerank",
+    show_default=True,
+)
+@click.option("--build-semantic", is_flag=True, help="Build/load the semantic index")
+@click.option("--json", "as_json", is_flag=True, help="Output the trace as JSON")
+def explain_query_cmd(query: str, db: str, mode: str, build_semantic: bool, as_json: bool) -> None:
+    """Explain why results ranked: per-candidate FTS/semantic/PageRank/rerank signals."""
+    import json as _json
+
+    from codeatlas.retrieval_trace import build_query_trace
+
+    store = _get_store(Path(db))
+    try:
+        semantic_index = None
+        if mode in {"semantic", "hybrid", "rerank"} or build_semantic:
+            semantic_index, _ = _semantic_index_for_eval(
+                Path(db), store, build_semantic=build_semantic, require_semantic=False
+            )
+        trace = build_query_trace(store, query, mode=mode, semantic_index=semantic_index)
+    finally:
+        store.close()
+
+    if as_json:
+        click.echo(_json.dumps(trace, indent=2))
+        return
+    console.print(
+        f"[green]Query:[/green] {trace['query']}  [dim](mode={trace['mode_effective']})[/dim]"
+    )
+    table = Table(title="Retrieval trace")
+    table.add_column("#", justify="right", style="dim")
+    table.add_column("Symbol")
+    table.add_column("FTS", justify="right")
+    table.add_column("Semantic", justify="right")
+    table.add_column("PageRank", justify="right")
+    table.add_column("In ctx", justify="center")
+    for c in trace["candidates"][:15]:
+        table.add_row(
+            str(c["final_rank"]),
+            c["qualified_name"],
+            "-" if c["fts_rank"] is None else str(c["fts_rank"]),
+            "-" if c["semantic_rank"] is None else str(c["semantic_rank"]),
+            f"{c['pagerank']:.4f}",
+            "✓" if c["included"] else "",
+        )
+    console.print(table)
+    console.print(f"[cyan]Why #1:[/cyan] {trace['explanation']}")
+
+
 @cli.command(name="eval")
 @click.option("--suite", required=True, type=click.Path(exists=True, dir_okay=False))
 @click.option("--db", default=".codeatlas/graph.db", show_default=True)
