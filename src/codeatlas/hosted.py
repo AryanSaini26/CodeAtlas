@@ -205,6 +205,19 @@ class GitHubRepository(BaseModel):
     updated_at: int
 
 
+class ContextQuery(BaseModel):
+    id: str
+    repo_id: str
+    query: str
+    mode: str
+    source: str
+    tokens: int = 0
+    result_count: int = 0
+    latency_ms: int = 0
+    security_status: str = "ok"
+    created_at: int
+
+
 class HostedPrincipal(BaseModel):
     token: HostedToken
     team_id: str | None = None
@@ -379,10 +392,24 @@ class HostedStore:
                 summary TEXT NOT NULL,
                 created_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS context_queries (
+                id TEXT PRIMARY KEY,
+                repo_id TEXT NOT NULL REFERENCES repos(id) ON DELETE CASCADE,
+                query TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                source TEXT NOT NULL,
+                tokens INTEGER NOT NULL DEFAULT 0,
+                result_count INTEGER NOT NULL DEFAULT 0,
+                latency_ms INTEGER NOT NULL DEFAULT 0,
+                security_status TEXT NOT NULL DEFAULT 'ok',
+                created_at INTEGER NOT NULL
+            );
             CREATE INDEX IF NOT EXISTS idx_github_repos_installation
                 ON github_repositories(installation_id);
             CREATE INDEX IF NOT EXISTS idx_repo_evals_repo
                 ON repo_evals(repo_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_context_queries_repo
+                ON context_queries(repo_id, created_at DESC);
             """
         )
         self._ensure_column("repos", "provider_repo_id", "provider_repo_id TEXT")
@@ -1224,6 +1251,48 @@ class HostedStore:
             scopes=["context:read"],
         )
         return self.get_repo(repo.id), issued.token
+
+    def record_context_query(
+        self,
+        *,
+        repo_id: str,
+        query: str,
+        mode: str,
+        source: str,
+        tokens: int = 0,
+        result_count: int = 0,
+        latency_ms: int = 0,
+        security_status: str = "ok",
+    ) -> None:
+        """Audit-log a context/MCP query an agent made (the Context Feed)."""
+        self._conn.execute(
+            """
+            INSERT INTO context_queries
+                (id, repo_id, query, mode, source, tokens, result_count, latency_ms,
+                 security_status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                f"cq_{uuid.uuid4().hex}",
+                repo_id,
+                query[:500],
+                mode,
+                source,
+                tokens,
+                result_count,
+                latency_ms,
+                security_status,
+                _now_ms(),
+            ),
+        )
+        self._conn.commit()
+
+    def list_context_queries(self, repo_id: str, limit: int = 25) -> list[ContextQuery]:
+        rows = self._conn.execute(
+            "SELECT * FROM context_queries WHERE repo_id = ? ORDER BY created_at DESC LIMIT ?",
+            (repo_id, limit),
+        ).fetchall()
+        return [ContextQuery.model_validate(_row_to_dict(row)) for row in rows]
 
     def metrics(self) -> dict[str, Any]:
         """Crude signup/activation metrics for tracking from day one.

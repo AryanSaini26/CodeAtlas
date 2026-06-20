@@ -170,6 +170,26 @@ def build_hosted_router(
                 headers={"Retry-After": str(limiter.retry_after_seconds())},
             )
 
+    def _log_context_query(
+        repo_id: str, query: str, pack: dict[str, Any], source: str, started: float
+    ) -> None:
+        # Audit-log the query for the Context Feed; never fail the request on a log error.
+        raw_security = pack.get("security")
+        security = raw_security if isinstance(raw_security, dict) else {}
+        try:
+            hosted.record_context_query(
+                repo_id=repo_id,
+                query=query,
+                mode=str(pack.get("mode_effective") or pack.get("mode") or "pagerank"),
+                source=source,
+                tokens=int(pack.get("estimated_tokens", 0) or 0),
+                result_count=int(pack.get("result_count", 0) or 0),
+                latency_ms=int((time.monotonic() - started) * 1000),
+                security_status=str(security.get("status", "ok")),
+            )
+        except Exception:
+            pass
+
     async def principal_dep(
         authorization: str | None = Header(default=None),
     ) -> HostedPrincipal:
@@ -352,6 +372,17 @@ def build_hosted_router(
             raise HTTPException(status_code=409, detail={"error": "repo has no local checkout"})
         return {"savings": compute_context_savings(graph_db, root, q)}
 
+    @router.get("/repos/{repo_id}/context-queries")
+    async def context_queries(
+        repo_id: str,
+        limit: int = Query(default=25, ge=1, le=100),
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        return {
+            "queries": [q.model_dump() for q in hosted.list_context_queries(repo.id, limit=limit)]
+        }
+
     @router.get("/repos/{repo_id}/lineage")
     async def repo_lineage(
         repo_id: str,
@@ -387,6 +418,7 @@ def build_hosted_router(
         graph_db = Path(repo.graph_db_path)
         if not graph_db.is_file():
             raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
+        started = time.monotonic()
         store = GraphStore(graph_db)
         try:
             pack = build_context_pack(
@@ -397,6 +429,7 @@ def build_hosted_router(
                 mode=mode,
             )
             pack["security"] = scan_context_pack(pack)
+            _log_context_query(repo.id, q, pack, "context-api", started)
             return pack
         finally:
             store.close()
@@ -429,6 +462,7 @@ def build_hosted_router(
             if mode not in {"fts", "semantic", "hybrid", "pagerank"}:
                 raise HTTPException(status_code=400, detail={"error": f"unsupported mode: {mode}"})
             mode_cast = cast(Literal["fts", "semantic", "hybrid", "pagerank"], mode)
+            started = time.monotonic()
             store = GraphStore(graph_db)
             try:
                 pack = build_context_pack(
@@ -438,6 +472,7 @@ def build_hosted_router(
                     mode=mode_cast,
                 )
                 pack["security"] = scan_context_pack(pack)
+                _log_context_query(repo.id, q, pack, "remote-mcp", started)
             finally:
                 store.close()
             return {"jsonrpc": "2.0", "result": pack}

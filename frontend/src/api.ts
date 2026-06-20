@@ -410,6 +410,18 @@ export type HostedSavings = {
   result_count: number;
 };
 
+export type HostedContextQuery = {
+  id: string;
+  query: string;
+  mode: string;
+  source: string;
+  tokens: number;
+  result_count: number;
+  latency_ms: number;
+  security_status: string;
+  created_at: number;
+};
+
 export const hostedOAuthLoginUrl = () => HOSTED_API_BASE + "/github/oauth/login";
 
 export const hostedApi = {
@@ -453,6 +465,10 @@ export const hostedApi = {
     hostedReq<{ eval: HostedEvalSummary }>(`/repos/${encodeURIComponent(repoId)}/eval`),
   lineage: (repoId: string) =>
     hostedReq<{ lineage: HostedLineageGraph }>(`/repos/${encodeURIComponent(repoId)}/lineage`),
+  contextQueries: (repoId: string) =>
+    hostedReq<{ queries: HostedContextQuery[] }>(
+      `/repos/${encodeURIComponent(repoId)}/context-queries`,
+    ),
   contextSavings: (repoId: string, q: string) =>
     hostedReq<{ savings: HostedSavings }>(
       `/repos/${encodeURIComponent(repoId)}/context-savings`,

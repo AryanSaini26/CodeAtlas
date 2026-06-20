@@ -851,6 +851,44 @@ def test_hosted_context_savings_endpoint(tmp_path: Path, db_path: Path) -> None:
     assert s["file_count"] >= 1
 
 
+def test_hosted_context_feed_logs_queries(tmp_path: Path, db_path: Path) -> None:
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / "auth.py").write_text("def authenticate(user: str) -> str:\n    return user\n")
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    token = client.post("/api/hosted/v1/dev/bootstrap").json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    repo = client.post(
+        "/api/hosted/v1/repos",
+        headers=headers,
+        json={"team_slug": "default", "name": "r", "local_path": str(repo_path)},
+    ).json()["repo"]
+    client.post(f"/api/hosted/v1/repos/{repo['id']}/sync", headers=headers)
+
+    # Feed starts empty.
+    assert (
+        client.get(f"/api/hosted/v1/repos/{repo['id']}/context-queries", headers=headers).json()[
+            "queries"
+        ]
+        == []
+    )
+
+    # A context query is logged.
+    client.get(
+        f"/api/hosted/v1/repos/{repo['id']}/context",
+        headers=headers,
+        params={"q": "authenticate", "mode": "fts"},
+    )
+    feed = client.get(f"/api/hosted/v1/repos/{repo['id']}/context-queries", headers=headers).json()[
+        "queries"
+    ]
+    assert len(feed) == 1
+    assert feed[0]["query"] == "authenticate"
+    assert feed[0]["source"] == "context-api"
+    assert feed[0]["tokens"] >= 1
+
+
 def test_hosted_repo_lineage_endpoint(tmp_path: Path, db_path: Path) -> None:
     repo_path = tmp_path / "repo"
     repo_path.mkdir()

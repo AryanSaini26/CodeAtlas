@@ -129,6 +129,15 @@ export default function HostedPage() {
       hostedApi.contextSavings(vars.repo.id, vars.q),
   });
 
+  const contextFeed = useQuery({
+    queryKey: ["hosted", "context-queries", selectedRepo?.id],
+    queryFn: () => hostedApi.contextQueries(selectedRepo!.id),
+    enabled: !!selectedRepo,
+    retry: false,
+    // Refresh the feed periodically so it feels live during a demo.
+    refetchInterval: 5000,
+  });
+
   const bootstrap = useMutation({
     mutationFn: () => hostedApi.bootstrap(),
     onSuccess: (data) => {
@@ -624,6 +633,43 @@ export default function HostedPage() {
                     title="No data lineage detected"
                     hint="Add dbt models, Airflow DAGs, or .sql files to see lineage here."
                   />
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Agent Context Feed"
+                subtitle="What agents actually retrieved — live"
+              />
+              <CardBody>
+                {(contextFeed.data?.queries ?? []).length === 0 ? (
+                  <EmptyState
+                    title="No agent queries yet"
+                    hint="Queries to the context / remote-MCP endpoint show up here."
+                  />
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {(contextFeed.data?.queries ?? []).map((qrow) => (
+                      <div
+                        key={qrow.id}
+                        className="rounded-md border border-border bg-white/[0.02] px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-[12px] text-text-1 truncate">
+                            {qrow.query}
+                          </span>
+                          <Badge tone={qrow.security_status === "ok" ? "success" : "danger"}>
+                            {qrow.security_status}
+                          </Badge>
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-text-4 font-mono">
+                          {qrow.source} · {qrow.mode} · {qrow.tokens} tok ·{" "}
+                          {qrow.result_count} results · {qrow.latency_ms}ms
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </CardBody>
             </Card>
