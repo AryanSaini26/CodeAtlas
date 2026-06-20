@@ -124,6 +124,11 @@ export default function HostedPage() {
     retry: false,
   });
 
+  const savings = useMutation({
+    mutationFn: (vars: { repo: HostedRepo; q: string }) =>
+      hostedApi.contextSavings(vars.repo.id, vars.q),
+  });
+
   const bootstrap = useMutation({
     mutationFn: () => hostedApi.bootstrap(),
     onSuccess: (data) => {
@@ -532,6 +537,66 @@ export default function HostedPage() {
                   <EmptyState
                     title="No eval yet"
                     hint="Run an eval to measure retrieval quality for this repo."
+                  />
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Context Savings"
+                subtitle="What an agent loads without vs with Stratum"
+              />
+              <CardBody className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={contextQuery}
+                    onChange={(e) => setContextQuery(e.target.value)}
+                    placeholder="e.g. auth flow"
+                  />
+                  <Button
+                    onClick={() =>
+                      selectedRepo && savings.mutate({ repo: selectedRepo, q: contextQuery })
+                    }
+                    disabled={!selectedRepo || savings.isPending}
+                  >
+                    {savings.isPending ? "Measuring…" : "Measure"}
+                  </Button>
+                </div>
+                {savings.data?.savings ? (
+                  <div className="flex flex-col gap-2">
+                    {(() => {
+                      const s = savings.data.savings;
+                      const max = Math.max(s.without_context_tokens, 1);
+                      const bar = (val: number, color: string, label: string) => (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between text-[11px] text-text-3">
+                            <span>{label}</span>
+                            <span className="font-mono">{val.toLocaleString()} tok</span>
+                          </div>
+                          <div className="h-3 rounded bg-white/[0.04] overflow-hidden">
+                            <div
+                              className="h-full rounded"
+                              style={{ width: `${(val / max) * 100}%`, backgroundColor: color }}
+                            />
+                          </div>
+                        </div>
+                      );
+                      return (
+                        <>
+                          {bar(s.without_context_tokens, "#ef4444", `Without Stratum (${s.file_count} files)`)}
+                          {bar(s.with_context_tokens, "#22c55e", "With Stratum (curated pack)")}
+                          <div className="mt-1 text-center text-[13px] font-semibold text-good">
+                            {(s.savings_pct * 100).toFixed(0)}% fewer tokens
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No measurement yet"
+                    hint="Enter a query and measure the token cost difference."
                   />
                 )}
               </CardBody>

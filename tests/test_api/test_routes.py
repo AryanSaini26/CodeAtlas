@@ -785,6 +785,39 @@ def test_hosted_metrics_endpoint_admin_gated(
     assert ok.json()["users"] >= 1
 
 
+def test_hosted_context_savings_endpoint(tmp_path: Path, db_path: Path) -> None:
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    # A file with more than just the answer so the full-file baseline exceeds the pack.
+    (repo_path / "auth.py").write_text(
+        "def authenticate(user: str) -> str:\n    return user\n\n"
+        + "\n".join(f"# filler line {i}" for i in range(200))
+        + "\n"
+    )
+    app = create_app(db_path=db_path, hosted_db_path=tmp_path / "hosted.db")
+    client = TestClient(app)
+    token = client.post("/api/hosted/v1/dev/bootstrap").json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    repo = client.post(
+        "/api/hosted/v1/repos",
+        headers=headers,
+        json={"team_slug": "default", "name": "r", "local_path": str(repo_path)},
+    ).json()["repo"]
+    client.post(f"/api/hosted/v1/repos/{repo['id']}/sync", headers=headers)
+
+    resp = client.get(
+        f"/api/hosted/v1/repos/{repo['id']}/context-savings",
+        headers=headers,
+        params={"q": "authenticate"},
+    )
+    assert resp.status_code == 200
+    s = resp.json()["savings"]
+    assert s["with_context_tokens"] >= 1
+    assert s["without_context_tokens"] >= s["with_context_tokens"]
+    assert 0.0 <= s["savings_pct"] <= 1.0
+    assert s["file_count"] >= 1
+
+
 def test_hosted_repo_lineage_endpoint(tmp_path: Path, db_path: Path) -> None:
     repo_path = tmp_path / "repo"
     repo_path.mkdir()

@@ -32,7 +32,7 @@ from codeatlas.hosted import (
     HostedStore,
     RepoRegistration,
 )
-from codeatlas.hosted_eval import run_repo_retrieval_eval
+from codeatlas.hosted_eval import compute_context_savings, run_repo_retrieval_eval
 from codeatlas.hosted_worker import SyncJobWorker
 from codeatlas.rate_limit import context_rate_limiter, webhook_rate_limiter
 
@@ -325,6 +325,22 @@ def build_hosted_router(
     ) -> dict[str, Any]:
         repo = _require_repo_access(hosted, repo_id, principal)
         return {"eval": hosted.get_latest_repo_eval(repo.id)}
+
+    @router.get("/repos/{repo_id}/context-savings")
+    async def context_savings(
+        repo_id: str,
+        q: str = Query(..., min_length=1),
+        principal: HostedPrincipal = Depends(principal_dep),
+    ) -> dict[str, Any]:
+        repo = _require_repo_access(hosted, repo_id, principal)
+        _enforce_rate_limit(_context_limiter, f"savings:{principal.token.id}:{repo.id}")
+        graph_db = Path(repo.graph_db_path)
+        if not graph_db.is_file():
+            raise HTTPException(status_code=409, detail={"error": "repo has not been synced"})
+        root = Path(repo.local_path)
+        if not root.is_dir():
+            raise HTTPException(status_code=409, detail={"error": "repo has no local checkout"})
+        return {"savings": compute_context_savings(graph_db, root, q)}
 
     @router.get("/repos/{repo_id}/lineage")
     async def repo_lineage(

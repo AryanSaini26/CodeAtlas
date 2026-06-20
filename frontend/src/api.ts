@@ -390,6 +390,16 @@ export type HostedLineageGraph = {
   edges: { source: string; target: string; kind: string }[];
 };
 
+export type HostedSavings = {
+  query: string;
+  with_context_tokens: number;
+  without_context_tokens: number;
+  savings_pct: number;
+  files: string[];
+  file_count: number;
+  result_count: number;
+};
+
 export const hostedOAuthLoginUrl = () => HOSTED_API_BASE + "/github/oauth/login";
 
 export const hostedApi = {
@@ -433,6 +443,11 @@ export const hostedApi = {
     hostedReq<{ eval: HostedEvalSummary }>(`/repos/${encodeURIComponent(repoId)}/eval`),
   lineage: (repoId: string) =>
     hostedReq<{ lineage: HostedLineageGraph }>(`/repos/${encodeURIComponent(repoId)}/lineage`),
+  contextSavings: (repoId: string, q: string) =>
+    hostedReq<{ savings: HostedSavings }>(
+      `/repos/${encodeURIComponent(repoId)}/context-savings`,
+      { q },
+    ),
   runEval: (repoId: string) =>
     hostedReq<{ eval: HostedEvalSummary }>(
       `/repos/${encodeURIComponent(repoId)}/eval`,
