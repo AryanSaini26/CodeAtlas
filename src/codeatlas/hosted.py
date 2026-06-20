@@ -1137,6 +1137,9 @@ class HostedStore:
             target=repo_id,
             metadata={"status": status, "parsed": parsed, "errors": errors},
         )
+        from codeatlas import observability
+
+        observability.record_sync(status)
         return self.get_sync_event(event_id)
 
     def get_sync_event(self, event_id: str) -> HostedSyncEvent:

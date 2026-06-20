@@ -5,9 +5,10 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 try:
-    from fastapi import FastAPI
+    from fastapi import FastAPI, Request, Response
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse
     from fastapi.staticfiles import StaticFiles
@@ -16,8 +17,22 @@ except ImportError as exc:
         "FastAPI is required for codeatlas.api. Install with: pip install 'codeatlas[api]'"
     ) from exc
 
+from codeatlas import observability
 from codeatlas.api.routes import build_router
 from codeatlas.graph.store import GraphStore
+
+
+def _route_prefix(path: str) -> str:
+    """Coarse, bounded-cardinality label for Prometheus."""
+    if path.startswith("/api/hosted/v1"):
+        return "/api/hosted/v1"
+    if path.startswith("/api/v1"):
+        return "/api/v1"
+    if path == "/health":
+        return "/health"
+    if path == "/metrics":
+        return "/metrics"
+    return "other"
 
 
 def create_app(
@@ -85,9 +100,31 @@ def create_app(
             tags=["hosted"],
         )
 
+    @app.middleware("http")
+    async def _metrics_middleware(request: Request, call_next: Any) -> Response:
+        import time
+
+        start = time.monotonic()
+        response: Response = await call_next(request)
+        observability.record_request(
+            _route_prefix(request.url.path),
+            request.method,
+            response.status_code,
+            time.monotonic() - start,
+        )
+        return response
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "version": "1.0.0"}
+
+    @app.get("/metrics", include_in_schema=False)
+    def metrics() -> Response:
+        exposition = observability.metrics_exposition()
+        if exposition is None:
+            return Response("metrics unavailable (install codeatlas[api])", status_code=503)
+        body, content_type = exposition
+        return Response(content=body, media_type=content_type)
 
     if static_dir is not None:
         dist = Path(static_dir).resolve()
