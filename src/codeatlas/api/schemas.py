@@ -63,6 +63,19 @@ class SymbolDetails(BaseModel):
     outgoing: list[SymbolRef] = Field(default_factory=list)
 
 
+class ImpactDepthGroup(BaseModel):
+    depth: int
+    count: int
+    symbols: list[SymbolRef] = Field(default_factory=list)
+
+
+class ImpactResponse(BaseModel):
+    symbol_id: str
+    max_depth: int
+    total_affected: int
+    by_depth: list[ImpactDepthGroup] = Field(default_factory=list)
+
+
 class SearchHit(BaseModel):
     id: str
     name: str

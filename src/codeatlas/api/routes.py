@@ -127,6 +127,54 @@ def build_router(
             incoming=_as_refs(incoming_rels, attr="source_id"),
         )
 
+    @router.get("/symbols/{symbol_id}/impact", response_model=schemas.ImpactResponse)
+    async def get_impact(
+        symbol_id: str,
+        max_depth: int = Query(default=5, ge=1, le=10),
+    ) -> schemas.ImpactResponse:
+        sym = store.get_symbol_by_id(symbol_id)
+        if sym is None:
+            raise HTTPException(status_code=404, detail={"error": f"symbol {symbol_id} not found"})
+        rows = store.get_impact_analysis(sym.id, max_depth=max_depth)
+        # Each affected symbol (source_id) keyed at its shallowest depth.
+        shallowest: dict[str, int] = {}
+        for row in rows:
+            affected_id = str(row["source_id"])
+            depth = int(str(row["depth"]))
+            if affected_id == sym.id:
+                continue
+            if affected_id not in shallowest or depth < shallowest[affected_id]:
+                shallowest[affected_id] = depth
+        by_depth: dict[int, list[schemas.SymbolRef]] = {}
+        for affected_id, depth in shallowest.items():
+            other = store.get_symbol_by_id(affected_id)
+            if other is None:
+                continue
+            by_depth.setdefault(depth, []).append(
+                schemas.SymbolRef(
+                    id=other.id,
+                    name=other.name,
+                    qualified_name=other.qualified_name,
+                    kind=other.kind.value,
+                    file=other.file_path,
+                    line=other.span.start.line + 1,
+                )
+            )
+        groups = [
+            schemas.ImpactDepthGroup(
+                depth=depth,
+                count=len(by_depth[depth]),
+                symbols=sorted(by_depth[depth], key=lambda r: r.qualified_name),
+            )
+            for depth in sorted(by_depth)
+        ]
+        return schemas.ImpactResponse(
+            symbol_id=sym.id,
+            max_depth=max_depth,
+            total_affected=sum(g.count for g in groups),
+            by_depth=groups,
+        )
+
     @router.get("/search", response_model=schemas.SearchResponse)
     async def search(
         q: str = Query(..., min_length=1),

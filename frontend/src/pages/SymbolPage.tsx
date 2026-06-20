@@ -125,6 +125,11 @@ export default function SymbolPage() {
     queryKey: ["symbol", id],
     queryFn: () => api.symbol(id!),
   });
+  const impact = useQuery({
+    enabled: !!id,
+    queryKey: ["impact", id],
+    queryFn: () => api.impact(id!),
+  });
   const { record } = useRecentSymbols();
 
   useEffect(() => {
@@ -251,8 +256,69 @@ export default function SymbolPage() {
           subtitle="Symbols referencing this one"
           refs={data.incoming}
         />
+        <ImpactCard
+          total={impact.data?.total_affected ?? 0}
+          groups={impact.data?.by_depth ?? []}
+          loading={impact.isLoading}
+        />
       </aside>
     </div>
+  );
+}
+
+function ImpactCard({
+  total,
+  groups,
+  loading,
+}: {
+  total: number;
+  groups: { depth: number; count: number; symbols: SymbolRef[] }[];
+  loading: boolean;
+}) {
+  return (
+    <Card>
+      <div className="px-4 pt-3.5 pb-3 border-b border-border">
+        <div className="flex items-center justify-between">
+          <h2 className="font-head font-bold text-[13px] text-text-1">
+            Impact / blast radius
+          </h2>
+          <span className="font-mono text-[11px] text-text-4">{total}</span>
+        </div>
+        <p className="text-[11px] text-text-3 mt-0.5">
+          What breaks if you change this (reverse dependencies)
+        </p>
+      </div>
+      <div className="max-h-[280px] overflow-y-auto">
+        {loading ? (
+          <div className="p-4 space-y-2">
+            <Skeleton /> <Skeleton w="70%" />
+          </div>
+        ) : total === 0 ? (
+          <EmptyState title="No downstream impact" hint="Nothing references this symbol." />
+        ) : (
+          groups.map((g) => (
+            <div key={g.depth} className="border-b border-border last:border-b-0">
+              <div className="px-4 py-1.5 bg-white/[0.02] text-[10px] uppercase tracking-[0.06em] text-text-4">
+                Depth {g.depth} · {g.count}
+              </div>
+              {g.symbols.slice(0, 50).map((r) => (
+                <Link
+                  key={r.id}
+                  to={`/symbol/${encodeURIComponent(r.id)}`}
+                  className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.02] no-underline hover:no-underline"
+                >
+                  <KindDot kind={r.kind} size={6} />
+                  <span className="font-mono text-[11px] text-text-1 hover:text-cyan flex-1 truncate">
+                    {r.name}
+                  </span>
+                  <FilePath path={r.file} line={r.line ?? undefined} />
+                </Link>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </Card>
   );
 }
 

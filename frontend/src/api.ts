@@ -113,6 +113,14 @@ export type SymbolDetails = {
   outgoing: SymbolRef[];
 };
 
+export type ImpactGroup = { depth: number; count: number; symbols: SymbolRef[] };
+export type ImpactResponse = {
+  symbol_id: string;
+  max_depth: number;
+  total_affected: number;
+  by_depth: ImpactGroup[];
+};
+
 export type SearchHit = {
   id: string;
   name: string;
@@ -314,6 +322,8 @@ export const api = {
   }) => req<GraphResponse>("/graph", params),
   symbol: (id: string) =>
     req<SymbolDetails>(`/symbols/${encodeURIComponent(id)}`),
+  impact: (id: string, maxDepth = 5) =>
+    req<ImpactResponse>(`/symbols/${encodeURIComponent(id)}/impact`, { max_depth: maxDepth }),
   search: (params: {
     q: string;
     kind?: string;

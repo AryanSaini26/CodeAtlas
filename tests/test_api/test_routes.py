@@ -143,6 +143,20 @@ def test_get_symbol_not_found(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def test_impact_analysis(client: TestClient) -> None:
+    # main() calls helper(), so changing helper impacts main at depth 1.
+    resp = client.get("/api/v1/symbols/utils.py::helper/impact")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_affected"] == 1
+    assert data["by_depth"][0]["depth"] == 1
+    assert data["by_depth"][0]["symbols"][0]["name"] == "main"
+
+
+def test_impact_analysis_not_found(client: TestClient) -> None:
+    assert client.get("/api/v1/symbols/nope/impact").status_code == 404
+
+
 def test_search(client: TestClient) -> None:
     resp = client.get("/api/v1/search", params={"q": "main"})
     assert resp.status_code == 200
