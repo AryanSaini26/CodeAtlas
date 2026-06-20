@@ -1,8 +1,10 @@
 # Deploying Stratum (Hosted) to Oracle Cloud Always Free
 
-This is the **recommended $0/month** path: an Oracle Cloud Always Free ARM VM
+This is the **long-term $0/month** path: an Oracle Cloud Always Free ARM VM
 (up to 4 OCPU / 24 GB RAM, no expiry), a free DuckDNS subdomain, and Caddy for
-automatic HTTPS. ([Fly.io](deploy-fly.md) is the paid alternative.)
+automatic HTTPS. If A1 capacity is unavailable (common) and you want to go live
+now, use [DigitalOcean via the Student Pack](deploy-digitalocean.md) — same
+script — and migrate here later. ([Fly.io](deploy-fly.md) is the paid option.)
 
 The VM runs `codeatlas ui`, which serves the hosted API, the remote MCP/context
 endpoints, and the dashboard SPA from one process. Caddy terminates TLS and
