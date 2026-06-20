@@ -19,11 +19,19 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: pip install -e .
+        run: pip install -e ".[mcp,api,webhook,hosted]"
       - name: Run CodeAtlas security scan
         run: codeatlas scan --path . --sarif codeatlas-security.sarif
       - name: Upload SARIF to GitHub code scanning
+        # Non-fatal: requires code scanning enabled on the repo (Settings ->
+        # Code security). The SARIF is also kept as an artifact below.
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: codeatlas-security.sarif
           category: codeatlas-security
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeatlas-security-sarif
+          path: codeatlas-security.sarif
