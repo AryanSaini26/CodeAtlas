@@ -27,7 +27,14 @@ that **measures** whether retrieval is actually good — not just a diagram.
 
 | recall@k | MRR | context saved | languages | MCP tools | tests |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **1.000** | **0.978** | **27–60%** | **24** | **30** | **1,140** |
+| **1.000** | **0.978** | **27–60%** | **24** | **30** | **1,160+** |
+
+**Depth across the stack:** two-stage retrieval with optional cross-encoder
+reranking ([benchmarked](benchmarks/rerank-report.md), 7 modes) · security scan →
+**SARIF in the GitHub Security tab** · **CycloneDX SBOM + SLSA build provenance**
+on releases · **Prometheus `/metrics` + Grafana** ([observability](docs/observability.md)) ·
+property-based tests + a CI perf-regression guard · an **Agent Context Feed**
+that shows what your agents actually retrieved.
 
 ## The Problem
 
