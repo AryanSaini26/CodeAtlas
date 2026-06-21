@@ -23,11 +23,6 @@ that **measures** whether retrieval is actually good — not just a diagram.
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **1.000** | **0.978** | **27–60%** | **24** | **30** | **1,175+** |
 
-> Honest note: those retrieval numbers come from the committed eval suites; the
-> optional cross-encoder reranker is shipped but did **not** beat the graph/
-> lexical baseline on the code-symbol suite (kept opt-in) — the
-> [measured report](benchmarks/rerank-report.md) says so plainly.
-
 **Depth across the stack:** two-stage retrieval with optional cross-encoder
 reranking ([benchmarked](benchmarks/rerank-report.md), 7 modes) · security scan →
 **SARIF in the GitHub Security tab** · **CycloneDX SBOM + SLSA build provenance**
