@@ -2,8 +2,7 @@
 
 > Hosted team context powered by the CodeAtlas engine: tree-sitter parsers, a persistent SQLite + FTS5 graph, FAISS semantic search, PageRank centrality, GitHub App sync foundation, and a 30-tool MCP surface.
 
-<!-- hero screencast (recorded before launch; see docs/assets/README.md) -->
-![hero](../assets/hero.svg)
+![Stratum interactive code graph](../assets/screenshots/03-graph.png)
 
 ## Why it exists
 
@@ -41,8 +40,11 @@ Point Claude Code at `codeatlas serve` to hand agents 30 MCP tools over the same
 
 ## Screens
 
-<!-- screenshot placeholders — PNGs captured before launch; see docs/assets/README.md -->
-*Overview, force-graph, and diff views — screenshots recorded before launch.*
+![Dashboard](../assets/screenshots/02-overview.png)
+
+![Stratum hosted gateway](../assets/screenshots/07-hosted.png)
+
+![Blast-radius diff](../assets/screenshots/06-diff.png)
 
 ## What's in the box
 

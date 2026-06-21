@@ -8,22 +8,11 @@
 
 Stratum is the hosted team context gateway powered by the open-source CodeAtlas engine. CodeAtlas constructs real-time code knowledge graphs of any repository and exposes them to AI coding agents like Claude Code, Codex, Cursor, and Copilot-compatible workflows through MCP, CLI, HTTP API, and a React web UI.
 
-<!-- DEMO ASSET: docs/assets/hero.svg is a tracked placeholder.
-     Replace with docs/assets/hero.gif after recording a 30s screencast of `codeatlas index`
-     on a 100k-LOC repo, then an agent walking the graph with MCP tools,
-     then the web UI rendering the force graph. Drop the file here. -->
 <p align="center">
-  <img src="docs/assets/hero.svg" alt="CodeAtlas demo placeholder" width="720" />
+  <img src="docs/assets/screenshots/03-graph.png" alt="Stratum interactive code graph — nodes sized by PageRank, colored by community" width="840" />
+  <br/>
+  <em>The live web UI: an interactive knowledge graph of a 500-file codebase (11.6k symbols, 36k edges), PageRank-sized and community-colored.</em>
 </p>
-
-> **Live demo:** _set after deploy_ — `https://<your-domain>/welcome` ·
-> **Docs:** https://aryansaini26.github.io/CodeAtlas/ ·
-> **2-min walkthrough:** see [demo script](docs/demo-script.md)
-
-> **Status — v1.1.0.** Everything runs locally today (`pip install codeatlas`,
-> `codeatlas index .`, `codeatlas ui`). Deploying ([Google Cloud](docs/deploy-gcp.md))
-> adds the hosted, multi-tenant gateway (GitHub sign-in, PR bot, remote MCP).
-> Try the dependency-aware analysis on the bundled [demo monorepo](examples/demo-monorepo).
 
 **TL;DR** — a full-stack product that gives AI coding agents *persistent, measured*
 codebase context. Python/FastAPI + React, a multi-tenant hosted control plane, a
@@ -92,20 +81,27 @@ flowchart LR
 
 ## Screenshots
 
+**Dashboard** — files/symbols/relationships, language & symbol-kind breakdown, and top symbols by PageRank, live over the same graph the agents query.
+
 <p align="center">
-  <img src="docs/assets/web-ui.svg" alt="Stratum web UI" width="760" />
+  <img src="docs/assets/screenshots/02-overview.png" alt="Stratum dashboard — indexed-graph overview with PageRank ranking" width="840" />
 </p>
 
-<!-- Replace these with real captures from the live instance for max impact:
-     docs/assets/graph.png        — the interactive graph (PageRank-sized, community-colored, blast-radius)
-     docs/assets/eval.png         — the Agent Retrieval Eval bar chart
-     docs/assets/context-feed.png — the Agent Context Feed
-     Then reference them here. -->
+**Stratum Gateway (`/hosted`)** — the hosted control plane: per-repo context API, **measured Agent Retrieval Eval**, before/after **context savings**, freshness/sync state, and GitHub App wiring — all per repo, per team.
 
-The hosted dashboard surfaces what competitors don't: an **Agent Context Feed**
-(what your agents actually retrieved), **measured retrieval quality** (recall/MRR
-bars), **before/after token savings**, **blast-radius impact**, and **data
-lineage** — all per repo.
+<p align="center">
+  <img src="docs/assets/screenshots/07-hosted.png" alt="Stratum hosted gateway — measured retrieval eval and context savings per repo" width="840" />
+</p>
+
+**Blast-radius diff** — symbols added/removed/modified between two git refs. Here a change to `verify_token` in the demo monorepo cascades into `create_invoice` and `admin_overview`.
+
+<p align="center">
+  <img src="docs/assets/screenshots/06-diff.png" alt="Stratum diff view — symbol-level blast radius between two git refs" width="840" />
+</p>
+
+The hosted dashboard surfaces what diagram-only tools don't: **measured retrieval
+quality** (recall/MRR bars), **before/after token savings**, **blast-radius
+impact**, and **data lineage** — all per repo.
 
 ## Measured Results
 
@@ -232,11 +228,8 @@ The UI surfaces:
 - **Diff** — compare symbols between two git refs (added/removed/modified columns)
 - **Settings** — configure API credentials, trigger incremental/full reindex, view version info
 
-<!-- DEMO ASSET: docs/assets/web-ui.svg is a tracked placeholder.
-     Replace with docs/assets/web-ui.gif after recording a walkthrough of the force graph,
-     search, symbol details, and the diff view. -->
 <p align="center">
-  <img src="docs/assets/web-ui.svg" alt="CodeAtlas web UI placeholder" width="720" />
+  <img src="docs/assets/screenshots/04-search.png" alt="Stratum search — hybrid full-text + semantic results with a detail pane" width="840" />
 </p>
 
 ## Installation
@@ -532,7 +525,7 @@ cd CodeAtlas
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[all,dev]"
 
-# Run tests with coverage (latest local gate: 1067 tests, 91.41% coverage)
+# Run tests with coverage (latest local gate: 1,175 tests, 89.15% coverage)
 .venv/bin/pytest -v --cov=codeatlas --cov-report=term-missing
 
 # Lint / format
@@ -548,8 +541,9 @@ codeatlas bench . --profile --eval-suite benchmarks/eval-suite.json --output ben
 Releases are fully automated via GitHub Actions. To cut a new release:
 
 ```bash
-# Bump version, tag, and push — CI will build and publish to PyPI
-make release VERSION=0.2.0
+# Bump version, tag, and push — CI builds, publishes to PyPI,
+# and attaches a CycloneDX SBOM + SLSA build provenance to the release.
+git tag v1.1.0 && git push --tags
 ```
 
 Requires:
